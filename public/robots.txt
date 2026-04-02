@@ -1,0 +1,29 @@
+User-agent: *
+Allow: /
+
+# Public pages
+Allow: /explore
+Allow: /pricing
+Allow: /forum
+Allow: /creator/
+Allow: /campaign/
+Allow: /signup
+Allow: /login
+
+# Block dashboard & private pages from crawling
+Disallow: /creator/dashboard
+Disallow: /creator/feed
+Disallow: /creator/post/
+Disallow: /creator/campaigns
+Disallow: /creator/orders
+Disallow: /creator/pitch
+Disallow: /creator/messages
+Disallow: /creator/earnings
+Disallow: /creator/withdraw
+Disallow: /creator/analytics
+Disallow: /creator/profile/
+Disallow: /creator/settings
+Disallow: /brand/
+Disallow: /notifications
+
+Sitemap: https://ogisback.com/sitemap.xml
