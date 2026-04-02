@@ -12,6 +12,7 @@ import Forum from './pages/Forum';
 import CreatorPublicProfile from './pages/CreatorPublicProfile';
 import CampaignPublicDetail from './pages/CampaignPublicDetail';
 import NotFound from './pages/NotFound';
+import AuthCallback from './pages/AuthCallback';
 import Notifications from './pages/Notifications';
 import LiveSupport from './components/LiveSupport';
 
@@ -69,6 +70,7 @@ function AppRoutes() {
       <Route path="/campaign/:id" element={<CampaignPublicDetail />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
 
       {/* Creator dashboard */}
       <Route path="/creator/dashboard" element={<ProtectedRoute requiredRole="creator"><CreatorDashboard /></ProtectedRoute>} />

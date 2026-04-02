@@ -10,7 +10,7 @@ export const useAuth = () => {
 };
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);         // Supabase auth user + profile merged
+  const [user, setUser] = useState(null);
   const [activeRole, setActiveRole] = useState(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('ogisback_dark') === 'true');
   const [loading, setLoading] = useState(true);
@@ -31,18 +31,10 @@ export function AuthProvider({ children }) {
     let subProfile = null;
 
     if (role === 'creator') {
-      const { data } = await supabase
-        .from('creator_profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
+      const { data } = await supabase.from('creator_profiles').select('*').eq('id', authUser.id).single();
       subProfile = data;
     } else {
-      const { data } = await supabase
-        .from('brand_profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
+      const { data } = await supabase.from('brand_profiles').select('*').eq('id', authUser.id).single();
       subProfile = data;
     }
 
@@ -53,7 +45,6 @@ export function AuthProvider({ children }) {
       plan: profile.plan,
       profileComplete: profile.profile_complete,
       darkMode: profile.dark_mode,
-      // creator fields
       name: subProfile?.name || authUser.email,
       username: subProfile?.username || null,
       avatar: subProfile?.avatar_url || null,
@@ -89,7 +80,6 @@ export function AuthProvider({ children }) {
 
   /* ── Auth actions ── */
 
-  // Sign up — role passed from Signup page
   const signup = async (email, password, role, name) => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -98,7 +88,6 @@ export function AuthProvider({ children }) {
     });
     if (error) throw error;
 
-    // Create sub-profile row
     if (data.user) {
       if (role === 'creator') {
         const username = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase();
@@ -109,56 +98,74 @@ export function AuthProvider({ children }) {
         });
       } else {
         const slug = name.toLowerCase().replace(/\s+/g, '-') + Math.floor(Math.random() * 999);
-        await supabase.from('brand_profiles').insert({
-          id: data.user.id,
-          slug,
-          name,
-        });
+        await supabase.from('brand_profiles').insert({ id: data.user.id, slug, name });
       }
-      // Mark profile_complete false until they fill in details
       await supabase.from('profiles').update({ profile_complete: false }).eq('id', data.user.id);
     }
     return data;
   };
 
-  // Login with email + password
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data;
   };
 
-  // Logout
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
     setActiveRole(null);
   };
 
-  // Mark profile complete (called after profile setup pages)
+  /* ── OAuth sign-in ── */
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) throw error;
+  };
+
+  // Instagram uses Meta/Facebook OAuth under the hood
+  const signInWithInstagram = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'facebook',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) throw error;
+  };
+
+  // Called from AuthCallback when a new OAuth user needs to create their profile
+  const setupOAuthProfile = async (userId, email, role, name) => {
+    await supabase.from('profiles').upsert({ id: userId, role, plan: 'free', profile_complete: false });
+    if (role === 'creator') {
+      const username = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase() + Math.floor(Math.random() * 999);
+      await supabase.from('creator_profiles').upsert({ id: userId, username, name });
+    } else {
+      const slug = name.toLowerCase().replace(/\s+/g, '-') + Math.floor(Math.random() * 999);
+      await supabase.from('brand_profiles').upsert({ id: userId, slug, name });
+    }
+    await fetchProfile({ id: userId, email });
+  };
+
   const completeProfile = async () => {
     if (!user) return;
     await supabase.from('profiles').update({ profile_complete: true }).eq('id', user.id);
     setUser(u => ({ ...u, profileComplete: true }));
   };
 
-  // Upgrade plan
   const upgradePlan = async (plan) => {
     if (!user) return;
     await supabase.from('profiles').update({ plan }).eq('id', user.id);
     setUser(u => ({ ...u, plan }));
   };
 
-  // Switch role (users that have both creator + brand profiles)
-  const switchRole = (role) => {
-    setActiveRole(role);
-  };
-
+  const switchRole = (role) => setActiveRole(role);
   const toggleDark = () => setDarkMode(d => !d);
 
-  /* ── Keep backward-compat mock login for dev testing ── */
+  /* ── Demo accounts (dev only) ── */
   const loginAsCreator = () => login('sarah@example.com', 'password123').catch(() => {
-    // fallback: just set a mock session for UI preview
     setUser({ id: 'mock-c1', name: 'Sarah Chen', role: 'creator', plan: 'free', profileComplete: true, walletBalance: 3120, pendingBalance: 2240, avatar: 'https://i.pravatar.cc/150?img=47' });
     setActiveRole('creator');
   });
@@ -172,18 +179,18 @@ export function AuthProvider({ children }) {
     activeRole,
     darkMode,
     loading,
-    // New real auth
     signup,
     login,
     logout,
+    signInWithGoogle,
+    signInWithInstagram,
+    setupOAuthProfile,
     completeProfile,
     upgradePlan,
     switchRole,
     toggleDark,
-    // Legacy compat (Login.jsx still calls these)
     loginAsCreator,
     loginAsBrand,
-    // Computed
     isCreator: activeRole === 'creator',
     isBrand: activeRole === 'brand',
     isLoggedIn: !!user,

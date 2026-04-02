@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Confirm your new OgisBack email</title>
+</head>
+<body style="margin:0;padding:0;background:#F3F4F6;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F3F4F6;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.07);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#7C3AED 0%,#EC4899 60%,#F59E0B 100%);padding:40px 48px;text-align:center;">
+            <div style="width:52px;height:52px;background:rgba(255,255,255,0.2);border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+              <span style="font-size:24px;font-weight:800;color:#fff;line-height:1;">O</span>
+            </div>
+            <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:800;letter-spacing:-0.5px;">OgisBack</h1>
+            <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:14px;">The content-first influencer marketplace</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:48px;text-align:center;">
+            <div style="width:60px;height:60px;background:#ECFDF5;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:24px;">
+              <span style="font-size:28px;">📧</span>
+            </div>
+            <h2 style="margin:0 0 12px;color:#111827;font-size:22px;font-weight:700;">Confirm your new email</h2>
+            <p style="margin:0 0 32px;color:#6B7280;font-size:15px;line-height:1.6;max-width:420px;margin-left:auto;margin-right:auto;">
+              You've requested to change the email address on your OgisBack account.
+              Click the button below to confirm this change.
+            </p>
+
+            <!-- New email display -->
+            <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:14px 20px;margin:0 auto 32px;max-width:320px;display:inline-block;">
+              <p style="margin:0;font-size:12px;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.5px;">New email address</p>
+              <p style="margin:4px 0 0;font-size:15px;font-weight:600;color:#111827;">{{ .Email }}</p>
+            </div>
+
+            <br/>
+
+            <a href="{{ .ConfirmationURL }}"
+               style="display:inline-block;background:linear-gradient(135deg,#7C3AED,#EC4899);color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 40px;border-radius:14px;letter-spacing:0.3px;">
+              Confirm Email Change
+            </a>
+
+            <!-- Security notice -->
+            <div style="margin:32px auto 0;max-width:420px;background:#FEF2F2;border-radius:12px;padding:16px 20px;text-align:left;">
+              <p style="margin:0;font-size:13px;color:#991B1B;line-height:1.5;">
+                🔒 <strong>Important:</strong> If you didn't request this change, please secure your account immediately by resetting your password.
+              </p>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Divider -->
+        <tr><td style="padding:0 48px;"><hr style="border:none;border-top:1px solid #F3F4F6;"/></td></tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#F9FAFB;padding:24px 48px;text-align:center;border-radius:0 0 20px 20px;">
+            <p style="margin:0 0 8px;font-size:12px;color:#9CA3AF;">© 2025 OgisBack. All rights reserved.</p>
+            <p style="margin:0;font-size:11px;color:#D1D5DB;">
+              If the button doesn't work, copy and paste this URL into your browser:<br/>
+              <span style="color:#7C3AED;word-break:break-all;">{{ .ConfirmationURL }}</span>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
