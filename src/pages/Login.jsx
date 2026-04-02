@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const GoogleIcon = () => (
@@ -15,40 +15,29 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const InstagramIcon = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+const InstagramIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
     <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
   </svg>
 );
 
+const stats = [
+  { num: '6,000+', label: 'Creators' },
+  { num: '$2.4M+', label: 'Paid Out' },
+  { num: '1,200+', label: 'Campaigns' },
+  { num: '98%', label: 'Satisfaction' },
+];
+
 export default function Login() {
-  const { login, signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
+  const { signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(null);
 
   useEffect(() => {
     if (isLoggedIn) navigate(activeRole === 'creator' ? '/creator/dashboard' : '/brand/discover');
   }, [isLoggedIn]);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    if (!email || !password) { toast.error('Please enter your email and password'); return; }
-    setLoading(true);
-    try {
-      await login(email, password);
-      toast.success('Welcome back!');
-    } catch (err) {
-      toast.error(err.message || 'Login failed. Check your credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGoogle = async () => {
     setOauthLoading('google');
@@ -62,153 +51,146 @@ export default function Login() {
     catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setOauthLoading(null); }
   };
 
-  const handleCreatorDemo = () => { loginAsCreator(); toast.success('Demo: Logged in as Creator'); };
-  const handleBrandDemo = () => { loginAsBrand(); toast.success('Demo: Logged in as Brand'); };
-  const anyLoading = loading || !!oauthLoading;
+  const anyLoading = !!oauthLoading;
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F] flex">
+    <div className="min-h-screen flex bg-[#0A0A0F]">
       <SEO title="Log In" description="Log in to your OgisBack account." url="/login" noindex={true} />
 
-      {/* Left gradient panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#7C3AED] via-[#EC4899] to-[#F59E0B] relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/20" />
-        <div className="relative z-10 flex flex-col justify-between p-12 text-white">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-              <span className="font-heading font-bold text-lg">O</span>
+      {/* ── Left panel ── */}
+      <div className="hidden lg:flex lg:w-[52%] relative overflow-hidden flex-col justify-between p-14">
+        {/* Gradient background layers */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#7C3AED] via-[#C026D3] to-[#EC4899]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.3),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(16,185,129,0.15),transparent_60%)]" />
+        {/* Decorative circles */}
+        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full border border-white/10" />
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full border border-white/10" />
+        <div className="absolute top-1/2 right-8 w-32 h-32 rounded-full bg-white/5" />
+
+        <div className="relative z-10">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-3 w-fit">
+            <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/20">
+              <span className="font-heading font-bold text-white text-lg">O</span>
             </div>
-            <span className="font-heading font-bold text-xl">OgisBack</span>
+            <span className="font-heading font-bold text-white text-xl tracking-tight">OgisBack</span>
           </Link>
-          <div>
-            <h1 className="text-4xl font-heading font-bold mb-4 leading-tight">Where Creators<br />Meet Brands</h1>
-            <p className="text-white/80 text-lg mb-8">The content-first influencer marketplace.</p>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { num: '6,000+', label: 'Active Creators' },
-                { num: '$2.4M+', label: 'Paid to Creators' },
-                { num: '1,200+', label: 'Brand Campaigns' },
-                { num: '98%', label: 'Satisfaction Rate' },
-              ].map(s => (
-                <div key={s.label} className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                  <p className="font-heading font-bold text-2xl">{s.num}</p>
-                  <p className="text-white/70 text-sm">{s.label}</p>
-                </div>
-              ))}
-            </div>
+        </div>
+
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-8">
+            <Sparkles size={13} className="text-yellow-300" />
+            <span className="text-white/90 text-xs font-medium">Trusted by 6,000+ creators worldwide</span>
           </div>
-          <div className="flex items-center gap-2">
-            {[47, 48, 49, 50].map((img, i) => (
-              <img key={img} src={`https://i.pravatar.cc/40?img=${img}`} alt="" className="w-10 h-10 rounded-full border-2 border-white/50 object-cover" style={{ marginLeft: i > 0 ? '-8px' : 0 }} />
+          <h1 className="text-5xl font-heading font-extrabold text-white leading-[1.1] mb-5 tracking-tight">
+            Where Creators<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-300">Meet Brands</span>
+          </h1>
+          <p className="text-white/70 text-lg leading-relaxed max-w-sm">
+            The content-first influencer marketplace. Get paid for your creativity.
+          </p>
+
+          {/* Stats */}
+          <div className="grid grid-cols-4 gap-3 mt-10">
+            {stats.map(s => (
+              <div key={s.label} className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
+                <div className="font-heading font-extrabold text-white text-xl">{s.num}</div>
+                <div className="text-white/60 text-xs mt-0.5">{s.label}</div>
+              </div>
             ))}
-            <p className="ml-3 text-sm text-white/80">Join 6,000+ creators</p>
           </div>
         </div>
-        <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-white/5" />
-        <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-white/5" />
+
+        {/* Avatars */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="flex">
+            {[47, 48, 49, 50, 51].map((img, i) => (
+              <img key={img} src={`https://i.pravatar.cc/36?img=${img}`} alt="" className="w-9 h-9 rounded-full border-2 border-white/40 object-cover" style={{ marginLeft: i > 0 ? '-10px' : 0 }} />
+            ))}
+          </div>
+          <p className="text-white/70 text-sm">Join thousands of creators earning today</p>
+        </div>
       </div>
 
-      {/* Right form panel */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-12">
-        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-          <Link to="/" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 text-sm mb-8 transition-colors">
-            <ArrowLeft size={16} /> Back to home
-          </Link>
-
-          <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-creator flex items-center justify-center">
+      {/* ── Right panel ── */}
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#0D0D14]">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-[380px]"
+        >
+          {/* Mobile logo */}
+          <div className="flex items-center gap-3 mb-10 lg:hidden">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center">
               <span className="text-white font-heading font-bold">O</span>
             </div>
-            <span className="font-heading font-bold text-xl text-gray-900 dark:text-white">OgisBack</span>
+            <span className="font-heading font-bold text-white text-xl">OgisBack</span>
           </div>
 
-          <h2 className="text-3xl font-heading font-bold text-gray-900 dark:text-white mb-2">Welcome back</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-8">Sign in to continue</p>
+          <Link to="/" className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-300 text-sm mb-10 transition-colors">
+            <ArrowLeft size={15} /> Back to home
+          </Link>
 
-          {/* OAuth buttons */}
-          <div className="space-y-3 mb-6">
-            <button
+          <div className="mb-10">
+            <h2 className="text-3xl font-heading font-extrabold text-white tracking-tight mb-2">Welcome back</h2>
+            <p className="text-gray-500 text-sm">Sign in to your account to continue</p>
+          </div>
+
+          {/* ── OAuth buttons ── */}
+          <div className="space-y-3">
+            <motion.button
+              whileTap={{ scale: 0.98 }}
               onClick={handleGoogle}
               disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white dark:bg-[#1a1a24] border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-white text-sm font-semibold hover:bg-gray-50 dark:hover:bg-[#22222e] transition-all shadow-sm disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white text-gray-900 text-sm font-semibold hover:bg-gray-50 active:bg-gray-100 transition-all shadow-lg shadow-black/20 disabled:opacity-50"
             >
               {oauthLoading === 'google'
                 ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
                 : <GoogleIcon />}
               Continue with Google
-            </button>
+            </motion.button>
 
-            <button
+            <motion.button
+              whileTap={{ scale: 0.98 }}
               onClick={handleInstagram}
               disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-[#833AB4] via-[#FD1D1D] to-[#FCB045] text-white text-sm font-semibold hover:opacity-90 transition-all shadow-sm disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold hover:opacity-90 active:opacity-80 transition-all shadow-lg shadow-pink-900/30 disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCB045 100%)' }}
             >
               {oauthLoading === 'instagram'
                 ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 : <InstagramIcon />}
               Continue with Instagram
-            </button>
+            </motion.button>
           </div>
 
-          <div className="relative flex items-center gap-3 mb-6">
-            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-            <span className="text-xs text-gray-400">or sign in with email</span>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-          </div>
-
-          {/* Email / Password form */}
-          <form onSubmit={handleLogin} className="space-y-4 mb-6">
-            <div className="form-group">
-              <label className="label">Email address</label>
-              <div className="relative">
-                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" className="input pl-9" required />
-              </div>
+          {/* Demo accounts — subtle */}
+          <div className="mt-8 pt-8 border-t border-white/5 space-y-2">
+            <p className="text-xs text-gray-600 text-center mb-3">Try a demo account</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => { loginAsCreator(); toast.success('Demo: Creator'); }}
+                disabled={anyLoading}
+                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
+              >
+                Creator Demo
+              </button>
+              <button
+                onClick={() => { loginAsBrand(); toast.success('Demo: Brand'); }}
+                disabled={anyLoading}
+                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
+              >
+                Brand Demo
+              </button>
             </div>
-            <div className="form-group">
-              <div className="flex items-center justify-between mb-1">
-                <label className="label mb-0">Password</label>
-                <Link to="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
-              </div>
-              <div className="relative">
-                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="Your password" className="input pl-9 pr-10" required />
-                <button type="button" onClick={() => setShowPassword(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
-            </div>
-            <button type="submit" disabled={anyLoading} className="btn btn-creator btn-lg w-full disabled:opacity-60">
-              {loading
-                ? <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Signing in…</span>
-                : <><LogIn size={17} /> Sign In</>}
-            </button>
-          </form>
-
-          {/* Demo accounts */}
-          <div className="relative flex items-center gap-3 mb-4">
-            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-            <span className="text-xs text-gray-400">or try a demo</span>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-          </div>
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <button onClick={handleCreatorDemo} disabled={anyLoading} className="flex items-center justify-center gap-2 p-3 rounded-xl bg-creator/10 text-creator border border-creator/20 text-sm font-semibold hover:bg-creator/20 transition-all disabled:opacity-60">
-              <InstagramIcon size={16} /> Creator Demo
-            </button>
-            <button onClick={handleBrandDemo} disabled={anyLoading} className="flex items-center justify-center gap-2 p-3 rounded-xl bg-brand/10 text-brand border border-brand/20 text-sm font-semibold hover:bg-brand/20 transition-all disabled:opacity-60">
-              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-              Brand Demo
-            </button>
           </div>
 
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-center text-xs text-gray-600 mt-8">
             Don't have an account?{' '}
-            <Link to="/signup" className="text-primary font-semibold hover:underline">Sign up free</Link>
+            <Link to="/signup" className="text-purple-400 hover:text-purple-300 font-semibold transition-colors">Sign up free</Link>
           </p>
-
-          <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
-            <p className="text-xs text-gray-400 text-center">By signing in, you agree to OgisBack's Terms of Service and Privacy Policy.</p>
-          </div>
         </motion.div>
       </div>
     </div>
