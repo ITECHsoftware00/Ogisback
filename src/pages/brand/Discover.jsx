@@ -9,6 +9,7 @@ import ContentCard from '../../components/ContentCard';
 import EmptyState from '../../components/ui/EmptyState';
 import Modal from '../../components/ui/Modal';
 import { creators, contentFeed } from '../../data';
+import SEO from '../../components/SEO';
 
 const niches = ['All', 'Fashion', 'Beauty', 'Tech', 'Fitness', 'Food', 'Travel', 'Finance', 'Lifestyle'];
 const platforms = ['All Platforms', 'Instagram', 'TikTok', 'YouTube'];
@@ -52,6 +53,7 @@ export default function BrandDiscover() {
 
   return (
     <DashboardLayout>
+      <SEO title="Discover Creators" noindex={true} />
       <div className="page-header">
         <h1 className="page-title">Discover Creators</h1>
         <p className="page-subtitle">Browse {creators.length} verified creators across all niches</p>

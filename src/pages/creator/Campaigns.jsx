@@ -8,6 +8,7 @@ import CampaignCard from '../../components/CampaignCard';
 import EmptyState from '../../components/ui/EmptyState';
 import Modal from '../../components/ui/Modal';
 import { campaigns, getCampaignById } from '../../data';
+import SEO from '../../components/SEO';
 
 export default function CreatorCampaigns() {
   const [search, setSearch] = useState('');
@@ -34,6 +35,7 @@ export default function CreatorCampaigns() {
 
   return (
     <DashboardLayout>
+      <SEO title="Campaigns" noindex={true} />
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="page-title">Campaigns</h1>

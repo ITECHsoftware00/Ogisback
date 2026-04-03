@@ -7,6 +7,7 @@ import StatCard from '../../components/ui/StatCard';
 import { StatusBadge } from '../../components/ui/Badge';
 import { orders, campaigns, creators, formatCurrency, formatNumber } from '../../data';
 import { useAuth } from '../../context/AuthContext';
+import SEO from '../../components/SEO';
 
 const spendData = [
   { month: 'Feb', spend: 8000 }, { month: 'Mar', spend: 12000 },
@@ -21,6 +22,7 @@ export default function BrandDashboard() {
 
   return (
     <DashboardLayout>
+      <SEO title="Brand Dashboard" noindex={true} />
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="page-title">Welcome back, {user?.name} 👋</h1>

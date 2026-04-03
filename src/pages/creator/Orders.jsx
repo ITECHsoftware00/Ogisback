@@ -6,6 +6,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import EmptyState from '../../components/ui/EmptyState';
 import { StatusBadge } from '../../components/ui/Badge';
 import { orders, formatCurrency, timeAgo } from '../../data';
+import SEO from '../../components/SEO';
 
 const statusTabs = ['all', 'active', 'in_review', 'delivered', 'completed', 'revision_requested'];
 
@@ -21,6 +22,7 @@ export default function CreatorOrders() {
 
   return (
     <DashboardLayout>
+      <SEO title="Orders" noindex={true} />
       <div className="page-header">
         <h1 className="page-title">Orders</h1>
         <p className="page-subtitle">{myOrders.length} total orders · {myOrders.filter(o => ['active', 'in_review', 'delivered'].includes(o.status)).length} active</p>

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { StatusBadge } from '../../components/ui/Badge';
 import { getOrderById, orders, formatCurrency } from '../../data';
+import SEO from '../../components/SEO';
 
 export default function BrandOrderDetail() {
   const { id } = useParams();
@@ -29,6 +30,7 @@ export default function BrandOrderDetail() {
 
   return (
     <DashboardLayout>
+      <SEO title="Order Details" noindex={true} />
       <Link to="/brand/orders" className="inline-flex items-center gap-2 text-gray-500 hover:text-brand text-sm mb-6 transition-colors">
         <ArrowLeft size={16} /> Back to orders
       </Link>

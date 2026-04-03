@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { User } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import SEO from '../components/SEO';
 
 const InstagramIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -83,7 +84,9 @@ export default function AuthCallback() {
   /* ── Loading spinner ── */
   if (step === 'loading') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] dark:bg-[#0A0A0F] gap-4">
+      <div
+ className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] dark:bg-[#0A0A0F] gap-4">
+      <SEO title="Signing in…" noindex={true} />
         <div className="w-14 h-14 rounded-2xl bg-gradient-creator flex items-center justify-center shadow-glow-creator mb-2">
           <span className="text-white font-heading font-bold text-xl">O</span>
         </div>

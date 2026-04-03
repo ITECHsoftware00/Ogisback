@@ -5,6 +5,7 @@ import { Wallet, ArrowDownToLine, TrendingUp, Clock, CheckCircle, DollarSign } f
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { transactions, earningsHistory, formatCurrency, timeAgo } from '../../data';
 import { useAuth } from '../../context/AuthContext';
+import SEO from '../../components/SEO';
 
 export default function CreatorEarnings() {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ export default function CreatorEarnings() {
 
   return (
     <DashboardLayout>
+      <SEO title="Earnings" noindex={true} />
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="page-title flex items-center gap-2"><Wallet size={22} className="text-wallet" />Earnings</h1>

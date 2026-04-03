@@ -7,6 +7,7 @@ import Modal from '../../components/ui/Modal';
 import { NicheBadge } from '../../components/ui/Badge';
 import ContentCard from '../../components/ContentCard';
 import { creators, contentFeed, formatNumber } from '../../data';
+import SEO from '../../components/SEO';
 
 export default function BrandCreatorView() {
   const { username } = useParams();
@@ -30,6 +31,7 @@ export default function BrandCreatorView() {
 
   return (
     <DashboardLayout>
+      <SEO title="Creator Profile" noindex={true} />
       <Link to="/brand/discover" className="inline-flex items-center gap-2 text-gray-500 hover:text-brand text-sm mb-6 transition-colors">
         <ArrowLeft size={16} /> Back to discover
       </Link>

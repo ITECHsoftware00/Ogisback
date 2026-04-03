@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import SEO from '../../components/SEO';
 
 function Toggle({ checked, onChange }) {
   return (
@@ -44,6 +45,7 @@ export default function CreatorSettings() {
 
   return (
     <DashboardLayout>
+      <SEO title="Settings" noindex={true} />
       <div className="max-w-xl mx-auto">
         <div className="page-header">
           <h1 className="page-title">Settings</h1>

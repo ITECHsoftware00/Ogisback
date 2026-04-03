@@ -4,6 +4,7 @@ import { Zap, Send, Building2, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { brands } from '../../data';
+import SEO from '../../components/SEO';
 
 export default function CreatorPitch() {
   const [selectedBrand, setSelectedBrand] = useState('');
@@ -23,6 +24,7 @@ export default function CreatorPitch() {
 
   return (
     <DashboardLayout>
+      <SEO title="Submit Pitch" noindex={true} />
       <div className="max-w-2xl mx-auto">
         <div className="page-header">
           <h1 className="page-title flex items-center gap-2"><Zap size={22} className="text-creator" />Pitch to Brands</h1>

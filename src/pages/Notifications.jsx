@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import Navbar from '../components/layout/Navbar';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../hooks/useRealtime';
+import SEO from '../components/SEO';
 
 const typeIcon = {
   order: ShoppingBag, message: MessageSquare, payment: DollarSign,
@@ -37,7 +38,9 @@ export default function Notifications() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F]">
+    <div
+ className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F]">
+      <SEO title="Notifications" noindex={true} />
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">

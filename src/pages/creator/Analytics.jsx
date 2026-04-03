@@ -4,6 +4,7 @@ import { TrendingUp, Eye, Heart, Bookmark, Users, BarChart3 } from 'lucide-react
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import StatCard from '../../components/ui/StatCard';
 import { contentFeed, earningsHistory, formatNumber } from '../../data';
+import SEO from '../../components/SEO';
 
 const COLORS = ['#EC4899', '#7C3AED', '#0D9488', '#F59E0B'];
 const nicheData = [
@@ -27,6 +28,7 @@ const totalSaves = myPosts.reduce((s, p) => s + p.saves, 0);
 export default function CreatorAnalytics() {
   return (
     <DashboardLayout>
+      <SEO title="Analytics" noindex={true} />
       <div className="page-header">
         <h1 className="page-title flex items-center gap-2"><BarChart3 size={22} className="text-primary" />Analytics</h1>
         <p className="page-subtitle">Performance insights for your content and profile</p>

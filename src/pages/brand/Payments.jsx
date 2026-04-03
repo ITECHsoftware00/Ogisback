@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import { CreditCard, Shield, TrendingUp, DollarSign, CheckCircle, Clock } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { orders, formatCurrency } from '../../data';
+import SEO from '../../components/SEO';
 
 const monthlySpend = [
   { month: 'Feb', spend: 8000 }, { month: 'Mar', spend: 12000 },
@@ -17,6 +18,7 @@ export default function BrandPayments() {
 
   return (
     <DashboardLayout>
+      <SEO title="Payments" noindex={true} />
       <div className="page-header">
         <h1 className="page-title flex items-center gap-2"><CreditCard size={22} className="text-brand" />Payments</h1>
         <p className="page-subtitle">Track your campaign spending and escrow balances</p>

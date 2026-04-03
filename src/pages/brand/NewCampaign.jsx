@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Megaphone, Plus, X, CheckCircle, DollarSign, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import SEO from '../../components/SEO';
 
 const niches = ['Fashion', 'Beauty', 'Skincare', 'Tech', 'Gaming', 'Fitness', 'Health', 'Food', 'Travel', 'Finance', 'Lifestyle', 'Education', 'Wellness'];
 const platforms = ['Instagram', 'TikTok', 'YouTube', 'Twitter/X', 'Facebook', 'LinkedIn'];
@@ -34,6 +35,7 @@ export default function BrandNewCampaign() {
 
   return (
     <DashboardLayout>
+      <SEO title="Create Campaign" noindex={true} />
       <div className="max-w-2xl mx-auto">
         <div className="page-header">
           <h1 className="page-title flex items-center gap-2"><Megaphone size={22} className="text-brand" />New Campaign</h1>

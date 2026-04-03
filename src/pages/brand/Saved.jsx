@@ -7,6 +7,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import EmptyState from '../../components/ui/EmptyState';
 import CreatorCard from '../../components/CreatorCard';
 import { creators } from '../../data';
+import SEO from '../../components/SEO';
 
 export default function BrandSaved() {
   const [search, setSearch] = useState('');
@@ -20,6 +21,7 @@ export default function BrandSaved() {
 
   return (
     <DashboardLayout>
+      <SEO title="Saved Creators" noindex={true} />
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="page-title flex items-center gap-2"><BookMarked size={22} className="text-brand" />Saved Creators</h1>

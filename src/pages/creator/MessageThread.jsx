@@ -4,6 +4,7 @@ import { ArrowLeft, Send, Paperclip, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { getConversationById, conversations, timeAgo } from '../../data';
+import SEO from '../../components/SEO';
 
 export default function CreatorMessageThread() {
   const { id } = useParams();
@@ -24,6 +25,7 @@ export default function CreatorMessageThread() {
 
   return (
     <DashboardLayout>
+      <SEO title="Conversation" noindex={true} />
       <div className="flex flex-col h-[calc(100vh-10rem)] max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100 dark:border-gray-800">

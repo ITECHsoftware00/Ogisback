@@ -10,6 +10,7 @@ import StatCard from '../../components/ui/StatCard';
 import { StatusBadge } from '../../components/ui/Badge';
 import { orders, earningsHistory, contentFeed, campaigns, formatCurrency, formatNumber, timeAgo } from '../../data';
 import { useAuth } from '../../context/AuthContext';
+import SEO from '../../components/SEO';
 
 export default function CreatorDashboard() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export default function CreatorDashboard() {
 
   return (
     <DashboardLayout>
+      <SEO title="Creator Dashboard" noindex={true} />
       {/* Welcome */}
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

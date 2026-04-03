@@ -4,6 +4,7 @@ import { ArrowDownToLine, CreditCard, Shield, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
+import SEO from '../../components/SEO';
 
 const methods = [
   { id: 'paypal', name: 'PayPal', icon: '🅿', desc: 'Instant · paypal.me/handle', fee: '0%' },
@@ -39,6 +40,7 @@ export default function CreatorWithdraw() {
 
   if (success) return (
     <DashboardLayout>
+      <SEO title="Withdraw Funds" noindex={true} />
       <div className="max-w-lg mx-auto py-16 text-center">
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
           <CheckCircle size={40} className="text-green-600" />

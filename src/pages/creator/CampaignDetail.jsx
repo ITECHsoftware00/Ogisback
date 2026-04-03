@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { NicheBadge } from '../../components/ui/Badge';
 import { getCampaignById, campaigns, formatCurrency } from '../../data';
+import SEO from '../../components/SEO';
 
 export default function CreatorCampaignDetail() {
   const { id } = useParams();
@@ -12,6 +13,7 @@ export default function CreatorCampaignDetail() {
 
   return (
     <DashboardLayout>
+      <SEO title="Campaign Details" noindex={true} />
       <Link to="/creator/campaigns" className="inline-flex items-center gap-2 text-gray-500 hover:text-primary text-sm mb-6 transition-colors">
         <ArrowLeft size={16} /> Back to campaigns
       </Link>

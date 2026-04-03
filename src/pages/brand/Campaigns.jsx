@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import EmptyState from '../../components/ui/EmptyState';
 import { campaigns, formatCurrency } from '../../data';
+import SEO from '../../components/SEO';
 
 const statusColors = { active: 'badge-success', draft: 'badge-gray', completed: 'badge-brand' };
 
@@ -21,6 +22,7 @@ export default function BrandCampaigns() {
 
   return (
     <DashboardLayout>
+      <SEO title="My Campaigns" noindex={true} />
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="page-title">My Campaigns</h1>

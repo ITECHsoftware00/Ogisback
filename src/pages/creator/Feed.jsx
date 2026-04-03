@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import EmptyState from '../../components/ui/EmptyState';
 import { contentFeed, formatNumber, timeAgo } from '../../data';
+import SEO from '../../components/SEO';
 
 const typeColors = { reel: 'badge-creator', video: 'badge-primary', photo: 'badge-gray', carousel: 'badge-brand' };
 
@@ -21,6 +22,7 @@ export default function CreatorFeed() {
 
   return (
     <DashboardLayout>
+      <SEO title="My Feed" noindex={true} />
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="page-title">My Content</h1>

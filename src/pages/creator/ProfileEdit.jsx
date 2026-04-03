@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
+import SEO from '../../components/SEO';
 
 const niches = [
   'Fashion', 'Beauty', 'Skincare', 'Tech', 'Gaming',
@@ -75,6 +76,7 @@ const SETUP_STEPS = ['Your Identity', 'Content Niches', 'Social Platforms', 'You
 function FieldHint({ children }) {
   return (
     <p className="flex items-start gap-1.5 text-xs text-gray-400 mt-1.5">
+      <SEO title="Edit Profile" noindex={true} />
       <Info size={11} className="mt-0.5 flex-shrink-0" />
       {children}
     </p>

@@ -5,6 +5,7 @@ import { MessageSquare, Search } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import EmptyState from '../../components/ui/EmptyState';
 import { conversations, timeAgo } from '../../data';
+import SEO from '../../components/SEO';
 
 export default function BrandMessages() {
   const [search, setSearch] = useState('');
@@ -15,6 +16,7 @@ export default function BrandMessages() {
 
   return (
     <DashboardLayout>
+      <SEO title="Messages" noindex={true} />
       <div className="page-header">
         <h1 className="page-title">Messages</h1>
         <p className="page-subtitle">{conversations.filter(c => c.unread > 0).length} unread conversations</p>

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Upload, X, Image, Film, Play, Images, Hash, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import SEO from '../../components/SEO';
 
 const contentTypes = [
   { id: 'photo', icon: Image, label: 'Photo', desc: 'Single image post' },
@@ -49,6 +50,7 @@ export default function CreatorNewPost() {
 
   return (
     <DashboardLayout>
+      <SEO title="New Post" noindex={true} />
       <div className="max-w-2xl mx-auto">
         <div className="page-header">
           <h1 className="page-title">New Post</h1>
