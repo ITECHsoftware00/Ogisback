@@ -54,22 +54,19 @@ export default function Login() {
   const anyLoading = !!oauthLoading;
 
   return (
-    <div className="min-h-screen flex bg-[#0A0A0F]">
+    <div className="min-h-screen flex bg-white dark:bg-[#0A0A0F]">
       <SEO title="Log In" description="Log in to your OgisBack account." url="/login" noindex={true} />
 
-      {/* ── Left panel ── */}
+      {/* ── Left gradient panel (always dark — gradient works in both modes) ── */}
       <div className="hidden lg:flex lg:w-[52%] relative overflow-hidden flex-col justify-between p-14">
-        {/* Gradient background layers */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#7C3AED] via-[#C026D3] to-[#EC4899]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.3),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(16,185,129,0.15),transparent_60%)]" />
-        {/* Decorative circles */}
         <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full border border-white/10" />
         <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full border border-white/10" />
         <div className="absolute top-1/2 right-8 w-32 h-32 rounded-full bg-white/5" />
 
         <div className="relative z-10">
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-3 w-fit">
             <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/20">
               <span className="font-heading font-bold text-white text-lg">O</span>
@@ -90,8 +87,6 @@ export default function Login() {
           <p className="text-white/70 text-lg leading-relaxed max-w-sm">
             The content-first influencer marketplace. Get paid for your creativity.
           </p>
-
-          {/* Stats */}
           <div className="grid grid-cols-4 gap-3 mt-10">
             {stats.map(s => (
               <div key={s.label} className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
@@ -102,7 +97,6 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Avatars */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="flex">
             {[47, 48, 49, 50, 51].map((img, i) => (
@@ -113,8 +107,8 @@ export default function Login() {
         </div>
       </div>
 
-      {/* ── Right panel ── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#0D0D14]">
+      {/* ── Right form panel ── */}
+      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#FAFAFA] dark:bg-[#0D0D14]">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -126,25 +120,27 @@ export default function Login() {
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center">
               <span className="text-white font-heading font-bold">O</span>
             </div>
-            <span className="font-heading font-bold text-white text-xl">OgisBack</span>
+            <span className="font-heading font-bold text-gray-900 dark:text-white text-xl">OgisBack</span>
           </div>
 
-          <Link to="/" className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-300 text-sm mb-10 transition-colors">
+          <Link to="/" className="inline-flex items-center gap-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm mb-10 transition-colors">
             <ArrowLeft size={15} /> Back to home
           </Link>
 
           <div className="mb-10">
-            <h2 className="text-3xl font-heading font-extrabold text-white tracking-tight mb-2">Welcome back</h2>
+            <h2 className="text-3xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-2">
+              Welcome back
+            </h2>
             <p className="text-gray-500 text-sm">Sign in to your account to continue</p>
           </div>
 
-          {/* ── OAuth buttons ── */}
+          {/* OAuth buttons */}
           <div className="space-y-3">
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleGoogle}
               disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white text-gray-900 text-sm font-semibold hover:bg-gray-50 active:bg-gray-100 transition-all shadow-lg shadow-black/20 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-100 active:bg-gray-100 transition-all shadow-sm dark:shadow-lg dark:shadow-black/30 disabled:opacity-50"
             >
               {oauthLoading === 'google'
                 ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
@@ -156,7 +152,7 @@ export default function Login() {
               whileTap={{ scale: 0.98 }}
               onClick={handleInstagram}
               disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold hover:opacity-90 active:opacity-80 transition-all shadow-lg shadow-pink-900/30 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold hover:opacity-90 active:opacity-80 transition-all shadow-sm dark:shadow-lg dark:shadow-pink-900/30 disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCB045 100%)' }}
             >
               {oauthLoading === 'instagram'
@@ -166,30 +162,30 @@ export default function Login() {
             </motion.button>
           </div>
 
-          {/* Demo accounts — subtle */}
-          <div className="mt-8 pt-8 border-t border-white/5 space-y-2">
-            <p className="text-xs text-gray-600 text-center mb-3">Try a demo account</p>
+          {/* Demo accounts */}
+          <div className="mt-8 pt-8 border-t border-gray-200 dark:border-white/5 space-y-2">
+            <p className="text-xs text-gray-400 dark:text-gray-600 text-center mb-3">Try a demo account</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => { loginAsCreator(); toast.success('Demo: Creator'); }}
                 disabled={anyLoading}
-                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
+                className="py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
               >
                 Creator Demo
               </button>
               <button
                 onClick={() => { loginAsBrand(); toast.success('Demo: Brand'); }}
                 disabled={anyLoading}
-                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
+                className="py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
               >
                 Brand Demo
               </button>
             </div>
           </div>
 
-          <p className="text-center text-xs text-gray-600 mt-8">
+          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-8">
             Don't have an account?{' '}
-            <Link to="/signup" className="text-purple-400 hover:text-purple-300 font-semibold transition-colors">Sign up free</Link>
+            <Link to="/signup" className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-semibold transition-colors">Sign up free</Link>
           </p>
         </motion.div>
       </div>

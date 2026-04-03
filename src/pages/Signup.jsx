@@ -15,7 +15,7 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const InstagramIcon = ({ size = 20 }) => (
+const InstagramIcon = ({ size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
@@ -61,18 +61,18 @@ export default function Signup() {
   const anyLoading = !!oauthLoading;
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] flex flex-col">
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F] flex flex-col">
       <SEO title="Join OgisBack — Free for Creators & Brands" description="Create your free OgisBack account as a creator or brand." url="/signup" />
 
       {/* Top bar */}
       <div className="flex items-center justify-between px-8 py-6">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center shadow-sm">
             <span className="font-heading font-bold text-white">O</span>
           </div>
-          <span className="font-heading font-bold text-white text-lg tracking-tight">OgisBack</span>
+          <span className="font-heading font-bold text-gray-900 dark:text-white text-lg tracking-tight">OgisBack</span>
         </Link>
-        <Link to="/" className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-300 text-sm transition-colors">
+        <Link to="/" className="inline-flex items-center gap-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm transition-colors">
           <ArrowLeft size={15} /> Back
         </Link>
       </div>
@@ -87,27 +87,27 @@ export default function Signup() {
         >
           {/* Badge */}
           <div className="flex justify-center mb-8">
-            <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5">
-              <Sparkles size={13} className="text-yellow-400" />
-              <span className="text-gray-400 text-xs font-medium">Join 6,000+ creators & brands</span>
+            <div className="inline-flex items-center gap-2 bg-purple-50 dark:bg-white/5 border border-purple-100 dark:border-white/10 rounded-full px-4 py-1.5">
+              <Sparkles size={13} className="text-yellow-500 dark:text-yellow-400" />
+              <span className="text-purple-700 dark:text-gray-400 text-xs font-medium">Join 6,000+ creators & brands</span>
             </div>
           </div>
 
           {/* Headline */}
           <div className="text-center mb-10">
-            <h1 className="text-4xl font-heading font-extrabold text-white tracking-tight mb-3">
+            <h1 className="text-4xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">
               Create your account
             </h1>
             <p className="text-gray-500 text-base">Sign up in seconds with your existing account</p>
           </div>
 
           {/* OAuth buttons */}
-          <div className="space-y-3 mb-8">
+          <div className="space-y-3 mb-6">
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleGoogle}
               disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white text-gray-900 text-sm font-semibold hover:bg-gray-50 transition-all shadow-lg shadow-black/30 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-100 transition-all shadow-sm dark:shadow-lg dark:shadow-black/30 disabled:opacity-50"
             >
               {oauthLoading === 'google'
                 ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
@@ -119,7 +119,7 @@ export default function Signup() {
               whileTap={{ scale: 0.98 }}
               onClick={handleInstagram}
               disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold hover:opacity-90 transition-all shadow-lg shadow-pink-900/20 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold hover:opacity-90 transition-all shadow-sm dark:shadow-lg dark:shadow-pink-900/20 disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCB045 100%)' }}
             >
               {oauthLoading === 'instagram'
@@ -130,21 +130,21 @@ export default function Signup() {
           </div>
 
           {/* Trust line */}
-          <p className="text-center text-xs text-gray-600 mb-10">
+          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mb-10">
             By signing up, you agree to our Terms of Service and Privacy Policy
           </p>
 
           {/* Feature cards */}
           <div className="grid grid-cols-2 gap-3">
             {/* Creator card */}
-            <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center mb-3">
+            <div className="rounded-2xl border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] p-4 shadow-sm dark:shadow-none">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center mb-3 shadow-sm">
                 <InstagramIcon size={16} />
               </div>
-              <div className="text-white text-sm font-semibold mb-2">Creator</div>
+              <div className="text-gray-900 dark:text-white text-sm font-semibold mb-2">Creator</div>
               <ul className="space-y-1.5">
                 {creatorPerks.map(p => (
-                  <li key={p} className="flex items-start gap-1.5 text-[11px] text-gray-500">
+                  <li key={p} className="flex items-start gap-1.5 text-[11px] text-gray-500 dark:text-gray-500">
                     <CheckCircle size={11} className="text-purple-500 flex-shrink-0 mt-0.5" />
                     {p}
                   </li>
@@ -153,14 +153,14 @@ export default function Signup() {
             </div>
 
             {/* Brand card */}
-            <div className="rounded-2xl border border-white/8 bg-white/3 p-4">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center mb-3">
+            <div className="rounded-2xl border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] p-4 shadow-sm dark:shadow-none">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center mb-3 shadow-sm">
                 <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
               </div>
-              <div className="text-white text-sm font-semibold mb-2">Brand</div>
+              <div className="text-gray-900 dark:text-white text-sm font-semibold mb-2">Brand</div>
               <ul className="space-y-1.5">
                 {brandPerks.map(p => (
-                  <li key={p} className="flex items-start gap-1.5 text-[11px] text-gray-500">
+                  <li key={p} className="flex items-start gap-1.5 text-[11px] text-gray-500 dark:text-gray-500">
                     <CheckCircle size={11} className="text-blue-500 flex-shrink-0 mt-0.5" />
                     {p}
                   </li>
@@ -170,29 +170,29 @@ export default function Signup() {
           </div>
 
           {/* Demo accounts */}
-          <div className="mt-6 pt-6 border-t border-white/5">
-            <p className="text-xs text-gray-600 text-center mb-3">Just exploring? Try a demo</p>
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-white/5">
+            <p className="text-xs text-gray-400 dark:text-gray-600 text-center mb-3">Just exploring? Try a demo</p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => { loginAsCreator(); toast.success('Demo: Creator'); }}
                 disabled={anyLoading}
-                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
+                className="py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
               >
                 Creator Demo
               </button>
               <button
                 onClick={() => { loginAsBrand(); toast.success('Demo: Brand'); }}
                 disabled={anyLoading}
-                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
+                className="py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
               >
                 Brand Demo
               </button>
             </div>
           </div>
 
-          <p className="text-center text-xs text-gray-600 mt-6">
+          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="text-purple-400 hover:text-purple-300 font-semibold transition-colors">Sign in</Link>
+            <Link to="/login" className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-semibold transition-colors">Sign in</Link>
           </p>
         </motion.div>
       </div>
