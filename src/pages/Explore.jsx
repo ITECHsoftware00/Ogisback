@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { motion } from 'framer-motion';
@@ -8,7 +8,9 @@ import Navbar from '../components/layout/Navbar';
 import ContentCard from '../components/ContentCard';
 import CreatorCard from '../components/CreatorCard';
 import CampaignCard from '../components/CampaignCard';
-import { contentFeed, creators, campaigns } from '../data';
+import { contentFeed, creators as mockCreators, campaigns as mockCampaigns } from '../data';
+import { getCreators, getCampaigns } from '../lib/db';
+import { normalizeCreator, normalizeCampaign } from '../lib/normalize';
 import { useAuth } from '../context/AuthContext';
 
 const tabs = ['All Content', 'Creators', 'Campaigns'];
@@ -18,8 +20,20 @@ export default function Explore() {
   const [activeTab, setActiveTab] = useState('All Content');
   const [activeNiche, setActiveNiche] = useState('All');
   const [search, setSearch] = useState('');
+  const [creators, setCreators] = useState(mockCreators);
+  const [campaigns, setCampaigns] = useState(mockCampaigns);
   const { isBrand, isLoggedIn } = useAuth();
   const navigate = useNavigate();
+
+  // Load real data from Supabase; fall back to mock if DB is empty
+  useEffect(() => {
+    getCreators({ limit: 50 })
+      .then(data => { if (data.length > 0) setCreators(data.map(normalizeCreator)); })
+      .catch(() => {});
+    getCampaigns({ status: 'active', limit: 50 })
+      .then(data => { if (data.length > 0) setCampaigns(data.map(normalizeCampaign)); })
+      .catch(() => {});
+  }, []);
 
   const handleHire = (item) => {
     if (!isLoggedIn) { navigate('/login'); return; }

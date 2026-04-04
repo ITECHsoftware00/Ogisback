@@ -7,12 +7,15 @@ import Landing from './pages/Landing';
 import Explore from './pages/Explore';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
 import Pricing from './pages/Pricing';
 import Forum from './pages/Forum';
 import CreatorPublicProfile from './pages/CreatorPublicProfile';
 import CampaignPublicDetail from './pages/CampaignPublicDetail';
 import NotFound from './pages/NotFound';
 import AuthCallback from './pages/AuthCallback';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentCancel from './pages/PaymentCancel';
 import Notifications from './pages/Notifications';
 import LiveSupport from './components/LiveSupport';
 
@@ -45,6 +48,7 @@ import BrandOrderDetail from './pages/brand/OrderDetail';
 import BrandMessages from './pages/brand/Messages';
 import BrandMessageThread from './pages/brand/MessageThread';
 import BrandPayments from './pages/brand/Payments';
+import BrandAddFunds from './pages/brand/AddFunds';
 import BrandSaved from './pages/brand/Saved';
 import BrandSettings from './pages/brand/Settings';
 
@@ -70,7 +74,10 @@ function AppRoutes() {
       <Route path="/campaign/:id" element={<CampaignPublicDetail />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/payment/success" element={<PaymentSuccess />} />
+      <Route path="/payment/cancel" element={<PaymentCancel />} />
 
       {/* Creator dashboard */}
       <Route path="/creator/dashboard" element={<ProtectedRoute requiredRole="creator"><CreatorDashboard /></ProtectedRoute>} />
@@ -101,6 +108,7 @@ function AppRoutes() {
       <Route path="/brand/messages" element={<ProtectedRoute requiredRole="brand"><BrandMessages /></ProtectedRoute>} />
       <Route path="/brand/messages/:id" element={<ProtectedRoute requiredRole="brand"><BrandMessageThread /></ProtectedRoute>} />
       <Route path="/brand/payments" element={<ProtectedRoute requiredRole="brand"><BrandPayments /></ProtectedRoute>} />
+      <Route path="/brand/add-funds" element={<ProtectedRoute requiredRole="brand"><BrandAddFunds /></ProtectedRoute>} />
       <Route path="/brand/saved" element={<ProtectedRoute requiredRole="brand"><BrandSaved /></ProtectedRoute>} />
       <Route path="/brand/settings" element={<ProtectedRoute requiredRole="brand"><BrandSettings /></ProtectedRoute>} />
 

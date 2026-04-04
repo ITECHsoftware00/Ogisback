@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const GoogleIcon = () => (
@@ -33,6 +33,7 @@ const stats = [
 export default function Login() {
   const { signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
+  const [selectedRole, setSelectedRole] = useState(null);
   const [oauthLoading, setOauthLoading] = useState(null);
 
   useEffect(() => {
@@ -41,13 +42,13 @@ export default function Login() {
 
   const handleGoogle = async () => {
     setOauthLoading('google');
-    try { await signInWithGoogle(); }
+    try { await signInWithGoogle(selectedRole); }
     catch (err) { toast.error(err.message || 'Google sign-in failed.'); setOauthLoading(null); }
   };
 
   const handleInstagram = async () => {
     setOauthLoading('instagram');
-    try { await signInWithInstagram(); }
+    try { await signInWithInstagram(selectedRole); }
     catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setOauthLoading(null); }
   };
 
@@ -57,7 +58,7 @@ export default function Login() {
     <div className="min-h-screen flex bg-white dark:bg-[#0A0A0F]">
       <SEO title="Log In" description="Log in to your OgisBack account." url="/login" noindex={true} />
 
-      {/* ── Left gradient panel (always dark — gradient works in both modes) ── */}
+      {/* ── Left gradient panel ── */}
       <div className="hidden lg:flex lg:w-[52%] relative overflow-hidden flex-col justify-between p-14">
         <div className="absolute inset-0 bg-gradient-to-br from-[#7C3AED] via-[#C026D3] to-[#EC4899]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.3),transparent_60%)]" />
@@ -113,7 +114,7 @@ export default function Login() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full max-w-[380px]"
+          className="w-full max-w-[400px]"
         >
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-10 lg:hidden">
@@ -123,24 +124,70 @@ export default function Login() {
             <span className="font-heading font-bold text-gray-900 dark:text-white text-xl">OgisBack</span>
           </div>
 
-          <Link to="/" className="inline-flex items-center gap-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm mb-10 transition-colors">
+          <Link to="/" className="inline-flex items-center gap-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm mb-8 transition-colors">
             <ArrowLeft size={15} /> Back to home
           </Link>
 
-          <div className="mb-10">
-            <h2 className="text-3xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-2">
+          <div className="mb-7">
+            <h2 className="text-3xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-1">
               Welcome back
             </h2>
-            <p className="text-gray-500 text-sm">Sign in to your account to continue</p>
+            <p className="text-gray-500 text-sm">Who are you signing in as?</p>
           </div>
+
+          {/* Role picker */}
+          <div className="grid grid-cols-2 gap-3 mb-7">
+            {[
+              { id: 'creator', emoji: '🎬', label: 'Creator', sub: 'I make content', border: 'border-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/20', ring: 'ring-purple-400', dot: 'bg-purple-500' },
+              { id: 'brand',   emoji: '🏢', label: 'Brand',   sub: 'I hire creators', border: 'border-blue-400',   bg: 'bg-blue-50 dark:bg-blue-900/20',     ring: 'ring-blue-400',   dot: 'bg-blue-500'   },
+            ].map(r => (
+              <motion.button
+                key={r.id}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setSelectedRole(r.id)}
+                disabled={anyLoading}
+                className={`relative p-4 rounded-2xl border-2 text-left transition-all duration-200 disabled:opacity-50
+                  ${selectedRole === r.id
+                    ? `${r.bg} ${r.border} ring-2 ${r.ring} ring-offset-2 ring-offset-[#FAFAFA] dark:ring-offset-[#0D0D14]`
+                    : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] hover:border-gray-300 dark:hover:border-white/20'
+                  }`}
+              >
+                {selectedRole === r.id && (
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2.5 right-2.5">
+                    <div className={`w-5 h-5 rounded-full ${r.dot} flex items-center justify-center`}>
+                      <CheckCircle size={12} className="text-white" />
+                    </div>
+                  </motion.div>
+                )}
+                <div className="text-2xl mb-2">{r.emoji}</div>
+                <div className="font-heading font-bold text-gray-900 dark:text-white text-sm">{r.label}</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">{r.sub}</div>
+              </motion.button>
+            ))}
+          </div>
+
+          {/* Role hint */}
+          <AnimatePresence>
+            {selectedRole && (
+              <motion.p
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="text-xs text-gray-500 text-center mb-4 overflow-hidden"
+              >
+                Returning <span className="font-semibold text-gray-700 dark:text-gray-300 capitalize">{selectedRole === 'creator' ? 'Creator' : 'Brand'}</span>? We'll take you straight to your dashboard.
+              </motion.p>
+            )}
+          </AnimatePresence>
 
           {/* OAuth buttons */}
           <div className="space-y-3">
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleGoogle}
-              disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-100 active:bg-gray-100 transition-all shadow-sm dark:shadow-lg dark:shadow-black/30 disabled:opacity-50"
+              disabled={anyLoading || !selectedRole}
+              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold transition-all shadow-sm dark:shadow-lg dark:shadow-black/30
+                ${!selectedRole ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50'}`}
             >
               {oauthLoading === 'google'
                 ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
@@ -151,8 +198,9 @@ export default function Login() {
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleInstagram}
-              disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold hover:opacity-90 active:opacity-80 transition-all shadow-sm dark:shadow-lg dark:shadow-pink-900/30 disabled:opacity-50"
+              disabled={anyLoading || !selectedRole}
+              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold transition-all shadow-sm dark:shadow-lg dark:shadow-pink-900/30
+                ${!selectedRole ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90 disabled:opacity-50'}`}
               style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCB045 100%)' }}
             >
               {oauthLoading === 'instagram'
@@ -162,8 +210,14 @@ export default function Login() {
             </motion.button>
           </div>
 
+          {!selectedRole && (
+            <p className="text-center text-xs text-gray-400 mt-3">
+              ↑ Select Creator or Brand to continue
+            </p>
+          )}
+
           {/* Demo accounts */}
-          <div className="mt-8 pt-8 border-t border-gray-200 dark:border-white/5 space-y-2">
+          <div className="mt-7 pt-7 border-t border-gray-200 dark:border-white/5 space-y-2">
             <p className="text-xs text-gray-400 dark:text-gray-600 text-center mb-3">Try a demo account</p>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -183,7 +237,7 @@ export default function Login() {
             </div>
           </div>
 
-          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-8">
+          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-6">
             Don't have an account?{' '}
             <Link to="/signup" className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-semibold transition-colors">Sign up free</Link>
           </p>

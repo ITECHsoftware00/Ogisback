@@ -47,16 +47,39 @@ export default function AuthCallback() {
         .select('id, role')
         .eq('id', sess.user.id)
         .single()
-        .then(({ data: profile }) => {
+        .then(async ({ data: profile }) => {
           if (profile) {
             // Existing user — send to dashboard
+            localStorage.removeItem('ogisback_pending_role');
             navigate(
               profile.role === 'creator' ? '/creator/dashboard' : '/brand/discover',
               { replace: true }
             );
           } else {
-            // New OAuth user — need to pick role
-            setStep('role-select');
+            // New OAuth user — check if role was pre-selected on signup/login page
+            const pendingRole = localStorage.getItem('ogisback_pending_role');
+            if (pendingRole) {
+              localStorage.removeItem('ogisback_pending_role');
+              // Auto-setup with the pre-selected role, then go to profile setup
+              try {
+                const displayName =
+                  sess.user.user_metadata?.full_name ||
+                  sess.user.user_metadata?.name ||
+                  sess.user.user_metadata?.user_name ||
+                  sess.user.email.split('@')[0];
+                await setupOAuthProfile(sess.user.id, sess.user.email, pendingRole, displayName);
+                toast.success('Account created! Let\'s set up your profile.');
+                navigate(
+                  pendingRole === 'creator' ? '/creator/profile/edit?setup=true' : '/brand/settings?setup=true',
+                  { replace: true }
+                );
+              } catch {
+                setStep('role-select');
+              }
+            } else {
+              // No pre-selected role — show picker
+              setStep('role-select');
+            }
           }
         });
     });

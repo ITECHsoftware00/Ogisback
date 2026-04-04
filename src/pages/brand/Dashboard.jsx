@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -5,9 +6,10 @@ import { Search, Megaphone, ShoppingBag, DollarSign, Users, ArrowRight, Plus, Tr
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import StatCard from '../../components/ui/StatCard';
 import { StatusBadge } from '../../components/ui/Badge';
-import { orders, campaigns, creators, formatCurrency, formatNumber } from '../../data';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
+import { getOrders, getCreators } from '../../lib/db';
+import { formatCurrency, formatNumber, normalizeOrder, normalizeCreator } from '../../lib/normalize';
 
 const spendData = [
   { month: 'Feb', spend: 8000 }, { month: 'Mar', spend: 12000 },
@@ -17,8 +19,18 @@ const spendData = [
 
 export default function BrandDashboard() {
   const { user } = useAuth();
-  const myOrders = orders.filter(o => o.brandId === 'b1').slice(0, 4);
-  const activeCampaigns = campaigns.filter(c => c.status === 'active').slice(0, 3);
+  const [myOrders, setMyOrders] = useState([]);
+  const [topCreators, setTopCreators] = useState([]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getOrders(user.id, 'brand')
+      .then(data => setMyOrders(data.map(normalizeOrder).slice(0, 4)))
+      .catch(() => {});
+    getCreators({ limit: 4 })
+      .then(data => setTopCreators(data.map(normalizeCreator)))
+      .catch(() => {});
+  }, [user?.id]);
 
   return (
     <DashboardLayout>
@@ -96,10 +108,10 @@ export default function BrandDashboard() {
             {myOrders.map(order => (
               <Link key={order.id} to={`/brand/orders/${order.id}`}>
                 <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
-                  <img src={order.creatorAvatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
+                  <img src={order.creatorAvatar || `https://i.pravatar.cc/40?u=${order.id}`} alt="" className="w-10 h-10 rounded-xl object-cover" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{order.title}</p>
-                    <p className="text-xs text-gray-500">{order.creator}</p>
+                    <p className="text-xs text-gray-500">{order.creatorName}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(order.amount)}</p>
@@ -118,14 +130,14 @@ export default function BrandDashboard() {
             <Link to="/brand/discover" className="btn btn-ghost btn-sm text-brand">See all <ArrowRight size={14} /></Link>
           </div>
           <div className="space-y-3">
-            {creators.slice(0, 4).map(c => (
+            {topCreators.map(c => (
               <Link key={c.id} to={`/brand/discover/${c.username}`} className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-xl transition-all">
                 <img src={c.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{c.name}</p>
-                  <p className="text-xs text-gray-500">{c.niche[0]} · {formatNumber(c.totalFollowers)}</p>
+                  <p className="text-xs text-gray-500">{c.niche[0]} · {formatNumber(c.total_followers || 0)}</p>
                 </div>
-                <span className="text-xs font-semibold text-wallet">⭐ {c.rating}</span>
+                <span className="text-xs font-semibold text-wallet">⭐ {c.rating || 0}</span>
               </Link>
             ))}
           </div>

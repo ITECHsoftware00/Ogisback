@@ -1,24 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, Search, Megaphone, Edit3, Trash2, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import EmptyState from '../../components/ui/EmptyState';
-import { campaigns, formatCurrency } from '../../data';
 import SEO from '../../components/SEO';
+import { getBrandCampaigns } from '../../lib/db';
+import { formatCurrency } from '../../lib/normalize';
+import { useAuth } from '../../context/AuthContext';
 
 const statusColors = { active: 'badge-success', draft: 'badge-gray', completed: 'badge-brand' };
 
 export default function BrandCampaigns() {
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const myCampaigns = campaigns.filter(c => ['b1', 'b2'].includes(c.brandId));
-  const filtered = myCampaigns.filter(c => {
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getBrandCampaigns(user.id)
+      .then(data => setCampaigns(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [user?.id]);
+
+  const filtered = campaigns.filter(c => {
     const matchStatus = statusFilter === 'all' || c.status === statusFilter;
     const matchSearch = !search || c.title.toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
   });
+
+  const activeCount = campaigns.filter(c => c.status === 'active').length;
 
   return (
     <DashboardLayout>
@@ -26,7 +41,7 @@ export default function BrandCampaigns() {
       <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="page-title">My Campaigns</h1>
-          <p className="page-subtitle">{myCampaigns.filter(c => c.status === 'active').length} active campaigns</p>
+          <p className="page-subtitle">{activeCount} active campaigns</p>
         </div>
         <Link to="/brand/campaigns/new" className="btn btn-brand btn-md">
           <Plus size={16} /> New Campaign
@@ -45,35 +60,39 @@ export default function BrandCampaigns() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-16 text-gray-400">Loading campaigns...</div>
+      ) : filtered.length === 0 ? (
         <EmptyState icon={Megaphone} title="No campaigns found" description="Create your first campaign to start finding creators." action={<Link to="/brand/campaigns/new" className="btn btn-brand btn-md"><Plus size={16} />New Campaign</Link>} />
       ) : (
         <div className="space-y-4">
           {filtered.map((campaign, i) => {
-            const daysLeft = Math.max(0, Math.ceil((new Date(campaign.deadline) - Date.now()) / 86400000));
+            const daysLeft = campaign.deadline ? Math.max(0, Math.ceil((new Date(campaign.deadline) - Date.now()) / 86400000)) : '—';
             return (
               <motion.div key={campaign.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="card overflow-hidden hover:shadow-card-hover transition-all">
                 <div className="flex gap-4 p-5">
-                  <img src={campaign.image} alt="" className="w-20 h-20 rounded-2xl object-cover flex-shrink-0" />
+                  {campaign.image_url && (
+                    <img src={campaign.image_url} alt="" className="w-20 h-20 rounded-2xl object-cover flex-shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
                       <div>
                         <h3 className="font-heading font-bold text-gray-900 dark:text-white">{campaign.title}</h3>
-                        <p className="text-xs text-gray-500 mt-0.5">{campaign.type}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{campaign.content_type}</p>
                       </div>
                       <span className={`badge ${statusColors[campaign.status] || 'badge-gray'}`}>{campaign.status}</span>
                     </div>
                     <div className="grid grid-cols-4 gap-4 text-center">
-                      <div><p className="font-bold text-sm text-gray-900 dark:text-white">{formatCurrency(campaign.budget.min)}–{formatCurrency(campaign.budget.max)}</p><p className="text-[10px] text-gray-400">Budget</p></div>
-                      <div><p className="font-bold text-sm text-gray-900 dark:text-white">{daysLeft}d</p><p className="text-[10px] text-gray-400">Remaining</p></div>
-                      <div><p className="font-bold text-sm text-gray-900 dark:text-white">{campaign.applicants}</p><p className="text-[10px] text-gray-400">Applied</p></div>
-                      <div><p className="font-bold text-sm text-gray-900 dark:text-white">{campaign.hired}</p><p className="text-[10px] text-gray-400">Hired</p></div>
+                      <div><p className="font-bold text-sm text-gray-900 dark:text-white">{formatCurrency(campaign.budget_min)}–{formatCurrency(campaign.budget_max)}</p><p className="text-[10px] text-gray-400">Budget</p></div>
+                      <div><p className="font-bold text-sm text-gray-900 dark:text-white">{typeof daysLeft === 'number' ? `${daysLeft}d` : daysLeft}</p><p className="text-[10px] text-gray-400">Remaining</p></div>
+                      <div><p className="font-bold text-sm text-gray-900 dark:text-white">{campaign.applicant_count || 0}</p><p className="text-[10px] text-gray-400">Applied</p></div>
+                      <div><p className="font-bold text-sm text-gray-900 dark:text-white">{campaign.hired_count || 0}</p><p className="text-[10px] text-gray-400">Hired</p></div>
                     </div>
                   </div>
                   <div className="flex flex-col gap-1 justify-start">
                     <Link to={`/brand/campaigns/${campaign.id}`} className="p-2 text-gray-400 hover:text-brand rounded-lg hover:bg-brand/10 transition-all"><Eye size={15} /></Link>
-                    <button onClick={() => toast.success('Edit mode (demo)')} className="p-2 text-gray-400 hover:text-primary rounded-lg hover:bg-primary/10 transition-all"><Edit3 size={15} /></button>
-                    <button onClick={() => toast.error('Campaign deleted (demo)')} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all"><Trash2 size={15} /></button>
+                    <button onClick={() => toast.success('Edit coming soon')} className="p-2 text-gray-400 hover:text-primary rounded-lg hover:bg-primary/10 transition-all"><Edit3 size={15} /></button>
+                    <button onClick={() => toast.error('Delete coming soon')} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all"><Trash2 size={15} /></button>
                   </div>
                 </div>
               </motion.div>

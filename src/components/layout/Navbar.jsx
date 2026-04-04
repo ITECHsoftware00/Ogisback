@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { notifications } from '../../data';
+import Logo from '../Logo';
 
 export default function Navbar() {
   const { user, activeRole, darkMode, toggleDark, logout, switchRole, isLoggedIn } = useAuth();
@@ -31,13 +32,8 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 glass border-b border-white/20 dark:border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-          <div className="w-8 h-8 rounded-xl bg-gradient-creator flex items-center justify-center shadow-glow-creator">
-            <span className="text-white font-heading font-bold text-sm">O</span>
-          </div>
-          <span className="font-heading font-bold text-lg text-gray-900 dark:text-white hidden sm:block">
-            OgisBack
-          </span>
+        <Link to="/" className="flex-shrink-0">
+          <Logo size="md" />
         </Link>
 
         {/* Center nav (desktop) */}

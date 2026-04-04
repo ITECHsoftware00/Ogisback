@@ -1,25 +1,87 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { ArrowLeft, Calendar, Users, DollarSign, CheckCircle, Building2, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Navbar from '../components/layout/Navbar';
 import { NicheBadge } from '../components/ui/Badge';
-import { campaigns, brands, getCampaignById, formatCurrency } from '../data';
+import { getCampaignById } from '../lib/db';
+import { formatCurrency } from '../lib/normalize';
 import { useAuth } from '../context/AuthContext';
 import SEO, { campaignSchema } from '../components/SEO';
+
+function adaptCampaign(row) {
+  if (!row) return null;
+  const bp = row.brand_profiles || {};
+  return {
+    ...row,
+    brand: bp.name || 'Unknown Brand',
+    brandLogo: bp.logo_url || `https://i.pravatar.cc/40?u=${row.brand_id}`,
+    brandIndustry: bp.industry || null,
+    brandWebsite: bp.website || null,
+    brandDescription: bp.description || null,
+    image: row.image_url || null,
+    type: row.content_type || '',
+    niche: row.niche || [],
+    deliverables: row.deliverables || [],
+    platforms: row.platforms || [],
+    budget: { min: row.budget_min || 0, max: row.budget_max || 0 },
+    applicants: row.applicant_count || 0,
+    hired: row.hired_count || 0,
+    requirements: {
+      minFollowers: row.min_followers || 0,
+      platforms: row.platforms || [],
+    },
+  };
+}
 
 export default function CampaignPublicDetail() {
   const { id } = useParams();
   const { isLoggedIn, isCreator } = useAuth();
   const navigate = useNavigate();
-  const campaign = getCampaignById(id) || campaigns[0];
-  const brand = brands.find(b => b.id === campaign.brandId);
-  const daysLeft = Math.max(0, Math.ceil((new Date(campaign.deadline) - Date.now()) / 86400000));
+  const [campaign, setCampaign] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    getCampaignById(id)
+      .then(data => setCampaign(adaptCampaign(data)))
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+  }, [id]);
 
   const handleApply = () => {
     if (!isLoggedIn) { navigate('/login'); return; }
-    toast.success('Application submitted!');
+    if (!isCreator) { toast.error('Only creators can apply to campaigns'); return; }
+    navigate('/creator/campaigns');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F]">
+        <Navbar />
+        <div className="flex items-center justify-center py-32 text-gray-400">Loading campaign...</div>
+      </div>
+    );
+  }
+
+  if (notFound || !campaign) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F]">
+        <SEO title="Campaign Not Found" noindex={true} />
+        <Navbar />
+        <div className="flex flex-col items-center justify-center py-32 text-gray-400">
+          <p className="text-xl font-heading font-bold text-gray-900 dark:text-white mb-2">Campaign not found</p>
+          <p className="text-sm mb-6">This campaign may have been removed or closed.</p>
+          <Link to="/explore" className="btn btn-creator btn-md">Browse Campaigns</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const daysLeft = campaign.deadline
+    ? Math.max(0, Math.ceil((new Date(campaign.deadline) - Date.now()) / 86400000))
+    : null;
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F]">
@@ -43,8 +105,8 @@ export default function CampaignPublicDetail() {
         </Link>
 
         {/* Hero image */}
-        <div className="relative h-56 rounded-3xl overflow-hidden mb-6">
-          <img src={campaign.image} alt="" className="w-full h-full object-cover" />
+        <div className="relative h-56 rounded-3xl overflow-hidden mb-6 bg-gray-100 dark:bg-gray-800">
+          {campaign.image && <img src={campaign.image} alt="" className="w-full h-full object-cover" />}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
           <div className="absolute bottom-4 left-4 flex items-center gap-3">
             <img src={campaign.brandLogo} alt="" className="w-12 h-12 rounded-2xl object-cover border-2 border-white" />
@@ -63,40 +125,48 @@ export default function CampaignPublicDetail() {
             {/* Overview */}
             <div className="card p-6">
               <h2 className="section-title">Campaign Overview</h2>
-              <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{campaign.description}</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{campaign.description || 'No description provided.'}</p>
               <div className="flex flex-wrap gap-1.5 mt-4">
                 {campaign.niche.map(n => <NicheBadge key={n} niche={n} />)}
               </div>
             </div>
 
             {/* Deliverables */}
-            <div className="card p-6">
-              <h2 className="section-title">What's Required</h2>
-              <ul className="space-y-2">
-                {campaign.deliverables.map((d, i) => (
-                  <li key={i} className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
-                    <CheckCircle size={15} className="text-brand flex-shrink-0" /> {d}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {campaign.deliverables.length > 0 && (
+              <div className="card p-6">
+                <h2 className="section-title">What's Required</h2>
+                <ul className="space-y-2">
+                  {campaign.deliverables.map((d, i) => (
+                    <li key={i} className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+                      <CheckCircle size={15} className="text-brand flex-shrink-0" /> {d}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Requirements */}
             <div className="card p-6">
               <h2 className="section-title">Creator Requirements</h2>
               <div className="space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-gray-800">
-                  <span className="text-sm text-gray-500">Minimum Followers</span>
-                  <span className="font-semibold text-sm text-gray-900 dark:text-white">{campaign.requirements.minFollowers?.toLocaleString()}+</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-gray-800">
-                  <span className="text-sm text-gray-500">Platforms</span>
-                  <span className="font-semibold text-sm text-gray-900 dark:text-white capitalize">{campaign.requirements.platforms?.join(', ')}</span>
-                </div>
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-sm text-gray-500">Content Type</span>
-                  <span className="font-semibold text-sm text-gray-900 dark:text-white">{campaign.type}</span>
-                </div>
+                {campaign.requirements.minFollowers > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-gray-800">
+                    <span className="text-sm text-gray-500">Minimum Followers</span>
+                    <span className="font-semibold text-sm text-gray-900 dark:text-white">{campaign.requirements.minFollowers.toLocaleString()}+</span>
+                  </div>
+                )}
+                {campaign.requirements.platforms.length > 0 && (
+                  <div className="flex items-center justify-between py-2 border-b border-gray-50 dark:border-gray-800">
+                    <span className="text-sm text-gray-500">Platforms</span>
+                    <span className="font-semibold text-sm text-gray-900 dark:text-white capitalize">{campaign.requirements.platforms.join(', ')}</span>
+                  </div>
+                )}
+                {campaign.type && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-gray-500">Content Type</span>
+                    <span className="font-semibold text-sm text-gray-900 dark:text-white">{campaign.type}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -112,13 +182,15 @@ export default function CampaignPublicDetail() {
                   <p className="font-heading font-bold text-gray-900 dark:text-white">{formatCurrency(campaign.budget.min)} – {formatCurrency(campaign.budget.max)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-brand/5 rounded-xl">
-                <Calendar size={20} className="text-brand" />
-                <div>
-                  <p className="text-xs text-gray-500">Deadline</p>
-                  <p className="font-heading font-bold text-gray-900 dark:text-white">{daysLeft} days left</p>
+              {daysLeft !== null && (
+                <div className="flex items-center gap-3 p-3 bg-brand/5 rounded-xl">
+                  <Calendar size={20} className="text-brand" />
+                  <div>
+                    <p className="text-xs text-gray-500">Deadline</p>
+                    <p className="font-heading font-bold text-gray-900 dark:text-white">{daysLeft} days left</p>
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl">
                 <Users size={20} className="text-primary" />
                 <div>
@@ -129,24 +201,19 @@ export default function CampaignPublicDetail() {
             </div>
 
             {/* Brand info */}
-            {brand && (
-              <div className="card p-5">
-                <h3 className="font-heading font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><Building2 size={15} /> About the Brand</h3>
-                <div className="flex items-center gap-3 mb-3">
-                  <img src={brand.logo} alt={brand.name} className="w-10 h-10 rounded-xl object-cover" />
-                  <div>
-                    <p className="font-semibold text-sm text-gray-900 dark:text-white">{brand.name}</p>
-                    <p className="text-xs text-gray-500">{brand.industry}</p>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mb-3">{brand.description}</p>
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p>📍 {brand.location}</p>
-                  <p>👥 {brand.size} employees</p>
-                  <p>🎯 {brand.campaigns} campaigns total</p>
+            <div className="card p-5">
+              <h3 className="font-heading font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2"><Building2 size={15} /> About the Brand</h3>
+              <div className="flex items-center gap-3 mb-3">
+                <img src={campaign.brandLogo} alt={campaign.brand} className="w-10 h-10 rounded-xl object-cover" />
+                <div>
+                  <p className="font-semibold text-sm text-gray-900 dark:text-white">{campaign.brand}</p>
+                  {campaign.brandIndustry && <p className="text-xs text-gray-500">{campaign.brandIndustry}</p>}
                 </div>
               </div>
-            )}
+              {campaign.brandDescription && (
+                <p className="text-xs text-gray-500 mb-3">{campaign.brandDescription}</p>
+              )}
+            </div>
 
             {/* CTA */}
             <button

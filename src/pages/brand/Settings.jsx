@@ -10,6 +10,8 @@ import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
+import { updateBrandProfile } from '../../lib/db';
+import SubscriptionBilling from '../../components/SubscriptionBilling';
 
 function Toggle({ checked, onChange }) {
   return (
@@ -25,7 +27,6 @@ function Toggle({ checked, onChange }) {
 function FieldHint({ children }) {
   return (
     <p className="flex items-start gap-1.5 text-xs text-gray-400 mt-1.5">
-      <SEO title="Brand Settings" noindex={true} />
       <Info size={12} className="mt-0.5 flex-shrink-0" />
       {children}
     </p>
@@ -63,16 +64,25 @@ export default function BrandSettings() {
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
-    if (!form.name.trim()) {
-      toast.error('Brand name is required');
-      return;
-    }
+    if (!form.name.trim()) { toast.error('Brand name is required'); return; }
     setSaving(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setSaving(false);
-    completeProfile();
-    toast.success(isSetup ? 'Profile complete! Welcome to OgisBack.' : 'Settings saved successfully.');
-    if (isSetup) navigate('/brand/discover');
+    try {
+      await updateBrandProfile(user.id, {
+        name: form.name.trim(),
+        industry: form.industry || null,
+        website: form.website || null,
+        description: form.description || null,
+        size: form.size || null,
+        location: form.location || null,
+      });
+      await completeProfile();
+      toast.success(isSetup ? 'Profile complete! Welcome to OgisBack.' : 'Settings saved successfully.');
+      if (isSetup) navigate('/brand/discover');
+    } catch (err) {
+      toast.error(err.message || 'Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleLogout = () => { logout(); navigate('/'); };
@@ -108,6 +118,7 @@ export default function BrandSettings() {
 
   return (
     <DashboardLayout>
+      <SEO title="Brand Settings" noindex={true} />
       <div className="max-w-2xl mx-auto">
 
         {/* ── Setup welcome banner ── */}
@@ -318,63 +329,10 @@ export default function BrandSettings() {
           <>
             {/* Subscription */}
             <Section
-              title="Subscription Plan"
-              subtitle="Your current plan determines campaign limits and platform fees."
+              title="Subscription & Billing"
+              subtitle="Manage your plan, view billing history, and update your payment method."
             >
-              <div className={`flex items-center justify-between p-4 rounded-2xl mb-4 ${
-                plan === 'max'
-                  ? 'bg-primary/5 border border-primary/20'
-                  : plan === 'mini'
-                  ? 'bg-brand/5 border border-brand/20'
-                  : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                    plan === 'max' ? 'bg-primary/10' : plan === 'mini' ? 'bg-brand/10' : 'bg-gray-100 dark:bg-gray-700'
-                  }`}>
-                    {plan === 'max'
-                      ? <Crown size={18} className="text-primary" />
-                      : plan === 'mini'
-                      ? <Star size={18} className="text-brand" />
-                      : <Zap size={18} className="text-gray-400" />}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 dark:text-white capitalize">
-                      {plan === 'free' ? 'Free Plan' : `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {plan === 'max'
-                        ? '10% platform fee · Unlimited campaigns · Dedicated account manager'
-                        : plan === 'mini'
-                        ? '15% platform fee · Up to 10 campaigns · Priority creator matching'
-                        : '20% platform fee · Up to 2 campaigns · Standard support'}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => navigate('/pricing')}
-                  className={`btn btn-sm ${plan === 'free' ? 'btn-brand' : 'btn-outline'}`}
-                >
-                  {plan === 'free' ? 'Upgrade' : 'Manage'}
-                </button>
-              </div>
-              {plan !== 'max' && (
-                <div className="bg-gradient-to-r from-brand/5 to-teal-50 dark:to-teal-900/10 rounded-xl p-4 flex items-start gap-3 border border-brand/10">
-                  <Crown size={16} className="text-brand mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white mb-0.5">Unlock the Max Plan</p>
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      Run unlimited campaigns, access the AI negotiation agent, get a dedicated account manager, and pay only 10% per deal — all for $149/month.
-                    </p>
-                    <button
-                      onClick={() => navigate('/pricing')}
-                      className="text-xs font-bold text-brand mt-2 hover:underline flex items-center gap-1"
-                    >
-                      Compare all plans <ChevronRight size={11} />
-                    </button>
-                  </div>
-                </div>
-              )}
+              <SubscriptionBilling role="brand" />
             </Section>
 
             {/* Appearance */}

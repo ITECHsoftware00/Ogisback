@@ -4,11 +4,12 @@ import SEO from '../components/SEO';
 import { motion } from 'framer-motion';
 import {
   Check, Zap, Crown, Shield, MessageCircle, Bot, TrendingUp,
-  Star, Users, Headphones, ChevronDown, ArrowRight, Sparkles
+  Star, Users, Headphones, ChevronDown, ArrowRight, Sparkles, Loader2
 } from 'lucide-react';
 import Navbar from '../components/layout/Navbar';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { startSubscriptionCheckout, getSubscription } from '../lib/payments';
 
 const CREATOR_PLANS = [
   {
@@ -148,8 +149,9 @@ const FEATURE_HIGHLIGHTS = [
   },
 ];
 
-function PlanCard({ plan, billing, role, currentPlan, onUpgrade }) {
+function PlanCard({ plan, billing, role, currentPlan, onUpgrade, loadingPlan }) {
   const isCurrentPlan = currentPlan === plan.id;
+  const isLoading = loadingPlan === plan.id;
   const price = billing === 'annual' ? plan.price.annual : plan.price.monthly;
   const colorMap = {
     gray: { ring: 'ring-gray-200 dark:ring-gray-700', badge: 'bg-gray-100 text-gray-600', btn: 'btn-outline', header: 'bg-gray-50 dark:bg-gray-900' },
@@ -208,11 +210,15 @@ function PlanCard({ plan, billing, role, currentPlan, onUpgrade }) {
         </ul>
         <button
           onClick={() => onUpgrade(plan.id)}
-          disabled={isCurrentPlan}
+          disabled={isCurrentPlan || isLoading}
           className={`btn ${c.btn} btn-md w-full mt-6 disabled:opacity-60 disabled:cursor-default`}
         >
-          {isCurrentPlan ? 'Current Plan' : plan.id === 'free' ? 'Downgrade' : `Upgrade to ${plan.name}`}
-          {!isCurrentPlan && plan.id !== 'free' && <ArrowRight size={14} />}
+          {isLoading ? (
+            <><Loader2 size={14} className="animate-spin" /> Redirecting to checkout…</>
+          ) : isCurrentPlan ? 'Current Plan'
+          : plan.id === 'free' ? 'Downgrade'
+          : `Upgrade to ${plan.name}`}
+          {!isCurrentPlan && !isLoading && plan.id !== 'free' && <ArrowRight size={14} />}
         </button>
       </div>
     </motion.div>
@@ -220,19 +226,39 @@ function PlanCard({ plan, billing, role, currentPlan, onUpgrade }) {
 }
 
 export default function Pricing() {
-  const { isLoggedIn, activeRole, plan: currentPlan, upgradePlan } = useAuth();
+  const { isLoggedIn, activeRole, plan: currentPlan, user } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState(isLoggedIn ? (activeRole || 'creator') : 'creator');
   const [billing, setBilling] = useState('monthly');
   const [openFaq, setOpenFaq] = useState(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(null);
 
   const plans = role === 'creator' ? CREATOR_PLANS : BRAND_PLANS;
 
-  const handleUpgrade = (planId) => {
+  const handleUpgrade = async (planId) => {
     if (!isLoggedIn) { navigate('/signup'); return; }
     if (planId === currentPlan) return;
-    upgradePlan(planId);
-    toast.success(planId === 'free' ? 'Downgraded to Free plan' : `Upgraded to ${planId.charAt(0).toUpperCase() + planId.slice(1)} plan! 🎉`);
+
+    // Downgrade to free — show instructions
+    if (planId === 'free') {
+      toast('To cancel, manage your subscription from your dashboard settings.', { icon: 'ℹ️', duration: 5000 });
+      return;
+    }
+
+    setCheckoutLoading(planId);
+    try {
+      await startSubscriptionCheckout({
+        userId: user.id,
+        userEmail: user.email,
+        role: activeRole || role,
+        planId,
+        billingCycle: billing,
+      });
+      // Page redirects to Stripe — no need to reset loading
+    } catch (err) {
+      toast.error(err.message || 'Failed to start checkout. Please try again.');
+      setCheckoutLoading(null);
+    }
   };
 
   const faqs = [
@@ -304,6 +330,7 @@ export default function Pricing() {
                 role={role}
                 currentPlan={isLoggedIn && activeRole === role ? currentPlan : null}
                 onUpgrade={handleUpgrade}
+                loadingPlan={checkoutLoading}
               />
             ))}
           </div>

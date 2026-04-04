@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CheckCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const GoogleIcon = () => (
@@ -23,23 +23,37 @@ const InstagramIcon = ({ size = 18 }) => (
   </svg>
 );
 
-const creatorPerks = [
-  'Keep 80% of every deal',
-  'Secure escrow payments',
-  'Direct brand connections',
-  'Free to join — always',
-];
-
-const brandPerks = [
-  'Access 6,000+ verified creators',
-  'Campaign management tools',
-  'Escrow payment protection',
-  'Analytics & reporting',
+const roles = [
+  {
+    id: 'creator',
+    emoji: '🎬',
+    title: 'Influencer / Creator',
+    subtitle: 'I create content & partner with brands',
+    perks: ['Keep 80% of every deal', 'Secure escrow payments', 'Direct brand connections', 'Free to join — always'],
+    gradient: 'from-purple-600 to-pink-600',
+    border: 'border-purple-400',
+    bg: 'bg-purple-50 dark:bg-purple-900/20',
+    check: 'text-purple-500',
+    ring: 'ring-purple-400',
+  },
+  {
+    id: 'brand',
+    emoji: '🏢',
+    title: 'Brand',
+    subtitle: 'I hire creators for campaigns',
+    perks: ['Access 6,000+ verified creators', 'Campaign management tools', 'Escrow payment protection', 'Analytics & reporting'],
+    gradient: 'from-blue-600 to-cyan-500',
+    border: 'border-blue-400',
+    bg: 'bg-blue-50 dark:bg-blue-900/20',
+    check: 'text-blue-500',
+    ring: 'ring-blue-400',
+  },
 ];
 
 export default function Signup() {
   const { signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
+  const [selectedRole, setSelectedRole] = useState(null);
   const [oauthLoading, setOauthLoading] = useState(null);
 
   useEffect(() => {
@@ -47,14 +61,16 @@ export default function Signup() {
   }, [isLoggedIn]);
 
   const handleGoogle = async () => {
+    if (!selectedRole) { toast.error('Please choose Creator or Brand first'); return; }
     setOauthLoading('google');
-    try { await signInWithGoogle(); }
+    try { await signInWithGoogle(selectedRole); }
     catch (err) { toast.error(err.message || 'Google sign-in failed.'); setOauthLoading(null); }
   };
 
   const handleInstagram = async () => {
+    if (!selectedRole) { toast.error('Please choose Creator or Brand first'); return; }
     setOauthLoading('instagram');
-    try { await signInWithInstagram(); }
+    try { await signInWithInstagram(selectedRole); }
     catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setOauthLoading(null); }
   };
 
@@ -83,10 +99,10 @@ export default function Signup() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full max-w-md"
+          className="w-full max-w-lg"
         >
           {/* Badge */}
-          <div className="flex justify-center mb-8">
+          <div className="flex justify-center mb-6">
             <div className="inline-flex items-center gap-2 bg-purple-50 dark:bg-white/5 border border-purple-100 dark:border-white/10 rounded-full px-4 py-1.5">
               <Sparkles size={13} className="text-yellow-500 dark:text-yellow-400" />
               <span className="text-purple-700 dark:text-gray-400 text-xs font-medium">Join 6,000+ creators & brands</span>
@@ -94,32 +110,93 @@ export default function Signup() {
           </div>
 
           {/* Headline */}
-          <div className="text-center mb-10">
+          <div className="text-center mb-8">
             <h1 className="text-4xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">
               Create your account
             </h1>
-            <p className="text-gray-500 text-base">Sign up in seconds with your existing account</p>
+            <p className="text-gray-500 text-base">First, tell us who you are</p>
           </div>
 
-          {/* OAuth buttons */}
-          <div className="space-y-3 mb-6">
+          {/* Step 1 — Role picker */}
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            {roles.map(role => (
+              <motion.button
+                key={role.id}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setSelectedRole(role.id)}
+                disabled={anyLoading}
+                className={`relative p-5 rounded-2xl border-2 text-left transition-all duration-200 disabled:opacity-50
+                  ${selectedRole === role.id
+                    ? `${role.bg} ${role.border} ring-2 ${role.ring} ring-offset-2 ring-offset-[#FAFAFA] dark:ring-offset-[#0A0A0F]`
+                    : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] hover:border-gray-300 dark:hover:border-white/20'
+                  }`}
+              >
+                {/* Selected checkmark */}
+                {selectedRole === role.id && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute top-3 right-3"
+                  >
+                    <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${role.gradient} flex items-center justify-center`}>
+                      <CheckCircle size={14} className="text-white" fill="white" />
+                    </div>
+                  </motion.div>
+                )}
+
+                <div className="text-3xl mb-3">{role.emoji}</div>
+                <div className="font-heading font-bold text-gray-900 dark:text-white text-sm mb-1">{role.title}</div>
+                <p className="text-[11px] text-gray-500 leading-relaxed mb-3">{role.subtitle}</p>
+                <ul className="space-y-1.5">
+                  {role.perks.map(p => (
+                    <li key={p} className="flex items-start gap-1.5 text-[11px] text-gray-500 dark:text-gray-500">
+                      <CheckCircle size={10} className={`${role.check} flex-shrink-0 mt-0.5`} />
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </motion.button>
+            ))}
+          </div>
+
+          {/* Step 2 — OAuth buttons (always visible, disabled until role picked) */}
+          <AnimatePresence>
+            {selectedRole && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+                className="mb-4 text-center"
+              >
+                <p className="text-sm text-gray-500 mb-1">
+                  Joining as a <span className="font-semibold text-gray-900 dark:text-white capitalize">{selectedRole === 'creator' ? 'Creator' : 'Brand'}</span>
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="space-y-3 mb-4">
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleGoogle}
-              disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-100 transition-all shadow-sm dark:shadow-lg dark:shadow-black/30 disabled:opacity-50"
+              disabled={anyLoading || !selectedRole}
+              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold transition-all shadow-sm dark:shadow-lg dark:shadow-black/30
+                ${!selectedRole ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50'}`}
             >
               {oauthLoading === 'google'
                 ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
                 : <GoogleIcon />}
               Continue with Google
+              {!selectedRole && <ArrowRight size={14} className="ml-auto text-gray-400" />}
             </motion.button>
 
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleInstagram}
-              disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold hover:opacity-90 transition-all shadow-sm dark:shadow-lg dark:shadow-pink-900/20 disabled:opacity-50"
+              disabled={anyLoading || !selectedRole}
+              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold transition-all shadow-sm dark:shadow-lg dark:shadow-pink-900/20
+                ${!selectedRole ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90 disabled:opacity-50'}`}
               style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCB045 100%)' }}
             >
               {oauthLoading === 'instagram'
@@ -129,48 +206,18 @@ export default function Signup() {
             </motion.button>
           </div>
 
-          {/* Trust line */}
-          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mb-10">
+          {!selectedRole && (
+            <p className="text-center text-xs text-gray-400 mb-4">
+              ↑ Select Creator or Brand above to continue
+            </p>
+          )}
+
+          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mb-6">
             By signing up, you agree to our Terms of Service and Privacy Policy
           </p>
 
-          {/* Feature cards */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Creator card */}
-            <div className="rounded-2xl border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] p-4 shadow-sm dark:shadow-none">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center mb-3 shadow-sm">
-                <InstagramIcon size={16} />
-              </div>
-              <div className="text-gray-900 dark:text-white text-sm font-semibold mb-2">Creator</div>
-              <ul className="space-y-1.5">
-                {creatorPerks.map(p => (
-                  <li key={p} className="flex items-start gap-1.5 text-[11px] text-gray-500 dark:text-gray-500">
-                    <CheckCircle size={11} className="text-purple-500 flex-shrink-0 mt-0.5" />
-                    {p}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Brand card */}
-            <div className="rounded-2xl border border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] p-4 shadow-sm dark:shadow-none">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center mb-3 shadow-sm">
-                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-              </div>
-              <div className="text-gray-900 dark:text-white text-sm font-semibold mb-2">Brand</div>
-              <ul className="space-y-1.5">
-                {brandPerks.map(p => (
-                  <li key={p} className="flex items-start gap-1.5 text-[11px] text-gray-500 dark:text-gray-500">
-                    <CheckCircle size={11} className="text-blue-500 flex-shrink-0 mt-0.5" />
-                    {p}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
           {/* Demo accounts */}
-          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-white/5">
+          <div className="pt-5 border-t border-gray-200 dark:border-white/5">
             <p className="text-xs text-gray-400 dark:text-gray-600 text-center mb-3">Just exploring? Try a demo</p>
             <div className="grid grid-cols-2 gap-2">
               <button

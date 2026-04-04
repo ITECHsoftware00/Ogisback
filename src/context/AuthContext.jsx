@@ -119,7 +119,8 @@ export function AuthProvider({ children }) {
 
   /* ── OAuth sign-in ── */
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (role = null) => {
+    if (role) localStorage.setItem('ogisback_pending_role', role);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
@@ -128,7 +129,8 @@ export function AuthProvider({ children }) {
   };
 
   // Instagram uses Meta/Facebook OAuth under the hood
-  const signInWithInstagram = async () => {
+  const signInWithInstagram = async (role = null) => {
+    if (role) localStorage.setItem('ogisback_pending_role', role);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'facebook',
       options: { redirectTo: `${window.location.origin}/auth/callback` },

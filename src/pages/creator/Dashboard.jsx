@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -8,15 +9,24 @@ import {
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import StatCard from '../../components/ui/StatCard';
 import { StatusBadge } from '../../components/ui/Badge';
-import { orders, earningsHistory, contentFeed, campaigns, formatCurrency, formatNumber, timeAgo } from '../../data';
+import { earningsHistory, contentFeed } from '../../data';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
+import { getOrders } from '../../lib/db';
+import { formatCurrency, formatNumber, normalizeOrder } from '../../lib/normalize';
 
 export default function CreatorDashboard() {
   const { user } = useAuth();
-  const myOrders = orders.filter(o => o.creatorId === 'c1').slice(0, 4);
-  const recentContent = contentFeed.filter(p => p.creatorId === 'c1').slice(0, 3);
+  const [myOrders, setMyOrders] = useState([]);
+  const recentContent = contentFeed.slice(0, 3);
   const chartData = earningsHistory.slice(-6);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getOrders(user.id, 'creator')
+      .then(data => setMyOrders(data.map(normalizeOrder).slice(0, 4)))
+      .catch(() => {});
+  }, [user?.id]);
 
   return (
     <DashboardLayout>
@@ -119,13 +129,13 @@ export default function CreatorDashboard() {
             {myOrders.length > 0 ? myOrders.map(order => (
               <Link key={order.id} to={`/creator/orders/${order.id}`}>
                 <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
-                  <img src={order.brandLogo} alt="" className="w-10 h-10 rounded-xl object-cover" />
+                  <img src={order.brandLogo || `https://i.pravatar.cc/40?u=${order.id}`} alt="" className="w-10 h-10 rounded-xl object-cover" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{order.title}</p>
-                    <p className="text-xs text-gray-500">{order.brand}</p>
+                    <p className="text-xs text-gray-500">{order.brandName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-wallet">{formatCurrency(order.creatorEarnings)}</p>
+                    <p className="text-sm font-bold text-wallet">{formatCurrency(order.creator_earnings)}</p>
                     <StatusBadge status={order.status} />
                   </div>
                 </div>

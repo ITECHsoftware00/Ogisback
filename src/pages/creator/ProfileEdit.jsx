@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
+import { updateCreatorProfile } from '../../lib/db';
 
 const niches = [
   'Fashion', 'Beauty', 'Skincare', 'Tech', 'Gaming',
@@ -76,7 +77,6 @@ const SETUP_STEPS = ['Your Identity', 'Content Niches', 'Social Platforms', 'You
 function FieldHint({ children }) {
   return (
     <p className="flex items-start gap-1.5 text-xs text-gray-400 mt-1.5">
-      <SEO title="Edit Profile" noindex={true} />
       <Info size={11} className="mt-0.5 flex-shrink-0" />
       {children}
     </p>
@@ -125,11 +125,32 @@ export default function CreatorProfileEdit() {
     if (!form.bio.trim()) { toast.error('A bio is required — brands read it before reaching out'); return; }
     if (form.niche.length === 0) { toast.error('Select at least one content niche'); return; }
     setSaving(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setSaving(false);
-    completeProfile();
-    toast.success(isSetup ? 'Profile complete! Welcome to OgisBack.' : 'Profile updated successfully.');
-    navigate('/creator/dashboard');
+    try {
+      await updateCreatorProfile(user.id, {
+        name: form.name.trim(),
+        bio: form.bio.trim(),
+        location: form.location || null,
+        website: form.website || null,
+        niche: form.niche,
+        instagram_handle: form.instagram || null,
+        tiktok_handle: form.tiktok || null,
+        youtube_handle: form.youtube || null,
+        instagram_followers: parseInt(form.instagramFollowers) || 0,
+        tiktok_followers: parseInt(form.tiktokFollowers) || 0,
+        youtube_followers: parseInt(form.youtubeFollowers) || 0,
+        rate_post: parseFloat(form.ratePost) || null,
+        rate_reel: parseFloat(form.rateReel) || null,
+        rate_story: parseFloat(form.rateStory) || null,
+        rate_video: parseFloat(form.rateVideo) || null,
+      });
+      await completeProfile();
+      toast.success(isSetup ? 'Profile complete! Welcome to OgisBack.' : 'Profile updated successfully.');
+      navigate('/creator/dashboard');
+    } catch (err) {
+      toast.error(err.message || 'Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Completion score for progress bar
@@ -143,6 +164,7 @@ export default function CreatorProfileEdit() {
 
   return (
     <DashboardLayout>
+      <SEO title="Edit Profile" noindex={true} />
       <div className="max-w-2xl mx-auto">
 
         {/* ── Setup welcome banner ── */}

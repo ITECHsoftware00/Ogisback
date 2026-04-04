@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Shield, Moon, Trash2, LogOut, ChevronRight, User, CreditCard, Crown, Star, Zap } from 'lucide-react';
+import { Bell, Shield, Moon, Trash2, LogOut, ChevronRight, User, CreditCard } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import SEO from '../../components/SEO';
+import SubscriptionBilling from '../../components/SubscriptionBilling';
 
 function Toggle({ checked, onChange }) {
   return (
@@ -67,33 +68,8 @@ export default function CreatorSettings() {
 
         {/* Subscription */}
         <div className="card p-6 mb-4">
-          <h2 className="section-title">Subscription</h2>
-          <div className={`flex items-center justify-between p-4 rounded-2xl mb-4 ${plan === 'max' ? 'bg-primary/5 border border-primary/20' : plan === 'mini' ? 'bg-creator/5 border border-creator/20' : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${plan === 'max' ? 'bg-primary/10' : plan === 'mini' ? 'bg-creator/10' : 'bg-gray-100 dark:bg-gray-700'}`}>
-                {plan === 'max' ? <Crown size={18} className="text-primary" /> : plan === 'mini' ? <Star size={18} className="text-creator" /> : <Zap size={18} className="text-gray-400" />}
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900 dark:text-white capitalize">{plan === 'free' ? 'Free Plan' : `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`}</p>
-                <p className="text-xs text-gray-500">{plan === 'max' ? '15% fee · Unlimited posts · Featured listing' : plan === 'mini' ? '18% fee · 50 posts · Priority listing' : '20% fee · 5 posts/mo · Standard listing'}</p>
-              </div>
-            </div>
-            <button onClick={() => navigate('/pricing')} className={`btn btn-sm ${plan === 'free' ? 'btn-primary' : 'btn-outline'}`}>
-              {plan === 'free' ? 'Upgrade' : 'Manage'}
-            </button>
-          </div>
-          {plan !== 'max' && (
-            <div className="bg-gradient-to-r from-primary/5 to-creator/5 rounded-xl p-4 flex items-start gap-3">
-              <Crown size={16} className="text-primary mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white mb-0.5">Unlock Max plan</p>
-                <p className="text-xs text-gray-500">Get AI bargain agent, featured listing, dedicated support & 15% fee for $29.99/mo.</p>
-                <button onClick={() => navigate('/pricing')} className="text-xs font-bold text-primary mt-2 hover:underline flex items-center gap-1">
-                  See all plans <ChevronRight size={11} />
-                </button>
-              </div>
-            </div>
-          )}
+          <h2 className="section-title mb-4">Subscription &amp; Billing</h2>
+          <SubscriptionBilling role="creator" />
         </div>
 
         <Section title="Appearance">
