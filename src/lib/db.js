@@ -351,3 +351,66 @@ export async function getWithdrawals(creatorId) {
   if (error) throw error;
   return data || [];
 }
+
+/* ─────────────────────── CONTENT POSTS ─────────────────────── */
+
+export async function getContentPosts({ creatorId, limit = 30, offset = 0 } = {}) {
+  let query = supabase
+    .from('content_posts')
+    .select('*, creator_profiles(username, name, avatar_url, verified)')
+    .eq('status', 'published')
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (creatorId) query = query.eq('creator_id', creatorId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getCreatorPosts(creatorId) {
+  const { data, error } = await supabase
+    .from('content_posts')
+    .select('*')
+    .eq('creator_id', creatorId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createContentPost({ creatorId, type, mediaUrl, mediaUrls = [], thumbnailUrl, caption, tags = [], platform }) {
+  const { data, error } = await supabase
+    .from('content_posts')
+    .insert({
+      creator_id: creatorId,
+      type,
+      media_url: mediaUrl,
+      media_urls: mediaUrls,
+      thumbnail_url: thumbnailUrl,
+      caption,
+      tags,
+      platform,
+      status: 'published',
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteContentPost(postId) {
+  const { error } = await supabase
+    .from('content_posts')
+    .delete()
+    .eq('id', postId);
+  if (error) throw error;
+}
+
+export async function incrementPostViews(postId) {
+  await supabase.rpc('increment_post_views', { p_post_id: postId });
+}
+
+export async function incrementPostLikes(postId) {
+  await supabase.rpc('increment_post_likes', { p_post_id: postId });
+}

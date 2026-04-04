@@ -1,33 +1,38 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, X, Image, Film, Play, Images, Hash, ChevronRight } from 'lucide-react';
+import { Upload, X, Image, Film, Play, Images, Hash, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
+import { uploadContent } from '../../lib/storage';
+import { createContentPost } from '../../lib/db';
 
 const contentTypes = [
-  { id: 'photo', icon: Image, label: 'Photo', desc: 'Single image post' },
-  { id: 'carousel', icon: Images, label: 'Carousel', desc: 'Multiple images' },
-  { id: 'reel', icon: Film, label: 'Reel', desc: 'Short video (< 60s)' },
-  { id: 'video', icon: Play, label: 'Long Video', desc: 'YouTube-style video' },
+  { id: 'photo',    icon: Image,  label: 'Photo',      desc: 'Single image post' },
+  { id: 'carousel', icon: Images, label: 'Carousel',   desc: 'Multiple images' },
+  { id: 'reel',     icon: Film,   label: 'Reel',       desc: 'Short video (< 60s)' },
+  { id: 'video',    icon: Play,   label: 'Long Video',  desc: 'YouTube-style video' },
 ];
 
 export default function CreatorNewPost() {
   const navigate = useNavigate();
-  const [type, setType] = useState('photo');
-  const [caption, setCaption] = useState('');
-  const [tags, setTags] = useState([]);
+  const { user } = useAuth();
+  const [type, setType]         = useState('photo');
+  const [caption, setCaption]   = useState('');
+  const [tags, setTags]         = useState([]);
   const [tagInput, setTagInput] = useState('');
-  const [preview, setPreview] = useState(null);
+  const [file, setFile]         = useState(null);
+  const [preview, setPreview]   = useState(null);
   const [dragOver, setDragOver] = useState(false);
-  const [posting, setPosting] = useState(false);
+  const [posting, setPosting]   = useState(false);
   const fileRef = useRef();
 
-  const handleFile = (file) => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPreview(url);
+  const handleFile = (f) => {
+    if (!f) return;
+    setFile(f);
+    setPreview(URL.createObjectURL(f));
   };
 
   const addTag = (e) => {
@@ -40,12 +45,34 @@ export default function CreatorNewPost() {
   };
 
   const handlePost = async () => {
+    if (!file)           { toast.error('Please upload a file'); return; }
     if (!caption.trim()) { toast.error('Please add a caption'); return; }
+
     setPosting(true);
-    await new Promise(r => setTimeout(r, 1500));
-    setPosting(false);
-    toast.success('Post uploaded successfully! OgisBack watermark applied.');
-    navigate('/creator/feed');
+    try {
+      // 1. Upload file to Supabase Storage
+      const tempOrderId = 'feed'; // group feed uploads under a shared folder
+      const mediaUrl = await uploadContent(user.id, tempOrderId, file);
+
+      // 2. Save post record to DB
+      await createContentPost({
+        creatorId:    user.id,
+        type,
+        mediaUrl,
+        thumbnailUrl: type === 'video' || type === 'reel' ? null : mediaUrl,
+        caption,
+        tags,
+        platform:     null,
+      });
+
+      toast.success('Post published! OgisBack watermark applied.');
+      navigate('/creator/feed');
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || 'Upload failed, please try again');
+    } finally {
+      setPosting(false);
+    }
   };
 
   return (
@@ -87,16 +114,29 @@ export default function CreatorNewPost() {
             onClick={() => fileRef.current?.click()}
             className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${dragOver ? 'border-creator bg-creator/5' : 'border-gray-200 dark:border-gray-700 hover:border-creator/50'}`}
           >
-            <input ref={fileRef} type="file" accept="image/*,video/*" className="hidden" onChange={e => handleFile(e.target.files[0])} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,video/*"
+              className="hidden"
+              onChange={e => handleFile(e.target.files[0])}
+            />
             {preview ? (
               <div className="relative">
-                <img src={preview} alt="Preview" className="max-h-64 mx-auto rounded-xl object-cover" />
-                {/* Preview watermark */}
+                {file?.type?.startsWith('video') ? (
+                  <video src={preview} className="max-h-64 mx-auto rounded-xl" controls />
+                ) : (
+                  <img src={preview} alt="Preview" className="max-h-64 mx-auto rounded-xl object-cover" />
+                )}
+                {/* Watermark preview */}
                 <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-sm px-2 py-0.5 rounded-full flex items-center gap-1">
                   <div className="w-3 h-3 rounded-full bg-gradient-creator" />
                   <span className="text-white text-[10px] font-medium">OgisBack</span>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); setPreview(null); }} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setFile(null); setPreview(null); }}
+                  className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                >
                   <X size={12} />
                 </button>
               </div>
@@ -117,14 +157,13 @@ export default function CreatorNewPost() {
           <textarea
             value={caption}
             onChange={e => setCaption(e.target.value)}
-            placeholder="Write a caption for your post... (use # for hashtags)"
+            placeholder="Write a caption for your post..."
             rows={4}
             className="input resize-none"
             maxLength={2200}
           />
           <p className="text-xs text-gray-400 text-right mt-1">{caption.length}/2200</p>
 
-          {/* Tags */}
           <div className="mt-4">
             <label className="label">Tags</label>
             <div className="flex flex-wrap gap-2 mb-2">
@@ -151,15 +190,14 @@ export default function CreatorNewPost() {
         {/* Watermark info */}
         <div className="rounded-2xl bg-gradient-creator p-4 text-white mb-6">
           <p className="font-semibold text-sm mb-1">✦ OgisBack Watermark</p>
-          <p className="text-white/80 text-xs">Every post automatically gets an OgisBack watermark in the bottom-right corner. This protects your content and brands it as part of the OgisBack network.</p>
+          <p className="text-white/80 text-xs">Every post automatically gets an OgisBack watermark. This protects your content and brands it as part of the OgisBack network.</p>
         </div>
 
-        {/* Submit */}
         <div className="flex gap-3">
           <button onClick={() => navigate('/creator/feed')} className="btn btn-outline btn-lg flex-1">Cancel</button>
-          <button onClick={handlePost} disabled={posting} className="btn btn-creator btn-lg flex-1 disabled:opacity-70">
+          <button onClick={handlePost} disabled={posting || !file} className="btn btn-creator btn-lg flex-1 disabled:opacity-60">
             {posting ? (
-              <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Uploading...</span>
+              <span className="flex items-center gap-2"><Loader2 size={18} className="animate-spin" />Uploading...</span>
             ) : (
               <><Upload size={18} /> Publish Post</>
             )}
