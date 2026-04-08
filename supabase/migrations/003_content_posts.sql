@@ -23,9 +23,11 @@ CREATE TABLE IF NOT EXISTS content_posts (
 
 ALTER TABLE content_posts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public read published posts" ON content_posts;
 CREATE POLICY "Public read published posts" ON content_posts
   FOR SELECT USING (status = 'published');
 
+DROP POLICY IF EXISTS "Creator manage own posts" ON content_posts;
 CREATE POLICY "Creator manage own posts" ON content_posts
   FOR ALL USING (creator_id = auth.uid());
 

@@ -1,22 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookMarked, Search, Trash2, Zap } from 'lucide-react';
+import { BookMarked, Search, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import EmptyState from '../../components/ui/EmptyState';
 import CreatorCard from '../../components/CreatorCard';
-import { creators } from '../../data';
 import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
+import { getSavedCreators, unsaveCreator, getOrCreateConversation, createOrder } from '../../lib/db';
+import { createEscrow, getFeeRate } from '../../lib/payments';
+import { normalizeCreator } from '../../lib/normalize';
+import { useNavigate } from 'react-router-dom';
 
 export default function BrandSaved() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [saved, setSaved] = useState(creators.slice(0, 4));
-  const filtered = saved.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()));
+  const [saved, setSaved] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleRemove = (id) => {
-    setSaved(s => s.filter(c => c.id !== id));
-    toast.success('Removed from saved creators');
+  useEffect(() => {
+    if (!user?.id) return;
+    getSavedCreators(user.id)
+      .then(data => setSaved(data.map(normalizeCreator)))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [user?.id]);
+
+  const filtered = saved.filter(c => !search || c.name?.toLowerCase().includes(search.toLowerCase()));
+
+  const handleRemove = async (creatorId) => {
+    try {
+      await unsaveCreator(user.id, creatorId);
+      setSaved(s => s.filter(c => c.id !== creatorId));
+      toast.success('Removed from saved creators');
+    } catch { toast.error('Failed to remove'); }
+  };
+
+  const handleMessage = async (creator) => {
+    try {
+      const conv = await getOrCreateConversation(creator.id, user.id);
+      navigate(`/brand/messages/${conv.id}`);
+    } catch { navigate('/brand/messages'); }
   };
 
   return (
@@ -35,16 +61,18 @@ export default function BrandSaved() {
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search saved creators..." className="input pl-10" />
       </div>
 
-      {filtered.length === 0 ? (
-        <EmptyState icon={BookMarked} title={saved.length === 0 ? "No saved creators" : "No results"} description={saved.length === 0 ? "Save creators you like while browsing to build your shortlist." : "Try adjusting your search."} action={<Link to="/brand/discover" className="btn btn-brand btn-md">Discover Creators</Link>} />
+      {loading ? (
+        <div className="text-center py-16 text-gray-400">Loading saved creators...</div>
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={BookMarked} title={saved.length === 0 ? 'No saved creators' : 'No results'} description={saved.length === 0 ? 'Save creators you like while browsing to build your shortlist.' : 'Try adjusting your search.'} action={<Link to="/brand/discover" className="btn btn-brand btn-md">Discover Creators</Link>} />
       ) : (
         <div className="creator-grid">
           {filtered.map((creator, i) => (
             <motion.div key={creator.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="relative group">
               <CreatorCard
                 creator={creator}
-                onHire={() => toast.success(`Opening hire flow for ${creator.name}!`)}
-                onMessage={() => toast.success('Opening conversation...')}
+                onHire={() => navigate(`/brand/discover/${creator.username}`)}
+                onMessage={() => handleMessage(creator)}
                 linkPrefix="/brand/discover"
               />
               <button

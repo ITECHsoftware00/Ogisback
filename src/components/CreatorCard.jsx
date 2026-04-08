@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Star, CheckCircle, MessageCircle, Zap } from 'lucide-react';
-import { formatNumber } from '../data';
+import { formatNumber } from '../lib/normalize';
 import { NicheBadge } from './ui/Badge';
 import { useAuth } from '../context/AuthContext';
 

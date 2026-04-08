@@ -37,7 +37,7 @@ export default function Login() {
   const [oauthLoading, setOauthLoading] = useState(null);
 
   useEffect(() => {
-    if (isLoggedIn) navigate(activeRole === 'creator' ? '/creator/dashboard' : '/brand/discover');
+    if (isLoggedIn) navigate(activeRole === 'admin' ? '/admin' : activeRole === 'creator' ? '/creator/dashboard' : '/brand/discover');
   }, [isLoggedIn]);
 
   const handleGoogle = async () => {

@@ -1,26 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Zap, Send, Building2, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { brands } from '../../data';
 import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
+import { getBrands, getOrCreateConversation, sendMessage, getConversations } from '../../lib/db';
+import { timeAgo } from '../../lib/normalize';
 
 export default function CreatorPitch() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [brands, setBrands] = useState([]);
+  const [recentConvs, setRecentConvs] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState('');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [proposedRate, setProposedRate] = useState('');
   const [sending, setSending] = useState(false);
 
+  useEffect(() => {
+    getBrands({ limit: 50 }).then(setBrands).catch(() => {});
+    if (user?.id) {
+      getConversations(user.id, 'creator')
+        .then(data => setRecentConvs(data.slice(0, 5)))
+        .catch(() => {});
+    }
+  }, [user?.id]);
+
   const handleSend = async () => {
     if (!selectedBrand || !subject || !message) { toast.error('Please fill all required fields'); return; }
     setSending(true);
-    await new Promise(r => setTimeout(r, 1500));
-    setSending(false);
-    toast.success('Pitch sent! The brand will review your proposal.');
-    setSelectedBrand(''); setSubject(''); setMessage(''); setProposedRate('');
+    try {
+      const conv = await getOrCreateConversation(user.id, selectedBrand);
+      const body = subject ? `**${subject}**\n\n${message}${proposedRate ? `\n\nProposed Rate: $${proposedRate}` : ''}` : message;
+      await sendMessage(conv.id, user.id, 'creator', body);
+      toast.success('Pitch sent! The brand will review your proposal.');
+      setSelectedBrand(''); setSubject(''); setMessage(''); setProposedRate('');
+      navigate(`/creator/messages/${conv.id}`);
+    } catch (err) {
+      toast.error(err.message || 'Failed to send pitch');
+    } finally { setSending(false); }
   };
+
+  const selectedBrandObj = brands.find(b => b.id === selectedBrand);
 
   return (
     <DashboardLayout>
@@ -47,23 +71,21 @@ export default function CreatorPitch() {
                 <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <select value={selectedBrand} onChange={e => setSelectedBrand(e.target.value)} className="input pl-10 appearance-none cursor-pointer">
                   <option value="">Choose a brand to pitch...</option>
-                  {brands.map(b => <option key={b.id} value={b.id}>{b.name} — {b.industry}</option>)}
+                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}{b.industry ? ` — ${b.industry}` : ''}</option>)}
                 </select>
                 <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
             </div>
 
-            {selectedBrand && (
+            {selectedBrandObj && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                {(() => { const b = brands.find(x => x.id === selectedBrand); return b ? (
-                  <div className="flex items-center gap-3">
-                    <img src={b.logo} alt="" className="w-10 h-10 rounded-xl object-cover" />
-                    <div>
-                      <p className="font-semibold text-sm text-gray-900 dark:text-white">{b.name}</p>
-                      <p className="text-xs text-gray-500">{b.industry} · {b.location}</p>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <img src={selectedBrandObj.logo_url || `https://i.pravatar.cc/40?u=${selectedBrandObj.id}`} alt="" className="w-10 h-10 rounded-xl object-cover" />
+                  <div>
+                    <p className="font-semibold text-sm text-gray-900 dark:text-white">{selectedBrandObj.name}</p>
+                    <p className="text-xs text-gray-500">{selectedBrandObj.industry || 'Brand'}</p>
                   </div>
-                ) : null; })()}
+                </div>
               </motion.div>
             )}
 
@@ -96,36 +118,35 @@ export default function CreatorPitch() {
         </div>
 
         <div className="flex gap-3">
-          <button onClick={() => { setSelectedBrand(''); setSubject(''); setMessage(''); }} className="btn btn-outline btn-lg flex-1">Clear</button>
+          <button onClick={() => { setSelectedBrand(''); setSubject(''); setMessage(''); setProposedRate(''); }} className="btn btn-outline btn-lg flex-1">Clear</button>
           <button onClick={handleSend} disabled={sending} className="btn btn-creator btn-lg flex-1 disabled:opacity-70">
             {sending ? 'Sending...' : <><Send size={16} /> Send Pitch</>}
           </button>
         </div>
 
-        {/* Previous pitches */}
-        <div className="mt-8">
-          <h2 className="section-title">Recent Pitches</h2>
-          <div className="space-y-3">
-            {[
-              { brand: 'StyleHaus', subject: 'Fall collection collab proposal', status: 'replied', date: '3 days ago' },
-              { brand: 'FitCore', subject: 'Fitness & lifestyle creator pitch', status: 'sent', date: '1 week ago' },
-              { brand: 'Wanderlust Co', subject: 'Travel content collaboration', status: 'pending', date: '2 weeks ago' },
-            ].map((p, i) => (
-              <div key={i} className="card flex items-center gap-4 p-4">
-                <div className="flex-1">
-                  <p className="font-semibold text-sm text-gray-900 dark:text-white">{p.brand}</p>
-                  <p className="text-xs text-gray-500">{p.subject}</p>
-                </div>
-                <div className="text-right">
-                  <span className={`badge ${p.status === 'replied' ? 'badge-success' : p.status === 'sent' ? 'badge-brand' : 'badge-warning'}`}>
-                    {p.status}
-                  </span>
-                  <p className="text-[11px] text-gray-400 mt-1">{p.date}</p>
-                </div>
-              </div>
-            ))}
+        {recentConvs.length > 0 && (
+          <div className="mt-8">
+            <h2 className="section-title">Recent Conversations</h2>
+            <div className="space-y-3">
+              {recentConvs.map(conv => {
+                const brandName = conv.brand_profiles?.name || 'Brand';
+                const brandLogo = conv.brand_profiles?.logo_url;
+                return (
+                  <div key={conv.id} className="card flex items-center gap-4 p-4">
+                    <img src={brandLogo || `https://i.pravatar.cc/40?u=${conv.brand_id}`} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-gray-900 dark:text-white">{brandName}</p>
+                      <p className="text-xs text-gray-500 truncate">{conv.last_message || 'No messages yet'}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-[11px] text-gray-400">{timeAgo(conv.last_message_at)}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </DashboardLayout>
   );

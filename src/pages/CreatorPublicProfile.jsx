@@ -26,7 +26,7 @@ import Navbar from '../components/layout/Navbar';
 import ContentCard from '../components/ContentCard';
 import { NicheBadge } from '../components/ui/Badge';
 import { formatNumber } from '../lib/normalize';
-import { getCreatorByUsername } from '../lib/db';
+import { getCreatorByUsername, getCreatorReviews } from '../lib/db';
 import { useAuth } from '../context/AuthContext';
 import SEO, { creatorProfileSchema } from '../components/SEO';
 
@@ -73,6 +73,8 @@ export default function CreatorPublicProfile() {
   const [creator, setCreator] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -82,6 +84,15 @@ export default function CreatorPublicProfile() {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [username]);
+
+  useEffect(() => {
+    if (!creator?.id || activeTab !== 'reviews') return;
+    setReviewsLoading(true);
+    getCreatorReviews(creator.id)
+      .then(setReviews)
+      .catch(() => setReviews([]))
+      .finally(() => setReviewsLoading(false));
+  }, [creator?.id, activeTab]);
 
   const handleHire = () => {
     if (!isLoggedIn) { navigate('/login'); return; }
@@ -295,10 +306,76 @@ export default function CreatorPublicProfile() {
             )}
 
             {activeTab === 'reviews' && (
-              creator.reviewCount > 0 ? (
-                <div className="text-center py-12 text-gray-400 text-sm">Reviews coming soon.</div>
+              reviewsLoading ? (
+                <div className="text-center py-12 text-gray-400 text-sm">Loading reviews...</div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-12">
+                  <Star size={32} className="text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">No reviews yet</p>
+                  <p className="text-gray-400 text-sm mt-1">Reviews appear here after brands complete orders with this creator.</p>
+                </div>
               ) : (
-                <div className="text-center py-12 text-gray-400 text-sm">No reviews yet.</div>
+                <div className="space-y-4">
+                  {/* Summary bar */}
+                  <div className="card p-4 flex items-center gap-6">
+                    <div className="text-center">
+                      <p className="text-3xl font-heading font-bold text-gray-900 dark:text-white">{creator.rating.toFixed(1)}</p>
+                      <div className="flex gap-0.5 justify-center mt-1">
+                        {[1,2,3,4,5].map(n => (
+                          <Star key={n} size={13} fill={n <= Math.round(creator.rating) ? '#F59E0B' : 'none'} className={n <= Math.round(creator.rating) ? 'text-wallet' : 'text-gray-300'} />
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">{creator.reviewCount} review{creator.reviewCount !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div className="flex-1 space-y-1.5">
+                      {[5,4,3,2,1].map(star => {
+                        const count = reviews.filter(r => r.rating === star).length;
+                        const pct = reviews.length ? Math.round((count / reviews.length) * 100) : 0;
+                        return (
+                          <div key={star} className="flex items-center gap-2 text-xs">
+                            <span className="w-3 text-gray-400">{star}</span>
+                            <Star size={10} fill="#F59E0B" className="text-wallet flex-shrink-0" />
+                            <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                              <div className="h-full bg-wallet rounded-full" style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className="w-6 text-right text-gray-400">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Review list */}
+                  {reviews.map(review => (
+                    <div key={review.id} className="card p-5">
+                      <div className="flex items-start gap-3 mb-3">
+                        <img
+                          src={review.brand_profiles?.logo_url || `https://i.pravatar.cc/40?u=${review.brand_id}`}
+                          alt=""
+                          className="w-9 h-9 rounded-xl object-cover flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-semibold text-sm text-gray-900 dark:text-white truncate">
+                              {review.brand_profiles?.name || 'Brand'}
+                            </p>
+                            <span className="text-xs text-gray-400 flex-shrink-0">
+                              {new Date(review.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            </span>
+                          </div>
+                          <div className="flex gap-0.5 mt-0.5">
+                            {[1,2,3,4,5].map(n => (
+                              <Star key={n} size={12} fill={n <= review.rating ? '#F59E0B' : 'none'} className={n <= review.rating ? 'text-wallet' : 'text-gray-300'} />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      {review.review && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{review.review}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )
             )}
           </div>

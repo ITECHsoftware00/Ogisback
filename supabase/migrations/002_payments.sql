@@ -120,22 +120,27 @@ ALTER TABLE payment_methods      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE stripe_prices        ENABLE ROW LEVEL SECURITY;
 
 -- Subscriptions: own only
+DROP POLICY IF EXISTS "Own subscriptions" ON subscriptions;
 CREATE POLICY "Own subscriptions" ON subscriptions
   FOR ALL USING (user_id = auth.uid());
 
 -- Wallet transactions: own only
+DROP POLICY IF EXISTS "Own wallet transactions" ON wallet_transactions;
 CREATE POLICY "Own wallet transactions" ON wallet_transactions
   FOR ALL USING (user_id = auth.uid());
 
 -- Escrow: brand or creator on the order
+DROP POLICY IF EXISTS "Escrow participants" ON escrow;
 CREATE POLICY "Escrow participants" ON escrow
   FOR ALL USING (brand_id = auth.uid() OR creator_id = auth.uid());
 
 -- Payment methods: own only
+DROP POLICY IF EXISTS "Own payment methods" ON payment_methods;
 CREATE POLICY "Own payment methods" ON payment_methods
   FOR ALL USING (user_id = auth.uid());
 
 -- Stripe prices: public read
+DROP POLICY IF EXISTS "Public read stripe prices" ON stripe_prices;
 CREATE POLICY "Public read stripe prices" ON stripe_prices
   FOR SELECT USING (true);
 
@@ -150,6 +155,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS subscription_updated_at ON subscriptions;
 CREATE TRIGGER subscription_updated_at
   BEFORE UPDATE ON subscriptions
   FOR EACH ROW EXECUTE FUNCTION update_subscription_timestamp();
@@ -167,6 +173,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_subscription_change ON subscriptions;
 CREATE TRIGGER on_subscription_change
   AFTER INSERT OR UPDATE ON subscriptions
   FOR EACH ROW EXECUTE FUNCTION sync_subscription_plan();

@@ -6,7 +6,7 @@
 -- ── 1. Profiles (extends auth.users) ──────────────────────────
 CREATE TABLE IF NOT EXISTS profiles (
   id               UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  role             TEXT NOT NULL CHECK (role IN ('creator', 'brand')),
+  role             TEXT NOT NULL CHECK (role IN ('creator', 'brand', 'admin')),
   plan             TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'mini', 'pro', 'max')),
   profile_complete BOOLEAN DEFAULT FALSE,
   dark_mode        BOOLEAN DEFAULT FALSE,
@@ -179,35 +179,48 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE withdrawals ENABLE ROW LEVEL SECURITY;
 
 -- Profiles
+DROP POLICY IF EXISTS "Public read profiles" ON profiles;
+DROP POLICY IF EXISTS "Own profile write" ON profiles;
 CREATE POLICY "Public read profiles"  ON profiles FOR SELECT USING (true);
 CREATE POLICY "Own profile write"     ON profiles FOR ALL    USING (auth.uid() = id);
 
 -- Creator profiles
+DROP POLICY IF EXISTS "Public read creator profiles" ON creator_profiles;
+DROP POLICY IF EXISTS "Own creator profile write" ON creator_profiles;
 CREATE POLICY "Public read creator profiles" ON creator_profiles FOR SELECT USING (true);
 CREATE POLICY "Own creator profile write"    ON creator_profiles FOR ALL    USING (auth.uid() = id);
 
 -- Brand profiles
+DROP POLICY IF EXISTS "Public read brand profiles" ON brand_profiles;
+DROP POLICY IF EXISTS "Own brand profile write" ON brand_profiles;
 CREATE POLICY "Public read brand profiles" ON brand_profiles FOR SELECT USING (true);
 CREATE POLICY "Own brand profile write"    ON brand_profiles FOR ALL    USING (auth.uid() = id);
 
 -- Campaigns
+DROP POLICY IF EXISTS "Public read active campaigns" ON campaigns;
+DROP POLICY IF EXISTS "Brand manage campaigns" ON campaigns;
 CREATE POLICY "Public read active campaigns" ON campaigns FOR SELECT USING (status = 'active' OR brand_id = auth.uid());
 CREATE POLICY "Brand manage campaigns"       ON campaigns FOR ALL    USING (brand_id = auth.uid());
 
 -- Campaign applications
+DROP POLICY IF EXISTS "Creator manage own applications" ON campaign_applications;
+DROP POLICY IF EXISTS "Brand read applications" ON campaign_applications;
 CREATE POLICY "Creator manage own applications" ON campaign_applications FOR ALL USING (creator_id = auth.uid());
 CREATE POLICY "Brand read applications"         ON campaign_applications FOR SELECT
   USING (EXISTS (SELECT 1 FROM campaigns c WHERE c.id = campaign_id AND c.brand_id = auth.uid()));
 
 -- Orders
+DROP POLICY IF EXISTS "Order participants access" ON orders;
 CREATE POLICY "Order participants access" ON orders FOR ALL
   USING (creator_id = auth.uid() OR brand_id = auth.uid());
 
 -- Conversations
+DROP POLICY IF EXISTS "Conversation participants access" ON conversations;
 CREATE POLICY "Conversation participants access" ON conversations FOR ALL
   USING (creator_id = auth.uid() OR brand_id = auth.uid());
 
 -- Messages
+DROP POLICY IF EXISTS "Conversation participant messages" ON messages;
 CREATE POLICY "Conversation participant messages" ON messages FOR ALL
   USING (
     EXISTS (
@@ -218,9 +231,11 @@ CREATE POLICY "Conversation participant messages" ON messages FOR ALL
   );
 
 -- Notifications
+DROP POLICY IF EXISTS "Own notifications" ON notifications;
 CREATE POLICY "Own notifications" ON notifications FOR ALL USING (user_id = auth.uid());
 
 -- Withdrawals
+DROP POLICY IF EXISTS "Own withdrawals" ON withdrawals;
 CREATE POLICY "Own withdrawals" ON withdrawals FOR ALL USING (creator_id = auth.uid());
 
 -- ═══════════════════════════════════════════════════════════════

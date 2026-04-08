@@ -36,6 +36,15 @@ import CreatorAnalytics from './pages/creator/Analytics';
 import CreatorProfileEdit from './pages/creator/ProfileEdit';
 import CreatorSettings from './pages/creator/Settings';
 
+// Admin pages
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminUsers from './pages/admin/Users';
+import AdminOrders from './pages/admin/Orders';
+import AdminWithdrawals from './pages/admin/Withdrawals';
+import AdminCampaigns from './pages/admin/Campaigns';
+import AdminEscrow from './pages/admin/Escrow';
+import AdminSubscriptions from './pages/admin/Subscriptions';
+
 // Brand pages
 import BrandDashboard from './pages/brand/Dashboard';
 import BrandDiscover from './pages/brand/Discover';
@@ -57,8 +66,16 @@ function ProtectedRoute({ children, requiredRole }) {
   const { isLoggedIn, activeRole } = useAuth();
   if (!isLoggedIn) return <Navigate to="/login" replace />;
   if (requiredRole && activeRole !== requiredRole) {
+    if (activeRole === 'admin') return <Navigate to="/admin" replace />;
     return <Navigate to={activeRole === 'creator' ? '/creator/dashboard' : '/brand/discover'} replace />;
   }
+  return children;
+}
+
+function AdminRoute({ children }) {
+  const { isLoggedIn, activeRole } = useAuth();
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  if (activeRole !== 'admin') return <Navigate to="/" replace />;
   return children;
 }
 
@@ -111,6 +128,15 @@ function AppRoutes() {
       <Route path="/brand/add-funds" element={<ProtectedRoute requiredRole="brand"><BrandAddFunds /></ProtectedRoute>} />
       <Route path="/brand/saved" element={<ProtectedRoute requiredRole="brand"><BrandSaved /></ProtectedRoute>} />
       <Route path="/brand/settings" element={<ProtectedRoute requiredRole="brand"><BrandSettings /></ProtectedRoute>} />
+
+      {/* Admin */}
+      <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+      <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+      <Route path="/admin/orders" element={<AdminRoute><AdminOrders /></AdminRoute>} />
+      <Route path="/admin/withdrawals" element={<AdminRoute><AdminWithdrawals /></AdminRoute>} />
+      <Route path="/admin/campaigns" element={<AdminRoute><AdminCampaigns /></AdminRoute>} />
+      <Route path="/admin/escrow" element={<AdminRoute><AdminEscrow /></AdminRoute>} />
+      <Route path="/admin/subscriptions" element={<AdminRoute><AdminSubscriptions /></AdminRoute>} />
 
       {/* Shared */}
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />

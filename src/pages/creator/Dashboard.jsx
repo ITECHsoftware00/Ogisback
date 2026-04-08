@@ -9,22 +9,36 @@ import {
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import StatCard from '../../components/ui/StatCard';
 import { StatusBadge } from '../../components/ui/Badge';
-import { earningsHistory, contentFeed } from '../../data';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
-import { getOrders } from '../../lib/db';
+import { getOrders, getCreatorPosts } from '../../lib/db';
+import { getWalletTransactions } from '../../lib/payments';
 import { formatCurrency, formatNumber, normalizeOrder } from '../../lib/normalize';
 
 export default function CreatorDashboard() {
   const { user } = useAuth();
   const [myOrders, setMyOrders] = useState([]);
-  const recentContent = contentFeed.slice(0, 3);
-  const chartData = earningsHistory.slice(-6);
+  const [recentContent, setRecentContent] = useState([]);
+  const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
     if (!user?.id) return;
     getOrders(user.id, 'creator')
       .then(data => setMyOrders(data.map(normalizeOrder).slice(0, 4)))
+      .catch(() => {});
+    getCreatorPosts(user.id)
+      .then(posts => setRecentContent(posts.slice(0, 3)))
+      .catch(() => {});
+    getWalletTransactions(user.id, 200)
+      .then(txs => {
+        const released = txs.filter(tx => tx.amount > 0 && tx.type !== 'escrow_credit');
+        const monthly = {};
+        released.forEach(tx => {
+          const key = new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short' });
+          monthly[key] = (monthly[key] || 0) + tx.amount;
+        });
+        setChartData(Object.entries(monthly).map(([month, earnings]) => ({ month, earnings })));
+      })
       .catch(() => {});
   }, [user?.id]);
 
@@ -57,7 +71,7 @@ export default function CreatorDashboard() {
             <h2 className="section-title mb-0">Earnings Overview</h2>
             <Link to="/creator/earnings" className="btn btn-ghost btn-sm text-primary">View all <ArrowRight size={14} /></Link>
           </div>
-          <div className="h-52">
+          <div className="h-52" style={{ minHeight: '208px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
@@ -153,15 +167,17 @@ export default function CreatorDashboard() {
             <Link to="/creator/feed" className="btn btn-ghost btn-sm text-primary">View all <ArrowRight size={14} /></Link>
           </div>
           <div className="space-y-3">
-            {recentContent.map(post => (
+            {recentContent.length > 0 ? recentContent.map(post => (
               <div key={post.id} className="flex items-center gap-3">
-                <img src={post.thumbnail} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                <img src={post.thumbnail_url || post.media_url || `https://picsum.photos/48?u=${post.id}`} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-gray-700 dark:text-gray-300 line-clamp-2">{post.caption}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">❤ {formatNumber(post.likes)} · 🔖 {formatNumber(post.saves)}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">❤ {formatNumber(post.likes_count || 0)} · 🔖 {formatNumber(post.saves_count || 0)}</p>
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-xs text-gray-400 text-center py-4">No posts yet.</p>
+            )}
           </div>
           <Link to="/creator/post/new" className="btn btn-creator btn-sm w-full mt-4">
             <Plus size={13} /> Upload New

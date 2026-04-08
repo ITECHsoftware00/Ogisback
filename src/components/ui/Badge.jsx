@@ -1,7 +1,19 @@
-import { statusConfig } from '../../data';
+const STATUS_CONFIG = {
+  pending:            { label: 'Pending',            color: 'badge-warning' },
+  active:             { label: 'Active',             color: 'badge-success' },
+  in_review:          { label: 'In Review',          color: 'badge-primary' },
+  delivered:          { label: 'Delivered',          color: 'badge-brand' },
+  completed:          { label: 'Completed',          color: 'badge-success' },
+  revision_requested: { label: 'Revision',           color: 'badge-warning' },
+  cancelled:          { label: 'Cancelled',          color: 'badge-danger' },
+  draft:              { label: 'Draft',              color: 'badge-gray' },
+  paused:             { label: 'Paused',             color: 'badge-warning' },
+  accepted:           { label: 'Accepted',           color: 'badge-success' },
+  rejected:           { label: 'Rejected',           color: 'badge-danger' },
+};
 
 export function StatusBadge({ status }) {
-  const config = statusConfig[status] || { label: status, color: 'badge-gray' };
+  const config = STATUS_CONFIG[status] || { label: status || '—', color: 'badge-gray' };
   return <span className={config.color}>{config.label}</span>;
 }
 

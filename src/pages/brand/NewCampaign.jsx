@@ -5,12 +5,15 @@ import { Megaphone, Plus, X, CheckCircle, DollarSign, Calendar } from 'lucide-re
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
+import { createCampaign } from '../../lib/db';
 
 const niches = ['Fashion', 'Beauty', 'Skincare', 'Tech', 'Gaming', 'Fitness', 'Health', 'Food', 'Travel', 'Finance', 'Lifestyle', 'Education', 'Wellness'];
 const platforms = ['Instagram', 'TikTok', 'YouTube', 'Twitter/X', 'Facebook', 'LinkedIn'];
 const contentTypes = ['Instagram Post', 'Instagram Reel', 'Instagram Story', 'TikTok Video', 'YouTube Video', 'YouTube Short', 'Carousel'];
 
 export default function BrandNewCampaign() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -23,12 +26,31 @@ export default function BrandNewCampaign() {
   const toggleArr = (k, v) => update(k, form[k].includes(v) ? form[k].filter(x => x !== v) : [...form[k], v]);
 
   const handlePublish = async () => {
-    if (!form.title || !form.description) { toast.error('Please fill all required fields'); return; }
+    if (!form.title.trim() || !form.description.trim()) { toast.error('Title and brief are required'); return; }
+    if (!user?.id) { toast.error('Not logged in'); return; }
     setPublishing(true);
-    await new Promise(r => setTimeout(r, 1500));
-    setPublishing(false);
-    toast.success('Campaign published! Creators can now apply.');
-    navigate('/brand/campaigns');
+    try {
+      await createCampaign(user.id, {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        goals: form.goals || null,
+        niche: form.niche,
+        platforms: form.platforms,
+        content_type: form.contentTypes[0] || null,
+        deliverables: form.deliverables.filter(d => d.trim()),
+        budget_min: parseFloat(form.budgetMin) || 0,
+        budget_max: parseFloat(form.budgetMax) || 0,
+        deadline: form.deadline || null,
+        min_followers: parseInt(form.minFollowers) || 0,
+        status: 'active',
+      });
+      toast.success('Campaign published! Creators can now apply.');
+      navigate('/brand/campaigns');
+    } catch (err) {
+      toast.error(err.message || 'Failed to publish campaign');
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const steps = ['Campaign Info', 'Requirements', 'Budget & Timeline', 'Review'];

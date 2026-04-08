@@ -6,7 +6,6 @@ import { Wallet, ArrowDownToLine, TrendingUp, Clock, CheckCircle, DollarSign, Ar
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
-import { earningsHistory } from '../../data';
 import { getWalletTransactions, getWithdrawalHistory } from '../../lib/payments';
 import { supabase } from '../../supabaseClient';
 import { formatCurrency, timeAgo } from '../../lib/normalize';
@@ -26,17 +25,15 @@ export default function CreatorEarnings() {
   const [walletBalance, setWalletBalance] = useState(user?.walletBalance || 0);
   const [pendingBalance, setPendingBalance] = useState(user?.pendingBalance || 0);
   const [loading, setLoading] = useState(true);
-
-  // Use mock earnings history for chart (will come from real data when content uploads exist)
-  const totalEarned = earningsHistory.reduce((s, m) => s + m.earnings, 0);
-  const thisMonth = earningsHistory[earningsHistory.length - 1].earnings;
-  const lastMonth = earningsHistory[earningsHistory.length - 2].earnings;
-  const growth = (((thisMonth - lastMonth) / lastMonth) * 100).toFixed(1);
+  const [chartData, setChartData] = useState([]);
+  const [totalEarned, setTotalEarned] = useState(0);
+  const [thisMonth, setThisMonth] = useState(0);
+  const [growth, setGrowth] = useState('0');
 
   useEffect(() => {
     if (!user?.id) return;
     Promise.all([
-      getWalletTransactions(user.id, 30),
+      getWalletTransactions(user.id, 200),
       getWithdrawalHistory(user.id),
       supabase.from('creator_profiles').select('wallet_balance,pending_balance').eq('id', user.id).single(),
     ]).then(([txs, wds, { data: profile }]) => {
@@ -46,6 +43,22 @@ export default function CreatorEarnings() {
         setWalletBalance(profile.wallet_balance || 0);
         setPendingBalance(profile.pending_balance || 0);
       }
+      // Build monthly earnings chart from positive transactions
+      const released = txs.filter(tx => tx.amount > 0 && tx.type !== 'escrow_credit');
+      const monthly = {};
+      released.forEach(tx => {
+        const key = new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        monthly[key] = (monthly[key] || 0) + tx.amount;
+      });
+      const sorted = Object.entries(monthly).map(([month, earnings]) => ({ month, earnings }));
+      setChartData(sorted);
+      const total = released.reduce((s, t) => s + t.amount, 0);
+      setTotalEarned(total);
+      const now = new Date();
+      const curMonth = released.filter(t => new Date(t.created_at).getMonth() === now.getMonth() && new Date(t.created_at).getFullYear() === now.getFullYear()).reduce((s, t) => s + t.amount, 0);
+      const prevMonth = released.filter(t => { const d = new Date(t.created_at); return d.getMonth() === (now.getMonth() - 1 + 12) % 12 && d.getFullYear() === (now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()); }).reduce((s, t) => s + t.amount, 0);
+      setThisMonth(curMonth);
+      setGrowth(prevMonth > 0 ? (((curMonth - prevMonth) / prevMonth) * 100).toFixed(1) : '0');
     }).catch(() => {}).finally(() => setLoading(false));
   }, [user?.id]);
 
@@ -85,9 +98,9 @@ export default function CreatorEarnings() {
         {/* Earnings chart */}
         <div className="lg:col-span-2 card p-6">
           <h2 className="section-title">Monthly Earnings</h2>
-          <div className="h-56">
+          <div className="h-56" style={{ minHeight: '224px' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={earningsHistory} barSize={24}>
+              <BarChart data={chartData.length > 0 ? chartData : [{ month: 'No data', earnings: 0 }]} barSize={24}>
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `$${v/1000}k`} />
                 <Tooltip formatter={v => [`$${v.toLocaleString()}`, 'Earnings']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.1)', fontFamily: 'Inter', fontSize: '13px' }} />

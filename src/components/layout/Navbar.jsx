@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -6,7 +6,7 @@ import {
   User, LogOut, Settings, Repeat2, Wallet
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { notifications } from '../../data';
+import { getNotifications } from '../../lib/db';
 import Logo from '../Logo';
 
 export default function Navbar() {
@@ -14,7 +14,14 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getNotifications(user.id, 30)
+      .then(notifs => setUnreadCount(notifs.filter(n => !n.is_read).length))
+      .catch(() => {});
+  }, [user?.id]);
 
   const handleLogout = () => {
     logout();

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, Bookmark, Share2, Play, Images, Film, MessageCircle } from 'lucide-react';
-import { formatNumber, timeAgo } from '../data';
+import { formatNumber, timeAgo } from '../lib/normalize';
 import { useAuth } from '../context/AuthContext';
 
 const typeIcon = { video: Play, carousel: Images, reel: Film, photo: null };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -10,6 +10,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { updateCreatorProfile } from '../../lib/db';
+import { uploadAvatar, uploadCover } from '../../lib/storage';
 
 const niches = [
   'Fashion', 'Beauty', 'Skincare', 'Tech', 'Gaming',
@@ -88,6 +89,12 @@ export default function CreatorProfileEdit() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const isSetup = params.get('setup') === 'true';
+  const avatarInputRef = useRef(null);
+  const coverInputRef = useRef(null);
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || null);
+  const [coverUrl, setCoverUrl] = useState(user?.cover || null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
 
   const [form, setForm] = useState({
     name: user?.name || '',
@@ -109,6 +116,44 @@ export default function CreatorProfileEdit() {
   const [saving, setSaving] = useState(false);
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5 MB'); return; }
+    setAvatarUploading(true);
+    try {
+      const url = await uploadAvatar(user.id, file);
+      await updateCreatorProfile(user.id, { avatar_url: url });
+      setAvatarUrl(url);
+      toast.success('Profile photo updated');
+    } catch (err) {
+      toast.error(err.message || 'Upload failed');
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error('Image must be under 10 MB'); return; }
+    setCoverUploading(true);
+    try {
+      const url = await uploadCover(user.id, file);
+      await updateCreatorProfile(user.id, { cover_url: url });
+      setCoverUrl(url);
+      toast.success('Cover photo updated');
+    } catch (err) {
+      toast.error(err.message || 'Upload failed');
+    } finally {
+      setCoverUploading(false);
+      e.target.value = '';
+    }
+  };
 
   const toggleNiche = (n) => {
     if (form.niche.includes(n)) {
@@ -225,6 +270,10 @@ export default function CreatorProfileEdit() {
           )}
         </div>
 
+        {/* Hidden file inputs */}
+        <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+        <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+
         {/* ── Profile photo ── */}
         <div className="card p-6 mb-5">
           <h2 className="text-base font-heading font-semibold text-gray-900 dark:text-white mb-1">Profile Photo</h2>
@@ -232,27 +281,40 @@ export default function CreatorProfileEdit() {
           <div className="flex items-center gap-4">
             <div className="relative">
               <img
-                src={user?.avatar || 'https://i.pravatar.cc/150?img=47'}
+                src={avatarUrl || 'https://i.pravatar.cc/150?img=47'}
                 alt="Profile"
                 className="w-20 h-20 rounded-2xl object-cover ring-2 ring-white dark:ring-gray-700 shadow"
               />
               <button
-                className="absolute -bottom-1 -right-1 w-7 h-7 bg-creator text-white rounded-full flex items-center justify-center shadow"
-                onClick={() => toast('Photo upload coming soon')}
+                className="absolute -bottom-1 -right-1 w-7 h-7 bg-creator text-white rounded-full flex items-center justify-center shadow disabled:opacity-60"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={avatarUploading}
                 title="Change photo"
               >
-                <Camera size={13} />
+                {avatarUploading
+                  ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <Camera size={13} />}
               </button>
             </div>
             <div>
               <p className="font-semibold text-gray-900 dark:text-white">{user?.name || 'Your Name'}</p>
               <p className="text-xs text-gray-400 mt-0.5 mb-2">Creator Account</p>
-              <button
-                className="btn btn-outline btn-sm text-xs"
-                onClick={() => toast('Photo upload coming soon')}
-              >
-                Upload New Photo
-              </button>
+              <div className="flex gap-2">
+                <button
+                  className="btn btn-outline btn-sm text-xs disabled:opacity-60"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploading}
+                >
+                  {avatarUploading ? 'Uploading...' : 'Upload New Photo'}
+                </button>
+                <button
+                  className="btn btn-outline btn-sm text-xs disabled:opacity-60"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={coverUploading}
+                >
+                  {coverUploading ? 'Uploading...' : 'Change Cover'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

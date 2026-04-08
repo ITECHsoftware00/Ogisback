@@ -8,8 +8,7 @@ import Navbar from '../components/layout/Navbar';
 import ContentCard from '../components/ContentCard';
 import CreatorCard from '../components/CreatorCard';
 import CampaignCard from '../components/CampaignCard';
-import { contentFeed, creators as mockCreators, campaigns as mockCampaigns } from '../data';
-import { getCreators, getCampaigns } from '../lib/db';
+import { getCreators, getCampaigns, getContentPosts } from '../lib/db';
 import { normalizeCreator, normalizeCampaign } from '../lib/normalize';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,19 +19,23 @@ export default function Explore() {
   const [activeTab, setActiveTab] = useState('All Content');
   const [activeNiche, setActiveNiche] = useState('All');
   const [search, setSearch] = useState('');
-  const [creators, setCreators] = useState(mockCreators);
-  const [campaigns, setCampaigns] = useState(mockCampaigns);
+  const [creators, setCreators] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [contentFeed, setContentFeed] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { isBrand, isLoggedIn } = useAuth();
   const navigate = useNavigate();
 
-  // Load real data from Supabase; fall back to mock if DB is empty
   useEffect(() => {
-    getCreators({ limit: 50 })
-      .then(data => { if (data.length > 0) setCreators(data.map(normalizeCreator)); })
-      .catch(() => {});
-    getCampaigns({ status: 'active', limit: 50 })
-      .then(data => { if (data.length > 0) setCampaigns(data.map(normalizeCampaign)); })
-      .catch(() => {});
+    Promise.all([
+      getCreators({ limit: 50 }),
+      getCampaigns({ status: 'active', limit: 50 }),
+      getContentPosts({ limit: 60 }),
+    ]).then(([c, camp, posts]) => {
+      setCreators(c.map(normalizeCreator));
+      setCampaigns(camp.map(normalizeCampaign));
+      setContentFeed(posts);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const handleHire = (item) => {
@@ -47,8 +50,9 @@ export default function Explore() {
   };
 
   const filteredContent = contentFeed.filter(p => {
-    const matchNiche = activeNiche === 'All' || p.caption.toLowerCase().includes(activeNiche.toLowerCase());
-    const matchSearch = !search || p.creator.toLowerCase().includes(search.toLowerCase()) || p.caption.toLowerCase().includes(search.toLowerCase());
+    const cap = p.caption || '';
+    const matchNiche = activeNiche === 'All' || cap.toLowerCase().includes(activeNiche.toLowerCase()) || (p.tags || []).some(t => t.toLowerCase().includes(activeNiche.toLowerCase()));
+    const matchSearch = !search || cap.toLowerCase().includes(search.toLowerCase());
     return matchNiche && matchSearch;
   });
 
@@ -120,7 +124,10 @@ export default function Explore() {
         </div>
 
         {/* Content */}
-        {activeTab === 'All Content' && (
+        {loading && (
+          <div className="text-center py-16 text-gray-400">Loading...</div>
+        )}
+        {!loading && activeTab === 'All Content' && (
           <div>
             {filteredContent.length === 0 ? (
               <p className="text-center text-gray-500 py-16">No content found. Try a different search.</p>
@@ -134,7 +141,7 @@ export default function Explore() {
           </div>
         )}
 
-        {activeTab === 'Creators' && (
+        {!loading && activeTab === 'Creators' && (
           <div>
             {filteredCreators.length === 0 ? (
               <p className="text-center text-gray-500 py-16">No creators found.</p>
@@ -148,7 +155,7 @@ export default function Explore() {
           </div>
         )}
 
-        {activeTab === 'Campaigns' && (
+        {!loading && activeTab === 'Campaigns' && (
           <div>
             {filteredCampaigns.length === 0 ? (
               <p className="text-center text-gray-500 py-16">No active campaigns found.</p>

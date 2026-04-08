@@ -414,3 +414,91 @@ export async function incrementPostViews(postId) {
 export async function incrementPostLikes(postId) {
   await supabase.rpc('increment_post_likes', { p_post_id: postId });
 }
+
+/* ─────────────────────── REVIEWS ─────────────────────── */
+
+export async function getCreatorReviews(creatorId) {
+  const { data, error } = await supabase
+    .from('order_reviews')
+    .select('*, brand_profiles(name, logo_url)')
+    .eq('creator_id', creatorId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createReview(orderId, creatorId, brandId, rating, review) {
+  const { data, error } = await supabase
+    .from('order_reviews')
+    .insert({ order_id: orderId, creator_id: creatorId, brand_id: brandId, rating, review })
+    .select()
+    .single();
+  if (error) throw error;
+  // Update creator avg rating
+  await supabase.rpc('refresh_creator_rating', { p_creator_id: creatorId });
+  return data;
+}
+
+/* ─────────────────────── CAMPAIGN MANAGEMENT ─────────────────────── */
+
+export async function deleteCampaign(id) {
+  const { error } = await supabase.from('campaigns').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/* ─────────────────────── BRANDS (public listing) ─────────────────────── */
+
+export async function getBrands({ limit = 30 } = {}) {
+  const { data, error } = await supabase
+    .from('brand_profiles')
+    .select('id, name, logo_url, industry, slug, profiles(plan)')
+    .eq('profiles.profile_complete', true)
+    .order('name')
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
+/* ─────────────────────── CONVERSATIONS (by id) ─────────────────────── */
+
+export async function getConversationById(id) {
+  const { data, error } = await supabase
+    .from('conversations')
+    .select(`
+      *,
+      creator_profiles(id, name, username, avatar_url, is_online),
+      brand_profiles(id, name, logo_url, slug)
+    `)
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/* ─────────────────────── SAVED CREATORS ─────────────────────── */
+
+export async function getSavedCreators(brandId) {
+  const { data, error } = await supabase
+    .from('saved_creators')
+    .select('creator_id, created_at, creator_profiles(*, profiles(plan))')
+    .eq('brand_id', brandId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(r => r.creator_profiles).filter(Boolean);
+}
+
+export async function saveCreator(brandId, creatorId) {
+  const { error } = await supabase
+    .from('saved_creators')
+    .upsert({ brand_id: brandId, creator_id: creatorId });
+  if (error) throw error;
+}
+
+export async function unsaveCreator(brandId, creatorId) {
+  const { error } = await supabase
+    .from('saved_creators')
+    .delete()
+    .eq('brand_id', brandId)
+    .eq('creator_id', creatorId);
+  if (error) throw error;
+}

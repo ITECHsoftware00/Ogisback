@@ -1,35 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Search, ArrowRight, CheckCircle, XCircle } from 'lucide-react';
+import { ShoppingBag, Search, ArrowRight, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import EmptyState from '../../components/ui/EmptyState';
 import { StatusBadge } from '../../components/ui/Badge';
-import { orders, formatCurrency } from '../../data';
 import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
+import { getOrders, updateOrderStatus } from '../../lib/db';
+import { releaseEscrow } from '../../lib/payments';
+import { normalizeOrder, formatCurrency } from '../../lib/normalize';
 
 const tabs = ['all', 'active', 'in_review', 'delivered', 'completed'];
 
 export default function BrandOrders() {
+  const { user } = useAuth();
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
-  const brandOrders = orders.filter(o => o.brandId === 'b1');
-  const filtered = brandOrders.filter(o => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getOrders(user.id, 'brand')
+      .then(data => setOrders(data.map(normalizeOrder)))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [user?.id]);
+
+  const filtered = orders.filter(o => {
     const matchTab = tab === 'all' || o.status === tab;
-    const matchSearch = !search || o.title.toLowerCase().includes(search.toLowerCase()) || o.creator.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = !search || o.title?.toLowerCase().includes(search.toLowerCase()) || o.creatorName?.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
 
-  const handleApprove = (orderId) => toast.success('Order approved! Payment released to creator.');
-  const handleRevision = (orderId) => toast.success('Revision requested. Creator has been notified.');
+  const handleApprove = async (orderId) => {
+    try {
+      await releaseEscrow(orderId);
+      await updateOrderStatus(orderId, 'completed');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'completed' } : o));
+      toast.success('Order approved! Payment released to creator.');
+    } catch (err) { toast.error(err.message || 'Failed to approve'); }
+  };
+
+  const handleRevision = async (orderId) => {
+    try {
+      await updateOrderStatus(orderId, 'revision_requested');
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'revision_requested' } : o));
+      toast.success('Revision requested. Creator has been notified.');
+    } catch (err) { toast.error(err.message || 'Failed'); }
+  };
+
+  const activeCount = orders.filter(o => ['active', 'in_review', 'delivered'].includes(o.status)).length;
 
   return (
     <DashboardLayout>
       <SEO title="Orders" noindex={true} />
       <div className="page-header">
         <h1 className="page-title">Orders</h1>
-        <p className="page-subtitle">{brandOrders.length} total orders · {brandOrders.filter(o => ['active', 'in_review', 'delivered'].includes(o.status)).length} active</p>
+        <p className="page-subtitle">{orders.length} total orders · {activeCount} active</p>
       </div>
 
       <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -46,7 +76,9 @@ export default function BrandOrders() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-16 text-gray-400">Loading orders...</div>
+      ) : filtered.length === 0 ? (
         <EmptyState icon={ShoppingBag} title="No orders found" description="Your orders with creators will appear here." action={<Link to="/brand/discover" className="btn btn-brand btn-md">Discover Creators</Link>} />
       ) : (
         <div className="space-y-3">
@@ -54,10 +86,10 @@ export default function BrandOrders() {
             <motion.div key={order.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <div className="card p-4 hover:shadow-card-hover transition-all">
                 <div className="flex items-center gap-4">
-                  <img src={order.creatorAvatar} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                  <img src={order.creatorAvatar || `https://i.pravatar.cc/48?u=${order.creator_id}`} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1">{order.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{order.creator} · Due {new Date(order.deliveryDeadline).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{order.creatorName} · Due {order.due_date ? new Date(order.due_date).toLocaleDateString() : 'TBD'}</p>
                   </div>
                   <div className="text-right flex-shrink-0 mr-2">
                     <p className="font-heading font-bold text-gray-900 dark:text-white text-sm">{formatCurrency(order.amount)}</p>

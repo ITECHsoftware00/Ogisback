@@ -33,10 +33,11 @@ export function AuthProvider({ children }) {
     if (role === 'creator') {
       const { data } = await supabase.from('creator_profiles').select('*').eq('id', authUser.id).single();
       subProfile = data;
-    } else {
+    } else if (role === 'brand') {
       const { data } = await supabase.from('brand_profiles').select('*').eq('id', authUser.id).single();
       subProfile = data;
     }
+    // admin role has no sub-profile
 
     const merged = {
       id: authUser.id,
@@ -175,6 +176,10 @@ export function AuthProvider({ children }) {
     setUser({ id: 'mock-b1', name: 'NovaSkin', role: 'brand', plan: 'free', profileComplete: true, walletBalance: 15000, logo: 'https://i.pravatar.cc/150?img=20' });
     setActiveRole('brand');
   });
+  const loginAsAdmin = () => {
+    setUser({ id: 'mock-admin', name: 'Admin', email: 'admin@ogisback.com', role: 'admin', plan: 'free', profileComplete: true });
+    setActiveRole('admin');
+  };
 
   const value = {
     user,
@@ -193,8 +198,10 @@ export function AuthProvider({ children }) {
     toggleDark,
     loginAsCreator,
     loginAsBrand,
+    loginAsAdmin,
     isCreator: activeRole === 'creator',
     isBrand: activeRole === 'brand',
+    isAdmin: activeRole === 'admin',
     isLoggedIn: !!user,
     plan: user?.plan || 'free',
   };

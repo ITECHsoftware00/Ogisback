@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Moon, Bell, Shield, LogOut, ChevronRight, Building2, Globe,
   Trash2, CheckCircle, Crown, Star, Zap, MapPin, FileText,
-  Users, Info, ArrowRight, Camera,
+  Users, Info, ArrowRight, Camera, X, Eye, EyeOff, Lock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { updateBrandProfile } from '../../lib/db';
+import { uploadLogo } from '../../lib/storage';
+import { supabase } from '../../supabaseClient';
 import SubscriptionBilling from '../../components/SubscriptionBilling';
 
 function Toggle({ checked, onChange }) {
@@ -47,11 +49,14 @@ export default function BrandSettings() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const isSetup = params.get('setup') === 'true';
+  const logoInputRef = useRef(null);
 
   const [notifs, setNotifs] = useState({
     applications: true, messages: true, orderUpdates: true, marketing: false,
   });
   const [saving, setSaving] = useState(false);
+  const [logoUrl, setLogoUrl] = useState(user?.logo || null);
+  const [logoUploading, setLogoUploading] = useState(false);
   const [form, setForm] = useState({
     name: user?.name || '',
     industry: '',
@@ -61,7 +66,32 @@ export default function BrandSettings() {
     location: '',
   });
 
+  // Security modal
+  const [showSecurity, setShowSecurity] = useState(false);
+  const [pwForm, setPwForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [showPw, setShowPw] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5 MB'); return; }
+    setLogoUploading(true);
+    try {
+      const url = await uploadLogo(user.id, file);
+      await updateBrandProfile(user.id, { logo_url: url });
+      setLogoUrl(url);
+      toast.success('Logo updated');
+    } catch (err) {
+      toast.error(err.message || 'Upload failed');
+    } finally {
+      setLogoUploading(false);
+      e.target.value = '';
+    }
+  };
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Brand name is required'); return; }
@@ -82,6 +112,23 @@ export default function BrandSettings() {
       toast.error(err.message || 'Failed to save. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (pwForm.newPassword.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    if (pwForm.newPassword !== pwForm.confirmPassword) { toast.error('Passwords do not match'); return; }
+    setPwSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pwForm.newPassword });
+      if (error) throw error;
+      toast.success('Password updated successfully');
+      setShowSecurity(false);
+      setPwForm({ newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      toast.error(err.message || 'Failed to update password');
+    } finally {
+      setPwSaving(false);
     }
   };
 
@@ -119,6 +166,16 @@ export default function BrandSettings() {
   return (
     <DashboardLayout>
       <SEO title="Brand Settings" noindex={true} />
+
+      {/* Hidden file input for logo upload */}
+      <input
+        ref={logoInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleLogoUpload}
+      />
+
       <div className="max-w-2xl mx-auto">
 
         {/* ── Setup welcome banner ── */}
@@ -175,26 +232,30 @@ export default function BrandSettings() {
           <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800/60 rounded-2xl border border-gray-100 dark:border-gray-700">
             <div className="relative">
               <img
-                src={user?.logo || 'https://i.pravatar.cc/150?img=20'}
+                src={logoUrl || 'https://i.pravatar.cc/150?img=20'}
                 alt="Brand logo"
                 className="w-16 h-16 rounded-2xl object-cover ring-2 ring-white dark:ring-gray-700 shadow-sm"
               />
               <button
-                className="absolute -bottom-1 -right-1 w-6 h-6 bg-brand text-white rounded-full flex items-center justify-center shadow"
+                className="absolute -bottom-1 -right-1 w-6 h-6 bg-brand text-white rounded-full flex items-center justify-center shadow disabled:opacity-60"
                 title="Change logo"
-                onClick={() => toast('Logo upload coming soon')}
+                onClick={() => logoInputRef.current?.click()}
+                disabled={logoUploading}
               >
-                <Camera size={11} />
+                {logoUploading
+                  ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  : <Camera size={11} />}
               </button>
             </div>
             <div>
               <p className="font-semibold text-gray-900 dark:text-white">{user?.name || 'Your Brand'}</p>
               <p className="text-xs text-gray-400 mt-0.5">Brand Account</p>
               <button
-                className="btn btn-outline btn-sm mt-2 text-xs"
-                onClick={() => toast('Logo upload coming soon')}
+                className="btn btn-outline btn-sm mt-2 text-xs disabled:opacity-60"
+                onClick={() => logoInputRef.current?.click()}
+                disabled={logoUploading}
               >
-                Change Logo
+                {logoUploading ? 'Uploading...' : 'Change Logo'}
               </button>
             </div>
           </div>
@@ -376,11 +437,11 @@ export default function BrandSettings() {
             <Section title="Account & Security" subtitle="Manage your login security and account data.">
               <SettingRow
                 icon={Shield}
-                label="Security Settings"
-                desc="Manage your password, two-factor authentication, and connected accounts."
+                label="Change Password"
+                desc="Update your password to keep your account secure."
                 right={
                   <button
-                    onClick={() => toast.success('Security settings coming soon')}
+                    onClick={() => setShowSecurity(true)}
                     className="text-brand hover:text-brand-600 transition-colors"
                   >
                     <ChevronRight size={16} />
@@ -412,6 +473,82 @@ export default function BrandSettings() {
           </>
         )}
       </div>
+
+      {/* ── Security / Password Modal ── */}
+      <AnimatePresence>
+        {showSecurity && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => !pwSaving && setShowSecurity(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative bg-white dark:bg-[#111118] rounded-2xl shadow-2xl w-full max-w-sm p-6 z-10"
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center">
+                    <Lock size={15} className="text-brand" />
+                  </div>
+                  <h2 className="font-heading font-bold text-gray-900 dark:text-white">Change Password</h2>
+                </div>
+                <button onClick={() => setShowSecurity(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"><X size={16} /></button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="form-group">
+                  <label className="label">New Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPw ? 'text' : 'password'}
+                      value={pwForm.newPassword}
+                      onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))}
+                      placeholder="At least 8 characters"
+                      className="input pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPw(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="label">Confirm New Password</label>
+                  <input
+                    type={showPw ? 'text' : 'password'}
+                    value={pwForm.confirmPassword}
+                    onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                    placeholder="Repeat your new password"
+                    className="input"
+                  />
+                  {pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword && (
+                    <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button onClick={() => setShowSecurity(false)} className="btn btn-outline btn-md flex-1" disabled={pwSaving}>Cancel</button>
+                <button onClick={handlePasswordChange} disabled={pwSaving} className="btn btn-brand btn-md flex-1 disabled:opacity-60">
+                  {pwSaving ? (
+                    <span className="flex items-center gap-2"><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Updating...</span>
+                  ) : 'Update Password'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }

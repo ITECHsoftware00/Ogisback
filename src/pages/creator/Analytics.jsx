@@ -1,10 +1,13 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Eye, Heart, Bookmark, Users, BarChart3 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import StatCard from '../../components/ui/StatCard';
-import { contentFeed, earningsHistory, formatNumber } from '../../data';
 import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
+import { getCreatorPosts } from '../../lib/db';
+import { formatNumber } from '../../lib/normalize';
 
 const COLORS = ['#EC4899', '#7C3AED', '#0D9488', '#F59E0B'];
 const nicheData = [
@@ -20,12 +23,20 @@ const engagementData = [
   { day: 'Mon', rate: 4.2 }, { day: 'Tue', rate: 5.1 }, { day: 'Wed', rate: 4.8 },
   { day: 'Thu', rate: 6.3 }, { day: 'Fri', rate: 7.1 }, { day: 'Sat', rate: 8.2 }, { day: 'Sun', rate: 5.9 },
 ];
-const myPosts = contentFeed.filter(p => p.creatorId === 'c1');
-const totalViews = myPosts.reduce((s, p) => s + p.views, 0);
-const totalLikes = myPosts.reduce((s, p) => s + p.likes, 0);
-const totalSaves = myPosts.reduce((s, p) => s + p.saves, 0);
 
 export default function CreatorAnalytics() {
+  const { user } = useAuth();
+  const [myPosts, setMyPosts] = useState([]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    getCreatorPosts(user.id).then(setMyPosts).catch(() => {});
+  }, [user?.id]);
+
+  const totalViews = myPosts.reduce((s, p) => s + (p.views_count || 0), 0);
+  const totalLikes = myPosts.reduce((s, p) => s + (p.likes_count || 0), 0);
+  const totalSaves = myPosts.reduce((s, p) => s + (p.saves_count || 0), 0);
+
   return (
     <DashboardLayout>
       <SEO title="Analytics" noindex={true} />
@@ -45,7 +56,7 @@ export default function CreatorAnalytics() {
         {/* Follower growth */}
         <div className="card p-6">
           <h2 className="section-title">Follower Growth</h2>
-          <div className="h-48">
+          <div className="h-48" style={{ minHeight: '192px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={growthData}>
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
@@ -60,7 +71,7 @@ export default function CreatorAnalytics() {
         {/* Engagement rate */}
         <div className="card p-6">
           <h2 className="section-title">Daily Engagement Rate</h2>
-          <div className="h-48">
+          <div className="h-48" style={{ minHeight: '192px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={engagementData} barSize={28}>
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
@@ -102,17 +113,19 @@ export default function CreatorAnalytics() {
         <div className="card p-6">
           <h2 className="section-title">Top Performing Posts</h2>
           <div className="space-y-3">
-            {myPosts.sort((a, b) => b.likes - a.likes).slice(0, 3).map((post, i) => (
+            {myPosts.length > 0 ? myPosts.sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0)).slice(0, 3).map((post, i) => (
               <div key={post.id} className="flex items-center gap-3">
                 <span className="text-2xl font-heading font-extrabold text-gray-200 dark:text-gray-700 w-8">#{i + 1}</span>
-                <img src={post.thumbnail} alt="" className="w-12 h-12 rounded-xl object-cover" />
+                <img src={post.thumbnail_url || post.media_url || `https://picsum.photos/48?u=${post.id}`} alt="" className="w-12 h-12 rounded-xl object-cover" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-gray-700 dark:text-gray-300 line-clamp-1">{post.caption}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">❤ {formatNumber(post.likes)} · 🔖 {formatNumber(post.saves)}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">❤ {formatNumber(post.likes_count || 0)} · 🔖 {formatNumber(post.saves_count || 0)}</p>
                 </div>
                 <span className={`badge ${post.type === 'reel' ? 'badge-creator' : post.type === 'video' ? 'badge-primary' : 'badge-gray'} text-[10px]`}>{post.type}</span>
               </div>
-            ))}
+            )) : (
+              <p className="text-sm text-gray-400 text-center py-4">No posts yet.</p>
+            )}
           </div>
         </div>
       </div>
