@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   User, MapPin, Save, CheckCircle, Camera, Info,
-  ArrowRight, Star, DollarSign, Globe, AtSign,
+  ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, Plus, X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -73,6 +73,36 @@ const rateFields = [
   { key: 'rateVideo', label: 'YouTube Video', desc: 'Dedicated or integrated mention' },
 ];
 
+const analyticsFields = [
+  {
+    platform: 'instagram',
+    label: 'Instagram',
+    engKey: 'instagramEngagement',
+    likesKey: 'instagramAvgLikes',
+    commentsKey: 'instagramAvgComments',
+    color: 'text-pink-500',
+    bg: 'bg-pink-50 dark:bg-pink-900/10',
+  },
+  {
+    platform: 'tiktok',
+    label: 'TikTok',
+    engKey: 'tiktokEngagement',
+    likesKey: 'tiktokAvgLikes',
+    commentsKey: 'tiktokAvgComments',
+    color: 'text-gray-900 dark:text-white',
+    bg: 'bg-gray-50 dark:bg-gray-800',
+  },
+  {
+    platform: 'youtube',
+    label: 'YouTube',
+    engKey: 'youtubeEngagement',
+    likesKey: 'youtubeAvgLikes',
+    commentsKey: 'youtubeAvgComments',
+    color: 'text-red-500',
+    bg: 'bg-red-50 dark:bg-red-900/10',
+  },
+];
+
 const SETUP_STEPS = ['Your Identity', 'Content Niches', 'Social Platforms', 'Your Rates'];
 
 function FieldHint({ children }) {
@@ -107,15 +137,38 @@ export default function CreatorProfileEdit() {
     instagramFollowers: '',
     tiktokFollowers: '',
     youtubeFollowers: '',
+    instagramEngagement: '',
+    tiktokEngagement: '',
+    youtubeEngagement: '',
+    instagramAvgLikes: '',
+    instagramAvgComments: '',
+    tiktokAvgLikes: '',
+    tiktokAvgComments: '',
+    youtubeAvgLikes: '',
+    youtubeAvgComments: '',
     ratePost: '',
     rateReel: '',
     rateStory: '',
     rateVideo: '',
     niche: [],
+    audienceLocations: [{ country: '', percent: '' }],
   });
   const [saving, setSaving] = useState(false);
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const updateLocation = (i, field, val) => {
+    const updated = [...form.audienceLocations];
+    updated[i] = { ...updated[i], [field]: val };
+    setForm(f => ({ ...f, audienceLocations: updated }));
+  };
+  const addLocation = () => {
+    if (form.audienceLocations.length >= 5) return;
+    setForm(f => ({ ...f, audienceLocations: [...f.audienceLocations, { country: '', percent: '' }] }));
+  };
+  const removeLocation = (i) => {
+    setForm(f => ({ ...f, audienceLocations: f.audienceLocations.filter((_, idx) => idx !== i) }));
+  };
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -171,22 +224,33 @@ export default function CreatorProfileEdit() {
     if (form.niche.length === 0) { toast.error('Select at least one content niche'); return; }
     setSaving(true);
     try {
+      const validLocations = form.audienceLocations.filter(l => l.country && l.percent);
       await updateCreatorProfile(user.id, {
         name: form.name.trim(),
         bio: form.bio.trim(),
         location: form.location || null,
         website: form.website || null,
         niche: form.niche,
-        instagram_handle: form.instagram || null,
-        tiktok_handle: form.tiktok || null,
-        youtube_handle: form.youtube || null,
+        instagram: form.instagram || null,
+        tiktok: form.tiktok || null,
+        youtube: form.youtube || null,
         instagram_followers: parseInt(form.instagramFollowers) || 0,
         tiktok_followers: parseInt(form.tiktokFollowers) || 0,
         youtube_followers: parseInt(form.youtubeFollowers) || 0,
+        instagram_engagement: parseFloat(form.instagramEngagement) || 0,
+        tiktok_engagement: parseFloat(form.tiktokEngagement) || 0,
+        youtube_engagement: parseFloat(form.youtubeEngagement) || 0,
+        instagram_avg_likes: parseInt(form.instagramAvgLikes) || 0,
+        instagram_avg_comments: parseInt(form.instagramAvgComments) || 0,
+        tiktok_avg_likes: parseInt(form.tiktokAvgLikes) || 0,
+        tiktok_avg_comments: parseInt(form.tiktokAvgComments) || 0,
+        youtube_avg_likes: parseInt(form.youtubeAvgLikes) || 0,
+        youtube_avg_comments: parseInt(form.youtubeAvgComments) || 0,
         rate_post: parseFloat(form.ratePost) || null,
         rate_reel: parseFloat(form.rateReel) || null,
         rate_story: parseFloat(form.rateStory) || null,
         rate_video: parseFloat(form.rateVideo) || null,
+        audience_locations: validLocations.map(l => ({ country: l.country, percent: parseFloat(l.percent) })),
       });
       await completeProfile();
       toast.success(isSetup ? 'Profile complete! Welcome to OgisBack.' : 'Profile updated successfully.');
@@ -475,6 +539,110 @@ export default function CreatorProfileEdit() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* ── Analytics Stats ── */}
+        <div className="card p-6 mb-5">
+          <div className="mb-5">
+            <h2 className="text-base font-heading font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <TrendingUp size={16} className="text-primary" />Analytics Stats
+            </h2>
+            <p className="text-xs text-gray-400 mt-1">
+              Brands use these stats to evaluate your reach. Add your engagement rate, average likes and comments per post for each platform.
+            </p>
+          </div>
+          <div className="space-y-5">
+            {analyticsFields.filter(a => form[a.platform]).map(a => (
+              <div key={a.platform} className={`rounded-2xl border border-gray-100 dark:border-gray-800 p-4 ${a.bg}`}>
+                <p className={`font-heading font-semibold text-sm mb-3 ${a.color}`}>{a.label}</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="form-group">
+                    <label className="label text-xs">Engagement Rate %</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={form[a.engKey]}
+                      onChange={e => update(a.engKey, e.target.value)}
+                      placeholder="e.g. 4.8"
+                      min="0"
+                      max="100"
+                      className="input text-sm"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="label text-xs">Avg Likes / Post</label>
+                    <input
+                      type="number"
+                      value={form[a.likesKey]}
+                      onChange={e => update(a.likesKey, e.target.value)}
+                      placeholder="e.g. 12000"
+                      min="0"
+                      className="input text-sm"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="label text-xs">Avg Comments / Post</label>
+                    <input
+                      type="number"
+                      value={form[a.commentsKey]}
+                      onChange={e => update(a.commentsKey, e.target.value)}
+                      placeholder="e.g. 450"
+                      min="0"
+                      className="input text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+            {!form.instagram && !form.tiktok && !form.youtube && (
+              <p className="text-xs text-gray-400 text-center py-2">Add a platform handle above to unlock analytics fields.</p>
+            )}
+          </div>
+        </div>
+
+        {/* ── Audience Location ── */}
+        <div className="card p-6 mb-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-heading font-semibold text-gray-900 dark:text-white">Audience Location</h2>
+              <p className="text-xs text-gray-400 mt-1">Where your audience is from — brands use this for geo-targeted campaigns.</p>
+            </div>
+            {form.audienceLocations.length < 5 && (
+              <button onClick={addLocation} className="btn btn-outline btn-sm text-xs flex items-center gap-1">
+                <Plus size={13} />Add
+              </button>
+            )}
+          </div>
+          <div className="space-y-3">
+            {form.audienceLocations.map((loc, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <input
+                  value={loc.country}
+                  onChange={e => updateLocation(i, 'country', e.target.value)}
+                  placeholder="Country (e.g. United States)"
+                  className="input text-sm flex-1"
+                />
+                <div className="relative w-24 flex-shrink-0">
+                  <input
+                    type="number"
+                    value={loc.percent}
+                    onChange={e => updateLocation(i, 'percent', e.target.value)}
+                    placeholder="%"
+                    min="0"
+                    max="100"
+                    className="input text-sm pr-6"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+                </div>
+                {form.audienceLocations.length > 1 && (
+                  <button onClick={() => removeLocation(i)} className="text-gray-400 hover:text-red-400 transition-colors">
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          <FieldHint>Percentages don't need to add up to 100 — just enter your top markets.</FieldHint>
         </div>
 
         {/* ── Rates ── */}

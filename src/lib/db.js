@@ -379,6 +379,26 @@ export async function getCreatorPosts(creatorId) {
   return data || [];
 }
 
+export async function getCreatorAnalytics(creatorId) {
+  const { data, error } = await supabase
+    .from('creator_profiles')
+    .select(`
+      name, avatar_url,
+      instagram, tiktok, youtube,
+      instagram_followers, tiktok_followers, youtube_followers,
+      instagram_engagement, tiktok_engagement, youtube_engagement,
+      instagram_avg_likes, instagram_avg_comments,
+      tiktok_avg_likes, tiktok_avg_comments,
+      youtube_avg_likes, youtube_avg_comments,
+      audience_locations,
+      rating, review_count, completed_orders
+    `)
+    .eq('id', creatorId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createContentPost({ creatorId, type, mediaUrl, mediaUrls = [], thumbnailUrl, caption, tags = [], platform }) {
   const { data, error } = await supabase
     .from('content_posts')
