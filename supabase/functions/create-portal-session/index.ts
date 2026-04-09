@@ -1,7 +1,4 @@
 // Supabase Edge Function: create-portal-session
-// Opens Stripe Customer Portal for subscription management
-// Deploy: supabase functions deploy create-portal-session
-
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -18,21 +15,41 @@ const supabase = createClient(
 const SITE_URL = Deno.env.get('SITE_URL') ?? 'http://localhost:5173';
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': SITE_URL,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  try {
-    const { userId, returnUrl } = await req.json();
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
-    // Get Stripe customer ID from subscriptions table
+  const supabaseUser = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: authHeader } } },
+  );
+
+  const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    const { returnUrl } = await req.json().catch(() => ({}));
+
+    // Look up the subscription using verified user ID only
     const { data: sub } = await supabase
       .from('subscriptions')
       .select('stripe_customer_id')
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .not('stripe_customer_id', 'is', null)
       .order('created_at', { ascending: false })
       .limit(1)
