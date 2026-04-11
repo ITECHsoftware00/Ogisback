@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ArrowLeft, ArrowRight, CheckCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Sparkles, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const GoogleIcon = () => (
@@ -51,10 +51,13 @@ const roles = [
 ];
 
 export default function Signup() {
-  const { signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
+  const { signInWithGoogle, signInWithInstagram, signup, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState(null);
   const [oauthLoading, setOauthLoading] = useState(null);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
 
   useEffect(() => {
     if (isLoggedIn) navigate(activeRole === 'creator' ? '/creator/dashboard' : '/brand/discover');
@@ -74,7 +77,26 @@ export default function Signup() {
     catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setOauthLoading(null); }
   };
 
-  const anyLoading = !!oauthLoading;
+  const handleEmailSignup = async (e) => {
+    e.preventDefault();
+    if (!selectedRole) { toast.error('Please choose Creator or Brand first'); return; }
+    if (!form.name.trim()) { toast.error('Enter your name'); return; }
+    if (!form.email) { toast.error('Enter your email'); return; }
+    if (form.password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    if (form.password !== form.confirm) { toast.error('Passwords do not match'); return; }
+    setEmailLoading(true);
+    try {
+      await signup(form.email, form.password, selectedRole, form.name.trim());
+      toast.success('Account created! Check your email to confirm.');
+      navigate(selectedRole === 'creator' ? '/creator/profile-edit?setup=true' : '/brand/settings?setup=true');
+    } catch (err) {
+      toast.error(err.message || 'Sign up failed. Try again.');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const anyLoading = !!oauthLoading || emailLoading;
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F] flex flex-col">
@@ -159,22 +181,85 @@ export default function Signup() {
             ))}
           </div>
 
-          {/* Step 2 — OAuth buttons (always visible, disabled until role picked) */}
+          {/* Step 2 — Email sign up */}
           <AnimatePresence>
             {selectedRole && (
-              <motion.div
+              <motion.form
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.25 }}
-                className="mb-4 text-center"
+                exit={{ opacity: 0 }}
+                onSubmit={handleEmailSignup}
+                className="space-y-3 mb-5"
               >
-                <p className="text-sm text-gray-500 mb-1">
+                <p className="text-sm text-gray-500 text-center mb-3">
                   Joining as a <span className="font-semibold text-gray-900 dark:text-white capitalize">{selectedRole === 'creator' ? 'Creator' : 'Brand'}</span>
                 </p>
-              </motion.div>
+                <div className="relative">
+                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder={selectedRole === 'creator' ? 'Your name or creator alias' : 'Brand / company name'}
+                    className="input pl-9"
+                    autoComplete="name"
+                  />
+                </div>
+                <div className="relative">
+                  <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="Email address"
+                    className="input pl-9"
+                    autoComplete="email"
+                  />
+                </div>
+                <div className="relative">
+                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                    placeholder="Password (min 8 characters)"
+                    className="input pl-9 pr-10"
+                    autoComplete="new-password"
+                  />
+                  <button type="button" onClick={() => setShowPassword(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+                <div className="relative">
+                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.confirm}
+                    onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))}
+                    placeholder="Confirm password"
+                    className="input pl-9"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={anyLoading}
+                  className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50 flex items-center justify-center transition-all"
+                >
+                  {emailLoading
+                    ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    : 'Create Account'}
+                </button>
+              </motion.form>
             )}
           </AnimatePresence>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-px bg-gray-200 dark:bg-white/10" />
+            <span className="text-xs text-gray-400">or sign up with</span>
+            <div className="flex-1 h-px bg-gray-200 dark:bg-white/10" />
+          </div>
 
           <div className="space-y-3 mb-4">
             <motion.button

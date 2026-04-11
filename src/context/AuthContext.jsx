@@ -112,6 +112,13 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const forgotPassword = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+    if (error) throw error;
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -189,6 +196,7 @@ export function AuthProvider({ children }) {
     signup,
     login,
     logout,
+    forgotPassword,
     signInWithGoogle,
     signInWithInstagram,
     setupOAuthProfile,

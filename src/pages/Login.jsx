@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Sparkles, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Sparkles, CheckCircle, Mail, Lock, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const GoogleIcon = () => (
@@ -31,10 +31,13 @@ const stats = [
 ];
 
 export default function Login() {
-  const { signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
+  const { signInWithGoogle, signInWithInstagram, login, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState(null);
   const [oauthLoading, setOauthLoading] = useState(null);
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({ email: '', password: '' });
 
   useEffect(() => {
     if (isLoggedIn) navigate(activeRole === 'admin' ? '/admin' : activeRole === 'creator' ? '/creator/dashboard' : '/brand/discover');
@@ -52,7 +55,21 @@ export default function Login() {
     catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setOauthLoading(null); }
   };
 
-  const anyLoading = !!oauthLoading;
+  const handleEmailLogin = async (e) => {
+    e.preventDefault();
+    if (!form.email || !form.password) { toast.error('Enter your email and password'); return; }
+    setEmailLoading(true);
+    try {
+      await login(form.email, form.password);
+      // navigation handled by useEffect above
+    } catch (err) {
+      toast.error(err.message || 'Invalid email or password');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const anyLoading = !!oauthLoading || emailLoading;
 
   return (
     <div className="min-h-screen flex bg-white dark:bg-[#0A0A0F]">
@@ -132,11 +149,65 @@ export default function Login() {
             <h2 className="text-3xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-1">
               Welcome back
             </h2>
-            <p className="text-gray-500 text-sm">Who are you signing in as?</p>
+            <p className="text-gray-500 text-sm">Sign in with email or social</p>
           </div>
 
-          {/* Role picker */}
-          <div className="grid grid-cols-2 gap-3 mb-7">
+          {/* ── Email/password form ── */}
+          <form onSubmit={handleEmailLogin} className="space-y-3 mb-5">
+            <div className="relative">
+              <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="email"
+                value={form.email}
+                onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="Email address"
+                className="input pl-9"
+                autoComplete="email"
+              />
+            </div>
+            <div className="relative">
+              <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="Password"
+                className="input pl-9 pr-10"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(s => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            <div className="flex justify-end">
+              <Link to="/forgot-password" className="text-xs text-purple-600 dark:text-purple-400 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+            <button
+              type="submit"
+              disabled={anyLoading}
+              className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white font-semibold text-sm transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center"
+            >
+              {emailLoading
+                ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                : 'Sign In'}
+            </button>
+          </form>
+
+          {/* ── Divider ── */}
+          <div className="flex items-center gap-3 mb-5">
+            <div className="flex-1 h-px bg-gray-200 dark:bg-white/10" />
+            <span className="text-xs text-gray-400">or continue with</span>
+            <div className="flex-1 h-px bg-gray-200 dark:bg-white/10" />
+          </div>
+
+          {/* ── Role picker ── */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
             {[
               { id: 'creator', emoji: '🎬', label: 'Creator', sub: 'I make content', border: 'border-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/20', ring: 'ring-purple-400', dot: 'bg-purple-500' },
               { id: 'brand',   emoji: '🏢', label: 'Brand',   sub: 'I hire creators', border: 'border-blue-400',   bg: 'bg-blue-50 dark:bg-blue-900/20',     ring: 'ring-blue-400',   dot: 'bg-blue-500'   },
@@ -146,47 +217,33 @@ export default function Login() {
                 whileTap={{ scale: 0.97 }}
                 onClick={() => setSelectedRole(r.id)}
                 disabled={anyLoading}
-                className={`relative p-4 rounded-2xl border-2 text-left transition-all duration-200 disabled:opacity-50
+                className={`relative p-3 rounded-2xl border-2 text-left transition-all duration-200 disabled:opacity-50
                   ${selectedRole === r.id
                     ? `${r.bg} ${r.border} ring-2 ${r.ring} ring-offset-2 ring-offset-[#FAFAFA] dark:ring-offset-[#0D0D14]`
                     : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] hover:border-gray-300 dark:hover:border-white/20'
                   }`}
               >
                 {selectedRole === r.id && (
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2.5 right-2.5">
-                    <div className={`w-5 h-5 rounded-full ${r.dot} flex items-center justify-center`}>
-                      <CheckCircle size={12} className="text-white" />
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2">
+                    <div className={`w-4 h-4 rounded-full ${r.dot} flex items-center justify-center`}>
+                      <CheckCircle size={10} className="text-white" />
                     </div>
                   </motion.div>
                 )}
-                <div className="text-2xl mb-2">{r.emoji}</div>
-                <div className="font-heading font-bold text-gray-900 dark:text-white text-sm">{r.label}</div>
-                <div className="text-[11px] text-gray-500 mt-0.5">{r.sub}</div>
+                <div className="text-xl mb-1">{r.emoji}</div>
+                <div className="font-heading font-bold text-gray-900 dark:text-white text-xs">{r.label}</div>
+                <div className="text-[10px] text-gray-500 mt-0.5">{r.sub}</div>
               </motion.button>
             ))}
           </div>
 
-          {/* Role hint */}
-          <AnimatePresence>
-            {selectedRole && (
-              <motion.p
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="text-xs text-gray-500 text-center mb-4 overflow-hidden"
-              >
-                Returning <span className="font-semibold text-gray-700 dark:text-gray-300 capitalize">{selectedRole === 'creator' ? 'Creator' : 'Brand'}</span>? We'll take you straight to your dashboard.
-              </motion.p>
-            )}
-          </AnimatePresence>
-
-          {/* OAuth buttons */}
-          <div className="space-y-3">
+          {/* ── OAuth buttons ── */}
+          <div className="space-y-2.5">
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleGoogle}
               disabled={anyLoading || !selectedRole}
-              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold transition-all shadow-sm dark:shadow-lg dark:shadow-black/30
+              className={`w-full flex items-center justify-center gap-3 h-12 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold transition-all shadow-sm
                 ${!selectedRole ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50'}`}
             >
               {oauthLoading === 'google'
@@ -199,7 +256,7 @@ export default function Login() {
               whileTap={{ scale: 0.98 }}
               onClick={handleInstagram}
               disabled={anyLoading || !selectedRole}
-              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold transition-all shadow-sm dark:shadow-lg dark:shadow-pink-900/30
+              className={`w-full flex items-center justify-center gap-3 h-12 rounded-2xl text-white text-sm font-semibold transition-all
                 ${!selectedRole ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90 disabled:opacity-50'}`}
               style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCB045 100%)' }}
             >
@@ -211,13 +268,13 @@ export default function Login() {
           </div>
 
           {!selectedRole && (
-            <p className="text-center text-xs text-gray-400 mt-3">
-              ↑ Select Creator or Brand to continue
+            <p className="text-center text-xs text-gray-400 mt-2">
+              ↑ Select Creator or Brand for social sign-in
             </p>
           )}
 
           {/* Demo accounts */}
-          <div className="mt-7 pt-7 border-t border-gray-200 dark:border-white/5 space-y-2">
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-white/5 space-y-2">
             <p className="text-xs text-gray-400 dark:text-gray-600 text-center mb-3">Try a demo account</p>
             <div className="grid grid-cols-2 gap-2">
               <button
