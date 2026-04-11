@@ -35,8 +35,7 @@ export async function getCreatorByUsername(username) {
 export async function updateCreatorProfile(id, updates) {
   const { data, error } = await supabase
     .from('creator_profiles')
-    .update(updates)
-    .eq('id', id)
+    .upsert({ id, ...updates }, { onConflict: 'id' })
     .select()
     .single();
   if (error) throw error;

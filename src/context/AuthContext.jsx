@@ -82,27 +82,14 @@ export function AuthProvider({ children }) {
   /* ── Auth actions ── */
 
   const signup = async (email, password, role, name) => {
+    // The DB trigger (handle_new_user) creates both profiles + creator/brand sub-profile
+    // rows automatically using SECURITY DEFINER — no client-side inserts needed.
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { role, name } },
     });
     if (error) throw error;
-
-    if (data.user) {
-      if (role === 'creator') {
-        const username = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase();
-        await supabase.from('creator_profiles').insert({
-          id: data.user.id,
-          username: username + Math.floor(Math.random() * 999),
-          name,
-        });
-      } else {
-        const slug = name.toLowerCase().replace(/\s+/g, '-') + Math.floor(Math.random() * 999);
-        await supabase.from('brand_profiles').insert({ id: data.user.id, slug, name });
-      }
-      await supabase.from('profiles').update({ profile_complete: false }).eq('id', data.user.id);
-    }
     return data;
   };
 

@@ -88,7 +88,7 @@ export default function Signup() {
     try {
       await signup(form.email, form.password, selectedRole, form.name.trim());
       toast.success('Account created! Check your email to confirm.');
-      navigate(selectedRole === 'creator' ? '/creator/profile-edit?setup=true' : '/brand/settings?setup=true');
+      navigate(selectedRole === 'creator' ? '/creator/profile/edit?setup=true' : '/brand/settings?setup=true');
     } catch (err) {
       toast.error(err.message || 'Sign up failed. Try again.');
     } finally {
