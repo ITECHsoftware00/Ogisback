@@ -46,13 +46,13 @@ export default function Login() {
 
   const handleGoogle = async () => {
     setOauthLoading('google');
-    try { await signInWithGoogle(selectedRole); }
+    try { await signInWithGoogle(); }
     catch (err) { toast.error(err.message || 'Google sign-in failed.'); setOauthLoading(null); }
   };
 
   const handleInstagram = async () => {
     setOauthLoading('instagram');
-    try { await signInWithInstagram(selectedRole); }
+    try { await signInWithInstagram(); }
     catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setOauthLoading(null); }
   };
 

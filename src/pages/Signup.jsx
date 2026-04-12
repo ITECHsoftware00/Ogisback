@@ -55,24 +55,21 @@ const roles = [
 export default function Signup() {
   const { signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState(null);
   const [oauthLoading, setOauthLoading] = useState(null);
 
   useEffect(() => {
-    if (isLoggedIn) navigate(activeRole === 'creator' ? '/creator/dashboard' : '/brand/discover');
+    if (isLoggedIn) navigate(activeRole === 'creator' ? '/creator/dashboard' : '/brand/dashboard');
   }, [isLoggedIn]);
 
   const handleGoogle = async () => {
-    if (!selectedRole) { toast.error('Please choose Creator or Brand first'); return; }
     setOauthLoading('google');
-    try { await signInWithGoogle(selectedRole); }
+    try { await signInWithGoogle(); }
     catch (err) { toast.error(err.message || 'Google sign-in failed.'); setOauthLoading(null); }
   };
 
   const handleInstagram = async () => {
-    if (!selectedRole) { toast.error('Please choose Creator or Brand first'); return; }
     setOauthLoading('instagram');
-    try { await signInWithInstagram(selectedRole); }
+    try { await signInWithInstagram(); }
     catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setOauthLoading(null); }
   };
 
@@ -114,30 +111,16 @@ export default function Signup() {
             <h1 className="text-4xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">
               Create your account
             </h1>
-            <p className="text-gray-500 text-base">Choose your role, then sign in with social</p>
+            <p className="text-gray-500 text-base">Sign in with the right social account for your role</p>
           </div>
 
-          {/* Step 1 — Role picker */}
+          {/* Role info cards */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             {roles.map(role => (
-              <motion.button
+              <div
                 key={role.id}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setSelectedRole(role.id)}
-                disabled={anyLoading}
-                className={`relative p-5 rounded-2xl border-2 text-left transition-all duration-200 disabled:opacity-50
-                  ${selectedRole === role.id
-                    ? `${role.bg} ${role.border} ring-2 ${role.ring} ring-offset-2 ring-offset-[#FAFAFA] dark:ring-offset-[#0A0A0F]`
-                    : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] hover:border-gray-300 dark:hover:border-white/20'
-                  }`}
+                className={`relative p-5 rounded-2xl border-2 text-left ${role.bg} ${role.border}`}
               >
-                {selectedRole === role.id && (
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-3 right-3">
-                    <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${role.gradient} flex items-center justify-center`}>
-                      <CheckCircle size={14} className="text-white" fill="white" />
-                    </div>
-                  </motion.div>
-                )}
                 <div className="text-3xl mb-3">{role.emoji}</div>
                 <div className="font-heading font-bold text-gray-900 dark:text-white text-sm mb-1">{role.title}</div>
                 <p className="text-[11px] text-gray-500 leading-relaxed mb-3">{role.subtitle}</p>
@@ -149,45 +132,40 @@ export default function Signup() {
                     </li>
                   ))}
                 </ul>
-              </motion.button>
+                <div className={`mt-3 text-[10px] font-semibold ${role.check}`}>
+                  {role.id === 'creator' ? '→ Sign in with Instagram' : '→ Sign in with Google'}
+                </div>
+              </div>
             ))}
           </div>
 
-          {/* Step 2 — OAuth buttons */}
+          {/* OAuth buttons — provider determines role automatically */}
           <div className="space-y-3 mb-4">
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleGoogle}
-              disabled={anyLoading || !selectedRole}
-              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold transition-all shadow-sm
-                ${!selectedRole ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50'}`}
+              disabled={anyLoading}
+              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold transition-all shadow-sm hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50"
             >
               {oauthLoading === 'google'
                 ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
                 : <GoogleIcon />}
-              Continue with Google
+              Join as Brand — Google
             </motion.button>
 
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleInstagram}
-              disabled={anyLoading || !selectedRole}
-              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold transition-all
-                ${!selectedRole ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90 disabled:opacity-50'}`}
+              disabled={anyLoading}
+              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold transition-all hover:opacity-90 disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCB045 100%)' }}
             >
               {oauthLoading === 'instagram'
                 ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 : <InstagramIcon size={20} />}
-              Continue with Instagram
+              Join as Creator — Instagram
             </motion.button>
           </div>
-
-          {!selectedRole && (
-            <p className="text-center text-xs text-gray-400 mb-4">
-              ↑ Select Creator or Brand above to continue
-            </p>
-          )}
 
           <p className="text-center text-xs text-gray-400 dark:text-gray-600 mb-6">
             By signing up, you agree to our Terms of Service and Privacy Policy

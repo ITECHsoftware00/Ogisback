@@ -62,23 +62,38 @@ import BrandAddFunds from './pages/brand/AddFunds';
 import BrandSaved from './pages/brand/Saved';
 import BrandSettings from './pages/brand/Settings';
 
-// Route guard
-function ProtectedRoute({ children, requiredRole }) {
-  const { isLoggedIn, activeRole, loading, settling } = useAuth();
-  // Wait for auth to fully resolve before deciding
+// Route guard — any authenticated user
+function ProtectedRoute({ children }) {
+  const { isLoggedIn, loading, settling } = useAuth();
   if (loading || settling) return null;
-  if (!isLoggedIn) return <Navigate to="/login" replace />;
-  if (requiredRole && activeRole !== requiredRole) {
-    if (activeRole === 'admin') return <Navigate to="/admin" replace />;
-    return <Navigate to={activeRole === 'creator' ? '/creator/dashboard' : '/brand/discover'} replace />;
-  }
+  if (!isLoggedIn) return <Navigate to="/" replace />;
+  return children;
+}
+
+// Creator-only route
+function CreatorRoute({ children }) {
+  const { isLoggedIn, activeRole, loading, settling } = useAuth();
+  if (loading || settling) return null;
+  if (!isLoggedIn) return <Navigate to="/" replace />;
+  if (activeRole === 'admin') return <Navigate to="/admin" replace />;
+  if (activeRole !== 'creator') return <Navigate to="/brand/dashboard" replace />;
+  return children;
+}
+
+// Brand-only route
+function BrandRoute({ children }) {
+  const { isLoggedIn, activeRole, loading, settling } = useAuth();
+  if (loading || settling) return null;
+  if (!isLoggedIn) return <Navigate to="/" replace />;
+  if (activeRole === 'admin') return <Navigate to="/admin" replace />;
+  if (activeRole !== 'brand') return <Navigate to="/creator/dashboard" replace />;
   return children;
 }
 
 function AdminRoute({ children }) {
   const { isLoggedIn, activeRole, loading, settling } = useAuth();
   if (loading || settling) return null;
-  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  if (!isLoggedIn) return <Navigate to="/" replace />;
   if (activeRole !== 'admin') return <Navigate to="/" replace />;
   return children;
 }
@@ -102,37 +117,37 @@ function AppRoutes() {
       <Route path="/payment/cancel" element={<PaymentCancel />} />
 
       {/* Creator dashboard */}
-      <Route path="/creator/dashboard" element={<ProtectedRoute requiredRole="creator"><CreatorDashboard /></ProtectedRoute>} />
-      <Route path="/creator/feed" element={<ProtectedRoute requiredRole="creator"><CreatorFeed /></ProtectedRoute>} />
-      <Route path="/creator/post/new" element={<ProtectedRoute requiredRole="creator"><CreatorNewPost /></ProtectedRoute>} />
-      <Route path="/creator/campaigns" element={<ProtectedRoute requiredRole="creator"><CreatorCampaigns /></ProtectedRoute>} />
-      <Route path="/creator/campaigns/:id" element={<ProtectedRoute requiredRole="creator"><CreatorCampaignDetail /></ProtectedRoute>} />
-      <Route path="/creator/orders" element={<ProtectedRoute requiredRole="creator"><CreatorOrders /></ProtectedRoute>} />
-      <Route path="/creator/orders/:id" element={<ProtectedRoute requiredRole="creator"><CreatorOrderDetail /></ProtectedRoute>} />
-      <Route path="/creator/pitch" element={<ProtectedRoute requiredRole="creator"><CreatorPitch /></ProtectedRoute>} />
-      <Route path="/creator/messages" element={<ProtectedRoute requiredRole="creator"><CreatorMessages /></ProtectedRoute>} />
-      <Route path="/creator/messages/:id" element={<ProtectedRoute requiredRole="creator"><CreatorMessageThread /></ProtectedRoute>} />
-      <Route path="/creator/earnings" element={<ProtectedRoute requiredRole="creator"><CreatorEarnings /></ProtectedRoute>} />
-      <Route path="/creator/withdraw" element={<ProtectedRoute requiredRole="creator"><CreatorWithdraw /></ProtectedRoute>} />
-      <Route path="/creator/analytics" element={<ProtectedRoute requiredRole="creator"><CreatorAnalytics /></ProtectedRoute>} />
-      <Route path="/creator/profile/edit" element={<ProtectedRoute requiredRole="creator"><CreatorProfileEdit /></ProtectedRoute>} />
-      <Route path="/creator/settings" element={<ProtectedRoute requiredRole="creator"><CreatorSettings /></ProtectedRoute>} />
+      <Route path="/creator/dashboard" element={<CreatorRoute><CreatorDashboard /></CreatorRoute>} />
+      <Route path="/creator/feed" element={<CreatorRoute><CreatorFeed /></CreatorRoute>} />
+      <Route path="/creator/post/new" element={<CreatorRoute><CreatorNewPost /></CreatorRoute>} />
+      <Route path="/creator/campaigns" element={<CreatorRoute><CreatorCampaigns /></CreatorRoute>} />
+      <Route path="/creator/campaigns/:id" element={<CreatorRoute><CreatorCampaignDetail /></CreatorRoute>} />
+      <Route path="/creator/orders" element={<CreatorRoute><CreatorOrders /></CreatorRoute>} />
+      <Route path="/creator/orders/:id" element={<CreatorRoute><CreatorOrderDetail /></CreatorRoute>} />
+      <Route path="/creator/pitch" element={<CreatorRoute><CreatorPitch /></CreatorRoute>} />
+      <Route path="/creator/messages" element={<CreatorRoute><CreatorMessages /></CreatorRoute>} />
+      <Route path="/creator/messages/:id" element={<CreatorRoute><CreatorMessageThread /></CreatorRoute>} />
+      <Route path="/creator/earnings" element={<CreatorRoute><CreatorEarnings /></CreatorRoute>} />
+      <Route path="/creator/withdraw" element={<CreatorRoute><CreatorWithdraw /></CreatorRoute>} />
+      <Route path="/creator/analytics" element={<CreatorRoute><CreatorAnalytics /></CreatorRoute>} />
+      <Route path="/creator/profile/edit" element={<CreatorRoute><CreatorProfileEdit /></CreatorRoute>} />
+      <Route path="/creator/settings" element={<CreatorRoute><CreatorSettings /></CreatorRoute>} />
 
       {/* Brand dashboard */}
-      <Route path="/brand/dashboard" element={<ProtectedRoute requiredRole="brand"><BrandDashboard /></ProtectedRoute>} />
-      <Route path="/brand/discover" element={<ProtectedRoute requiredRole="brand"><BrandDiscover /></ProtectedRoute>} />
-      <Route path="/brand/discover/:username" element={<ProtectedRoute requiredRole="brand"><BrandCreatorView /></ProtectedRoute>} />
-      <Route path="/brand/campaigns" element={<ProtectedRoute requiredRole="brand"><BrandCampaigns /></ProtectedRoute>} />
-      <Route path="/brand/campaigns/new" element={<ProtectedRoute requiredRole="brand"><BrandNewCampaign /></ProtectedRoute>} />
-      <Route path="/brand/campaigns/:id" element={<ProtectedRoute requiredRole="brand"><BrandCampaignDetail /></ProtectedRoute>} />
-      <Route path="/brand/orders" element={<ProtectedRoute requiredRole="brand"><BrandOrders /></ProtectedRoute>} />
-      <Route path="/brand/orders/:id" element={<ProtectedRoute requiredRole="brand"><BrandOrderDetail /></ProtectedRoute>} />
-      <Route path="/brand/messages" element={<ProtectedRoute requiredRole="brand"><BrandMessages /></ProtectedRoute>} />
-      <Route path="/brand/messages/:id" element={<ProtectedRoute requiredRole="brand"><BrandMessageThread /></ProtectedRoute>} />
-      <Route path="/brand/payments" element={<ProtectedRoute requiredRole="brand"><BrandPayments /></ProtectedRoute>} />
-      <Route path="/brand/add-funds" element={<ProtectedRoute requiredRole="brand"><BrandAddFunds /></ProtectedRoute>} />
-      <Route path="/brand/saved" element={<ProtectedRoute requiredRole="brand"><BrandSaved /></ProtectedRoute>} />
-      <Route path="/brand/settings" element={<ProtectedRoute requiredRole="brand"><BrandSettings /></ProtectedRoute>} />
+      <Route path="/brand/dashboard" element={<BrandRoute><BrandDashboard /></BrandRoute>} />
+      <Route path="/brand/discover" element={<BrandRoute><BrandDiscover /></BrandRoute>} />
+      <Route path="/brand/discover/:username" element={<BrandRoute><BrandCreatorView /></BrandRoute>} />
+      <Route path="/brand/campaigns" element={<BrandRoute><BrandCampaigns /></BrandRoute>} />
+      <Route path="/brand/campaigns/new" element={<BrandRoute><BrandNewCampaign /></BrandRoute>} />
+      <Route path="/brand/campaigns/:id" element={<BrandRoute><BrandCampaignDetail /></BrandRoute>} />
+      <Route path="/brand/orders" element={<BrandRoute><BrandOrders /></BrandRoute>} />
+      <Route path="/brand/orders/:id" element={<BrandRoute><BrandOrderDetail /></BrandRoute>} />
+      <Route path="/brand/messages" element={<BrandRoute><BrandMessages /></BrandRoute>} />
+      <Route path="/brand/messages/:id" element={<BrandRoute><BrandMessageThread /></BrandRoute>} />
+      <Route path="/brand/payments" element={<BrandRoute><BrandPayments /></BrandRoute>} />
+      <Route path="/brand/add-funds" element={<BrandRoute><BrandAddFunds /></BrandRoute>} />
+      <Route path="/brand/saved" element={<BrandRoute><BrandSaved /></BrandRoute>} />
+      <Route path="/brand/settings" element={<BrandRoute><BrandSettings /></BrandRoute>} />
 
       {/* Admin */}
       <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
@@ -143,7 +158,7 @@ function AppRoutes() {
       <Route path="/admin/escrow" element={<AdminRoute><AdminEscrow /></AdminRoute>} />
       <Route path="/admin/subscriptions" element={<AdminRoute><AdminSubscriptions /></AdminRoute>} />
 
-      {/* Shared */}
+      {/* Shared (any authenticated role) */}
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
       <Route path="/404" element={<NotFound />} />
       <Route path="*" element={<NotFound />} />

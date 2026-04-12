@@ -7,7 +7,8 @@ import SEO from '../components/SEO';
 /**
  * Landing page after OAuth redirect.
  * AuthContext handles all profile creation via onAuthStateChange → fetchProfile.
- * This page just waits for settling to finish, then redirects to the dashboard.
+ * This page detects provider (google → brand, instagram → creator) and routes
+ * new users to onboarding, returning users to their dashboard.
  */
 export default function AuthCallback() {
   const { user, loading, settling } = useAuth();
@@ -18,14 +19,29 @@ export default function AuthCallback() {
     if (loading || settling) return;
 
     if (user) {
-      const dest =
-        user.role === 'creator' ? '/creator/dashboard'
-        : user.role === 'brand' ? '/brand/discover'
-        : '/admin';
-      navigate(dest, { replace: true });
+      const isNewUser = !user.profileComplete;
+      const role = user.role;
+
+      if (isNewUser) {
+        if (role === 'creator') {
+          navigate('/creator/profile/edit?setup=true', { replace: true });
+        } else if (role === 'brand') {
+          navigate('/brand/settings', { replace: true });
+        } else {
+          navigate('/admin', { replace: true });
+        }
+      } else {
+        if (role === 'creator') {
+          navigate('/creator/dashboard', { replace: true });
+        } else if (role === 'brand') {
+          navigate('/brand/dashboard', { replace: true });
+        } else {
+          navigate('/admin', { replace: true });
+        }
+      }
     } else {
       // No session after settling — auth failed or user denied
-      navigate('/login', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [user, loading, settling]);
 

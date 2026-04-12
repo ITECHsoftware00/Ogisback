@@ -62,6 +62,12 @@ export function AuthProvider({ children }) {
 
     if (!profile) { setUser(null); setActiveRole(null); return; }
 
+    // Mark user as online
+    supabase.from('profiles').update({
+      is_online: true,
+      last_seen: new Date().toISOString(),
+    }).eq('id', authUser.id);
+
     const role = profile.role;
     let subProfile = null;
 
@@ -108,8 +114,9 @@ export function AuthProvider({ children }) {
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setActiveRole(null);
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        // Silently refresh — no profile re-fetch needed, just update session
       }
-      // All other events (TOKEN_REFRESHED, USER_UPDATED, etc.) intentionally ignored
     });
 
     return () => subscription.unsubscribe();
@@ -123,22 +130,28 @@ export function AuthProvider({ children }) {
 
   /* ── OAuth sign-in (the only auth methods) ── */
 
-  // Google → brand dashboard
-  const signInWithGoogle = async (role = null) => {
-    if (role) localStorage.setItem('ogisback_pending_role', role);
+  // Google → brand dashboard (role is always 'brand' for Google)
+  const signInWithGoogle = async () => {
+    localStorage.setItem('ogisback_pending_role', 'brand');
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+      },
     });
     if (error) throw error;
   };
 
-  // Instagram (Meta/Facebook OAuth) → creator dashboard
-  const signInWithInstagram = async (role = null) => {
-    if (role) localStorage.setItem('ogisback_pending_role', role);
+  // Instagram → creator dashboard (role is always 'creator' for Instagram)
+  const signInWithInstagram = async () => {
+    localStorage.setItem('ogisback_pending_role', 'creator');
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'facebook',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      provider: 'instagram',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        scopes: 'user_profile,user_media',
+      },
     });
     if (error) throw error;
   };
@@ -168,6 +181,12 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    if (user?.id) {
+      await supabase.from('profiles').update({
+        is_online: false,
+        last_seen: new Date().toISOString(),
+      }).eq('id', user.id);
+    }
     await supabase.auth.signOut();
     // SIGNED_OUT event will clear user state via onAuthStateChange
   };
