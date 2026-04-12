@@ -19,11 +19,39 @@ export function AuthProvider({ children }) {
   async function fetchProfile(authUser) {
     if (!authUser) { setUser(null); setActiveRole(null); return; }
 
-    const { data: profile } = await supabase
+    let { data: profile } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', authUser.id)
       .single();
+
+    // If no profile row yet (trigger may have missed), create one from metadata
+    if (!profile) {
+      const meta = authUser.user_metadata || {};
+      const role = meta.role || 'creator';
+      const name = meta.name || authUser.email.split('@')[0];
+      await supabase.from('profiles').upsert(
+        { id: authUser.id, role, plan: 'free', profile_complete: false },
+        { onConflict: 'id' }
+      );
+      if (role === 'creator') {
+        const username = authUser.email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase()
+          + Math.floor(Math.random() * 999);
+        await supabase.from('creator_profiles').upsert(
+          { id: authUser.id, username, name },
+          { onConflict: 'id' }
+        );
+      } else {
+        const slug = name.toLowerCase().replace(/\s+/g, '-') + Math.floor(Math.random() * 999);
+        await supabase.from('brand_profiles').upsert(
+          { id: authUser.id, slug, name },
+          { onConflict: 'id' }
+        );
+      }
+      const { data: newProfile } = await supabase
+        .from('profiles').select('*').eq('id', authUser.id).single();
+      profile = newProfile;
+    }
 
     if (!profile) { setUser(null); setActiveRole(null); return; }
 
@@ -82,15 +110,40 @@ export function AuthProvider({ children }) {
   /* ── Auth actions ── */
 
   const signup = async (email, password, role, name) => {
-    // The DB trigger (handle_new_user) creates both profiles + creator/brand sub-profile
-    // rows automatically using SECURITY DEFINER — no client-side inserts needed.
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { role, name } },
     });
     if (error) throw error;
-    return data;
+
+    // If Supabase auto-confirmed the session (email confirm disabled),
+    // create profile rows immediately — don't rely solely on the DB trigger.
+    if (data.session && data.user) {
+      const uid = data.user.id;
+      // Upsert is safe: if trigger already ran this is a no-op.
+      await supabase.from('profiles').upsert({
+        id: uid, role, plan: 'free', profile_complete: false,
+      }, { onConflict: 'id' });
+
+      if (role === 'creator') {
+        const username = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase()
+          + Math.floor(Math.random() * 999);
+        await supabase.from('creator_profiles').upsert(
+          { id: uid, username, name },
+          { onConflict: 'id' }
+        );
+      } else {
+        const slug = name.toLowerCase().replace(/\s+/g, '-') + Math.floor(Math.random() * 999);
+        await supabase.from('brand_profiles').upsert(
+          { id: uid, slug, name },
+          { onConflict: 'id' }
+        );
+      }
+    }
+
+    // needsConfirmation = true when Supabase requires email verification
+    return { ...data, needsConfirmation: !data.session };
   };
 
   const login = async (email, password) => {

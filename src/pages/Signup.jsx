@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ArrowLeft, ArrowRight, CheckCircle, Sparkles, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Sparkles, Mail, Lock, Eye, EyeOff, User, MailCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const GoogleIcon = () => (
@@ -58,6 +58,7 @@ export default function Signup() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
+  const [confirmEmail, setConfirmEmail] = useState(null);
 
   useEffect(() => {
     if (isLoggedIn) navigate(activeRole === 'creator' ? '/creator/dashboard' : '/brand/discover');
@@ -86,9 +87,15 @@ export default function Signup() {
     if (form.password !== form.confirm) { toast.error('Passwords do not match'); return; }
     setEmailLoading(true);
     try {
-      await signup(form.email, form.password, selectedRole, form.name.trim());
-      toast.success('Account created! Check your email to confirm.');
-      navigate(selectedRole === 'creator' ? '/creator/profile/edit?setup=true' : '/brand/settings?setup=true');
+      const result = await signup(form.email, form.password, selectedRole, form.name.trim());
+      if (result.needsConfirmation) {
+        // Email confirmation required — don't navigate to a protected route
+        setConfirmEmail(form.email);
+      } else {
+        // Auto-confirmed — go straight to profile setup
+        toast.success('Account created! Let\'s set up your profile.');
+        navigate(selectedRole === 'creator' ? '/creator/profile/edit?setup=true' : '/brand/settings?setup=true');
+      }
     } catch (err) {
       toast.error(err.message || 'Sign up failed. Try again.');
     } finally {
@@ -97,6 +104,36 @@ export default function Signup() {
   };
 
   const anyLoading = !!oauthLoading || emailLoading;
+
+  /* ── Confirm email screen ─────────────────────────────────── */
+  if (confirmEmail) return (
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F] flex items-center justify-center p-6">
+      <SEO title="Confirm your email" noindex={true} />
+      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
+        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center mx-auto mb-6 shadow-lg">
+          <MailCheck size={36} className="text-white" />
+        </div>
+        <h1 className="text-2xl font-heading font-bold text-gray-900 dark:text-white mb-2">Check your inbox</h1>
+        <p className="text-gray-500 text-sm mb-1">We sent a confirmation link to</p>
+        <p className="font-semibold text-gray-900 dark:text-white mb-6">{confirmEmail}</p>
+        <p className="text-gray-400 text-xs mb-8">Click the link in the email to activate your account, then come back and sign in.</p>
+        <div className="space-y-3">
+          <button
+            onClick={() => navigate('/login')}
+            className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white font-semibold text-sm hover:opacity-90 transition-all"
+          >
+            Go to Sign In
+          </button>
+          <button
+            onClick={() => setConfirmEmail(null)}
+            className="w-full h-12 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+          >
+            Use a different email
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F] flex flex-col">
