@@ -107,7 +107,7 @@ export default function BrandSettings() {
       });
       await completeProfile();
       toast.success(isSetup ? 'Profile complete! Welcome to OgisBack.' : 'Settings saved successfully.');
-      if (isSetup) navigate('/brand/discover');
+      if (isSetup) navigate('/brand/dashboard');
     } catch (err) {
       toast.error(err.message || 'Failed to save. Please try again.');
     } finally {

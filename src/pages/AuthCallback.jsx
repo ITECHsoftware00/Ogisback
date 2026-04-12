@@ -26,7 +26,7 @@ export default function AuthCallback() {
         if (role === 'creator') {
           navigate('/creator/profile/edit?setup=true', { replace: true });
         } else if (role === 'brand') {
-          navigate('/brand/settings', { replace: true });
+          navigate('/brand/settings?setup=true', { replace: true });
         } else {
           navigate('/admin', { replace: true });
         }
