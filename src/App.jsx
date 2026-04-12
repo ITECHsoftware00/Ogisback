@@ -64,7 +64,9 @@ import BrandSettings from './pages/brand/Settings';
 
 // Route guard
 function ProtectedRoute({ children, requiredRole }) {
-  const { isLoggedIn, activeRole } = useAuth();
+  const { isLoggedIn, activeRole, loading, settling } = useAuth();
+  // Wait for auth to fully resolve before deciding
+  if (loading || settling) return null;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
   if (requiredRole && activeRole !== requiredRole) {
     if (activeRole === 'admin') return <Navigate to="/admin" replace />;
@@ -74,7 +76,8 @@ function ProtectedRoute({ children, requiredRole }) {
 }
 
 function AdminRoute({ children }) {
-  const { isLoggedIn, activeRole } = useAuth();
+  const { isLoggedIn, activeRole, loading, settling } = useAuth();
+  if (loading || settling) return null;
   if (!isLoggedIn) return <Navigate to="/login" replace />;
   if (activeRole !== 'admin') return <Navigate to="/" replace />;
   return children;

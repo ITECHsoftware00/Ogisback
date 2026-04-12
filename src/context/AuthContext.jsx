@@ -10,10 +10,12 @@ export const useAuth = () => {
 };
 
 export function AuthProvider({ children }) {
-  const [user, setUser]           = useState(null);
+  const [user, setUser]             = useState(null);
   const [activeRole, setActiveRole] = useState(null);
-  const [darkMode, setDarkMode]   = useState(() => localStorage.getItem('ogisback_dark') === 'true');
-  const [loading, setLoading]     = useState(true);
+  const [darkMode, setDarkMode]     = useState(() => localStorage.getItem('ogisback_dark') === 'true');
+  const [loading, setLoading]       = useState(true);
+  // settling = true while fetchProfile is running after SIGNED_IN
+  const [settling, setSettling]     = useState(false);
 
   /* ── Build the merged user object from DB profile rows ── */
   async function fetchProfile(authUser) {
@@ -99,15 +101,15 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
-        // Clear pending role after it's been consumed by fetchProfile
+        setSettling(true);
         fetchProfile(session.user).then(() => {
           localStorage.removeItem('ogisback_pending_role');
-        });
+        }).finally(() => setSettling(false));
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setActiveRole(null);
       }
-      // All other events (TOKEN_REFRESHED, USER_UPDATED, etc.) are intentionally ignored
+      // All other events (TOKEN_REFRESHED, USER_UPDATED, etc.) intentionally ignored
     });
 
     return () => subscription.unsubscribe();
@@ -204,6 +206,7 @@ export function AuthProvider({ children }) {
     activeRole,
     darkMode,
     loading,
+    settling,
     logout,
     signInWithGoogle,
     signInWithInstagram,
