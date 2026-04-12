@@ -10,12 +10,12 @@ export const useAuth = () => {
 };
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser]           = useState(null);
   const [activeRole, setActiveRole] = useState(null);
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('ogisback_dark') === 'true');
-  const [loading, setLoading] = useState(true);
+  const [darkMode, setDarkMode]   = useState(() => localStorage.getItem('ogisback_dark') === 'true');
+  const [loading, setLoading]     = useState(true);
 
-  /* ── Fetch full profile (profiles + creator/brand sub-profile) ── */
+  /* ── Build the merged user object from DB profile rows ── */
   async function fetchProfile(authUser) {
     if (!authUser) { setUser(null); setActiveRole(null); return; }
 
@@ -25,32 +25,37 @@ export function AuthProvider({ children }) {
       .eq('id', authUser.id)
       .single();
 
-    // If no profile row yet (trigger may have missed), create one from metadata
+    // Trigger may have missed — create rows from OAuth metadata as fallback
     if (!profile) {
-      const meta = authUser.user_metadata || {};
-      const role = meta.role || 'creator';
-      const name = meta.name || authUser.email.split('@')[0];
+      const meta  = authUser.user_metadata || {};
+      const role  = meta.role || localStorage.getItem('ogisback_pending_role') || 'creator';
+      const name  = meta.full_name || meta.name || authUser.email?.split('@')[0] || 'User';
+
       await supabase.from('profiles').upsert(
         { id: authUser.id, role, plan: 'free', profile_complete: false },
         { onConflict: 'id' }
       );
+
       if (role === 'creator') {
-        const username = authUser.email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase()
-          + Math.floor(Math.random() * 999);
+        const username = (authUser.email?.split('@')[0] ?? 'user')
+          .replace(/[^a-z0-9]/gi, '').toLowerCase()
+          + Math.floor(Math.random() * 9000 + 1000);
         await supabase.from('creator_profiles').upsert(
           { id: authUser.id, username, name },
           { onConflict: 'id' }
         );
       } else {
-        const slug = name.toLowerCase().replace(/\s+/g, '-') + Math.floor(Math.random() * 999);
+        const slug = name.toLowerCase().replace(/\s+/g, '-')
+          + Math.floor(Math.random() * 9000 + 1000);
         await supabase.from('brand_profiles').upsert(
           { id: authUser.id, slug, name },
           { onConflict: 'id' }
         );
       }
-      const { data: newProfile } = await supabase
+
+      const { data: fresh } = await supabase
         .from('profiles').select('*').eq('id', authUser.id).single();
-      profile = newProfile;
+      profile = fresh;
     }
 
     if (!profile) { setUser(null); setActiveRole(null); return; }
@@ -65,9 +70,8 @@ export function AuthProvider({ children }) {
       const { data } = await supabase.from('brand_profiles').select('*').eq('id', authUser.id).single();
       subProfile = data;
     }
-    // admin role has no sub-profile
 
-    const merged = {
+    setUser({
       id: authUser.id,
       email: authUser.email,
       role,
@@ -82,20 +86,28 @@ export function AuthProvider({ children }) {
       walletBalance: subProfile?.wallet_balance || 0,
       pendingBalance: subProfile?.pending_balance || 0,
       ...subProfile,
-    };
-
-    setUser(merged);
+    });
     setActiveRole(role);
   }
 
-  /* ── Listen to auth state changes ── */
+  /* ── Auth state listener — OAuth events only ── */
   useEffect(() => {
+    // Restore session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       fetchProfile(session?.user ?? null).finally(() => setLoading(false));
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      fetchProfile(session?.user ?? null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') {
+        // Clear pending role after it's been consumed by fetchProfile
+        fetchProfile(session.user).then(() => {
+          localStorage.removeItem('ogisback_pending_role');
+        });
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setActiveRole(null);
+      }
+      // All other events (TOKEN_REFRESHED, USER_UPDATED, etc.) are intentionally ignored
     });
 
     return () => subscription.unsubscribe();
@@ -107,66 +119,9 @@ export function AuthProvider({ children }) {
     localStorage.setItem('ogisback_dark', darkMode);
   }, [darkMode]);
 
-  /* ── Auth actions ── */
+  /* ── OAuth sign-in (the only auth methods) ── */
 
-  const signup = async (email, password, role, name) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { role, name } },
-    });
-    if (error) throw error;
-
-    // If Supabase auto-confirmed the session (email confirm disabled),
-    // create profile rows immediately — don't rely solely on the DB trigger.
-    if (data.session && data.user) {
-      const uid = data.user.id;
-      // Upsert is safe: if trigger already ran this is a no-op.
-      await supabase.from('profiles').upsert({
-        id: uid, role, plan: 'free', profile_complete: false,
-      }, { onConflict: 'id' });
-
-      if (role === 'creator') {
-        const username = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase()
-          + Math.floor(Math.random() * 999);
-        await supabase.from('creator_profiles').upsert(
-          { id: uid, username, name },
-          { onConflict: 'id' }
-        );
-      } else {
-        const slug = name.toLowerCase().replace(/\s+/g, '-') + Math.floor(Math.random() * 999);
-        await supabase.from('brand_profiles').upsert(
-          { id: uid, slug, name },
-          { onConflict: 'id' }
-        );
-      }
-    }
-
-    // needsConfirmation = true when Supabase requires email verification
-    return { ...data, needsConfirmation: !data.session };
-  };
-
-  const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data;
-  };
-
-  const forgotPassword = async (email) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
-    });
-    if (error) throw error;
-  };
-
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setActiveRole(null);
-  };
-
-  /* ── OAuth sign-in ── */
-
+  // Google → brand dashboard
   const signInWithGoogle = async (role = null) => {
     if (role) localStorage.setItem('ogisback_pending_role', role);
     const { error } = await supabase.auth.signInWithOAuth({
@@ -176,7 +131,7 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   };
 
-  // Instagram uses Meta/Facebook OAuth under the hood
+  // Instagram (Meta/Facebook OAuth) → creator dashboard
   const signInWithInstagram = async (role = null) => {
     if (role) localStorage.setItem('ogisback_pending_role', role);
     const { error } = await supabase.auth.signInWithOAuth({
@@ -186,17 +141,33 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   };
 
-  // Called from AuthCallback when a new OAuth user needs to create their profile
+  // Called from AuthCallback for new OAuth users who need a profile created
   const setupOAuthProfile = async (userId, email, role, name) => {
-    await supabase.from('profiles').upsert({ id: userId, role, plan: 'free', profile_complete: false });
+    await supabase.from('profiles').upsert(
+      { id: userId, role, plan: 'free', profile_complete: false },
+      { onConflict: 'id' }
+    );
     if (role === 'creator') {
-      const username = email.split('@')[0].replace(/[^a-z0-9]/gi, '').toLowerCase() + Math.floor(Math.random() * 999);
-      await supabase.from('creator_profiles').upsert({ id: userId, username, name });
+      const username = (email.split('@')[0]).replace(/[^a-z0-9]/gi, '').toLowerCase()
+        + Math.floor(Math.random() * 9000 + 1000);
+      await supabase.from('creator_profiles').upsert(
+        { id: userId, username, name },
+        { onConflict: 'id' }
+      );
     } else {
-      const slug = name.toLowerCase().replace(/\s+/g, '-') + Math.floor(Math.random() * 999);
-      await supabase.from('brand_profiles').upsert({ id: userId, slug, name });
+      const slug = name.toLowerCase().replace(/\s+/g, '-')
+        + Math.floor(Math.random() * 9000 + 1000);
+      await supabase.from('brand_profiles').upsert(
+        { id: userId, slug, name },
+        { onConflict: 'id' }
+      );
     }
     await fetchProfile({ id: userId, email });
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    // SIGNED_OUT event will clear user state via onAuthStateChange
   };
 
   const completeProfile = async () => {
@@ -214,15 +185,15 @@ export function AuthProvider({ children }) {
   const switchRole = (role) => setActiveRole(role);
   const toggleDark = () => setDarkMode(d => !d);
 
-  /* ── Demo accounts (dev only) ── */
-  const loginAsCreator = () => login('sarah@example.com', 'password123').catch(() => {
+  /* ── Demo accounts (bypasses OAuth — mock data only) ── */
+  const loginAsCreator = () => {
     setUser({ id: 'mock-c1', name: 'Sarah Chen', role: 'creator', plan: 'free', profileComplete: true, walletBalance: 3120, pendingBalance: 2240, avatar: 'https://i.pravatar.cc/150?img=47' });
     setActiveRole('creator');
-  });
-  const loginAsBrand = () => login('hello@novaskin.com', 'password123').catch(() => {
+  };
+  const loginAsBrand = () => {
     setUser({ id: 'mock-b1', name: 'NovaSkin', role: 'brand', plan: 'free', profileComplete: true, walletBalance: 15000, logo: 'https://i.pravatar.cc/150?img=20' });
     setActiveRole('brand');
-  });
+  };
   const loginAsAdmin = () => {
     setUser({ id: 'mock-admin', name: 'Admin', email: 'admin@ogisback.com', role: 'admin', plan: 'free', profileComplete: true });
     setActiveRole('admin');
@@ -233,10 +204,7 @@ export function AuthProvider({ children }) {
     activeRole,
     darkMode,
     loading,
-    signup,
-    login,
     logout,
-    forgotPassword,
     signInWithGoogle,
     signInWithInstagram,
     setupOAuthProfile,
@@ -248,8 +216,8 @@ export function AuthProvider({ children }) {
     loginAsBrand,
     loginAsAdmin,
     isCreator: activeRole === 'creator',
-    isBrand: activeRole === 'brand',
-    isAdmin: activeRole === 'admin',
+    isBrand:   activeRole === 'brand',
+    isAdmin:   activeRole === 'admin',
     isLoggedIn: !!user,
     plan: user?.plan || 'free',
   };

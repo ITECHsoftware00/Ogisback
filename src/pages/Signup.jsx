@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ArrowLeft, ArrowRight, CheckCircle, Sparkles, Mail, Lock, Eye, EyeOff, User, MailCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const GoogleIcon = () => (
@@ -15,7 +15,7 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const InstagramIcon = ({ size = 18 }) => (
+const InstagramIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
@@ -35,6 +35,7 @@ const roles = [
     bg: 'bg-purple-50 dark:bg-purple-900/20',
     check: 'text-purple-500',
     ring: 'ring-purple-400',
+    oauthProvider: 'instagram',
   },
   {
     id: 'brand',
@@ -47,18 +48,15 @@ const roles = [
     bg: 'bg-blue-50 dark:bg-blue-900/20',
     check: 'text-blue-500',
     ring: 'ring-blue-400',
+    oauthProvider: 'google',
   },
 ];
 
 export default function Signup() {
-  const { signInWithGoogle, signInWithInstagram, signup, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
+  const { signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState(null);
   const [oauthLoading, setOauthLoading] = useState(null);
-  const [emailLoading, setEmailLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
-  const [confirmEmail, setConfirmEmail] = useState(null);
 
   useEffect(() => {
     if (isLoggedIn) navigate(activeRole === 'creator' ? '/creator/dashboard' : '/brand/discover');
@@ -78,62 +76,7 @@ export default function Signup() {
     catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setOauthLoading(null); }
   };
 
-  const handleEmailSignup = async (e) => {
-    e.preventDefault();
-    if (!selectedRole) { toast.error('Please choose Creator or Brand first'); return; }
-    if (!form.name.trim()) { toast.error('Enter your name'); return; }
-    if (!form.email) { toast.error('Enter your email'); return; }
-    if (form.password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
-    if (form.password !== form.confirm) { toast.error('Passwords do not match'); return; }
-    setEmailLoading(true);
-    try {
-      const result = await signup(form.email, form.password, selectedRole, form.name.trim());
-      if (result.needsConfirmation) {
-        // Email confirmation required — don't navigate to a protected route
-        setConfirmEmail(form.email);
-      } else {
-        // Auto-confirmed — go straight to profile setup
-        toast.success('Account created! Let\'s set up your profile.');
-        navigate(selectedRole === 'creator' ? '/creator/profile/edit?setup=true' : '/brand/settings?setup=true');
-      }
-    } catch (err) {
-      toast.error(err.message || 'Sign up failed. Try again.');
-    } finally {
-      setEmailLoading(false);
-    }
-  };
-
-  const anyLoading = !!oauthLoading || emailLoading;
-
-  /* ── Confirm email screen ─────────────────────────────────── */
-  if (confirmEmail) return (
-    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F] flex items-center justify-center p-6">
-      <SEO title="Confirm your email" noindex={true} />
-      <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm text-center">
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center mx-auto mb-6 shadow-lg">
-          <MailCheck size={36} className="text-white" />
-        </div>
-        <h1 className="text-2xl font-heading font-bold text-gray-900 dark:text-white mb-2">Check your inbox</h1>
-        <p className="text-gray-500 text-sm mb-1">We sent a confirmation link to</p>
-        <p className="font-semibold text-gray-900 dark:text-white mb-6">{confirmEmail}</p>
-        <p className="text-gray-400 text-xs mb-8">Click the link in the email to activate your account, then come back and sign in.</p>
-        <div className="space-y-3">
-          <button
-            onClick={() => navigate('/login')}
-            className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white font-semibold text-sm hover:opacity-90 transition-all"
-          >
-            Go to Sign In
-          </button>
-          <button
-            onClick={() => setConfirmEmail(null)}
-            className="w-full h-12 rounded-2xl border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
-          >
-            Use a different email
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
+  const anyLoading = !!oauthLoading;
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F] flex flex-col">
@@ -152,7 +95,6 @@ export default function Signup() {
         </Link>
       </div>
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -168,12 +110,11 @@ export default function Signup() {
             </div>
           </div>
 
-          {/* Headline */}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">
               Create your account
             </h1>
-            <p className="text-gray-500 text-base">First, tell us who you are</p>
+            <p className="text-gray-500 text-base">Choose your role, then sign in with social</p>
           </div>
 
           {/* Step 1 — Role picker */}
@@ -190,19 +131,13 @@ export default function Signup() {
                     : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] hover:border-gray-300 dark:hover:border-white/20'
                   }`}
               >
-                {/* Selected checkmark */}
                 {selectedRole === role.id && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute top-3 right-3"
-                  >
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-3 right-3">
                     <div className={`w-6 h-6 rounded-full bg-gradient-to-br ${role.gradient} flex items-center justify-center`}>
                       <CheckCircle size={14} className="text-white" fill="white" />
                     </div>
                   </motion.div>
                 )}
-
                 <div className="text-3xl mb-3">{role.emoji}</div>
                 <div className="font-heading font-bold text-gray-900 dark:text-white text-sm mb-1">{role.title}</div>
                 <p className="text-[11px] text-gray-500 leading-relaxed mb-3">{role.subtitle}</p>
@@ -218,112 +153,32 @@ export default function Signup() {
             ))}
           </div>
 
-          {/* Step 2 — Email sign up */}
-          <AnimatePresence>
-            {selectedRole && (
-              <motion.form
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                onSubmit={handleEmailSignup}
-                className="space-y-3 mb-5"
-              >
-                <p className="text-sm text-gray-500 text-center mb-3">
-                  Joining as a <span className="font-semibold text-gray-900 dark:text-white capitalize">{selectedRole === 'creator' ? 'Creator' : 'Brand'}</span>
-                </p>
-                <div className="relative">
-                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={form.name}
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder={selectedRole === 'creator' ? 'Your name or creator alias' : 'Brand / company name'}
-                    className="input pl-9"
-                    autoComplete="name"
-                  />
-                </div>
-                <div className="relative">
-                  <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    placeholder="Email address"
-                    className="input pl-9"
-                    autoComplete="email"
-                  />
-                </div>
-                <div className="relative">
-                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={form.password}
-                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    placeholder="Password (min 8 characters)"
-                    className="input pl-9 pr-10"
-                    autoComplete="new-password"
-                  />
-                  <button type="button" onClick={() => setShowPassword(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-                <div className="relative">
-                  <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={form.confirm}
-                    onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))}
-                    placeholder="Confirm password"
-                    className="input pl-9"
-                    autoComplete="new-password"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={anyLoading}
-                  className="w-full h-12 rounded-2xl bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50 flex items-center justify-center transition-all"
-                >
-                  {emailLoading
-                    ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    : 'Create Account'}
-                </button>
-              </motion.form>
-            )}
-          </AnimatePresence>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1 h-px bg-gray-200 dark:bg-white/10" />
-            <span className="text-xs text-gray-400">or sign up with</span>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-white/10" />
-          </div>
-
+          {/* Step 2 — OAuth buttons */}
           <div className="space-y-3 mb-4">
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleGoogle}
               disabled={anyLoading || !selectedRole}
-              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold transition-all shadow-sm dark:shadow-lg dark:shadow-black/30
+              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold transition-all shadow-sm
                 ${!selectedRole ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50'}`}
             >
               {oauthLoading === 'google'
                 ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
                 : <GoogleIcon />}
               Continue with Google
-              {!selectedRole && <ArrowRight size={14} className="ml-auto text-gray-400" />}
             </motion.button>
 
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={handleInstagram}
               disabled={anyLoading || !selectedRole}
-              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold transition-all shadow-sm dark:shadow-lg dark:shadow-pink-900/20
+              className={`w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold transition-all
                 ${!selectedRole ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90 disabled:opacity-50'}`}
               style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCB045 100%)' }}
             >
               {oauthLoading === 'instagram'
                 ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                : <InstagramIcon size={18} />}
+                : <InstagramIcon size={20} />}
               Continue with Instagram
             </motion.button>
           </div>
