@@ -147,10 +147,10 @@ export function AuthProvider({ children }) {
   const signInWithInstagram = async () => {
     localStorage.setItem('ogisback_pending_role', 'creator');
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'instagram',
+      provider: 'facebook',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: 'user_profile,user_media',
+        scopes: 'public_profile,email',
       },
     });
     if (error) throw error;
