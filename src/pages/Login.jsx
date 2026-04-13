@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Sparkles, CheckCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const GoogleIcon = () => (
@@ -33,194 +32,192 @@ const stats = [
 export default function Login() {
   const { signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [oauthLoading, setOauthLoading] = useState(null);
+  const [loading, setLoading] = useState(null);
 
   useEffect(() => {
     if (isLoggedIn) navigate(
       activeRole === 'admin' ? '/admin'
       : activeRole === 'creator' ? '/creator/dashboard'
-      : '/brand/discover'
-    );
+      : '/brand/dashboard'
+    , { replace: true });
   }, [isLoggedIn]);
 
   const handleGoogle = async () => {
-    setOauthLoading('google');
+    setLoading('google');
     try { await signInWithGoogle(); }
-    catch (err) { toast.error(err.message || 'Google sign-in failed.'); setOauthLoading(null); }
+    catch (err) { toast.error(err.message || 'Google sign-in failed.'); setLoading(null); }
   };
 
   const handleInstagram = async () => {
-    setOauthLoading('instagram');
+    setLoading('instagram');
     try { await signInWithInstagram(); }
-    catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setOauthLoading(null); }
+    catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setLoading(null); }
   };
 
-  const anyLoading = !!oauthLoading;
+  const busy = !!loading;
 
   return (
-    <div className="min-h-screen flex bg-white dark:bg-[#0A0A0F]">
-      <SEO title="Log In" description="Log in to your OgisBack account." url="/login" noindex={true} />
+    <div className="min-h-screen flex bg-white dark:bg-[#09090F]">
+      <SEO title="Sign In" noindex={true} />
 
-      {/* ── Left gradient panel ── */}
-      <div className="hidden lg:flex lg:w-[52%] relative overflow-hidden flex-col justify-between p-14">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#7C3AED] via-[#C026D3] to-[#EC4899]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.3),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(16,185,129,0.15),transparent_60%)]" />
-        <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full border border-white/10" />
-        <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full border border-white/10" />
+      {/* Left panel */}
+      <div className="hidden lg:flex w-[46%] relative overflow-hidden flex-col justify-between p-12 bg-[#0A0A12]">
+        {/* Background layers */}
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-950 via-purple-950 to-[#0A0A12]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_70%_20%,rgba(139,92,246,0.25),transparent)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_40%_at_20%_80%,rgba(236,72,153,0.12),transparent)]" />
+        {/* Subtle grid */}
+        <div className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)', backgroundSize: '48px 48px' }}
+        />
 
+        {/* Logo */}
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-3 w-fit">
-            <div className="w-11 h-11 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/20">
-              <span className="font-heading font-bold text-white text-lg">O</span>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-lg shadow-violet-500/20">
+              <span className="font-heading font-bold text-white">O</span>
             </div>
-            <span className="font-heading font-bold text-white text-xl tracking-tight">OgisBack</span>
+            <span className="font-heading font-bold text-white text-lg tracking-tight">OgisBack</span>
           </Link>
         </div>
 
+        {/* Hero copy */}
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-1.5 mb-8">
-            <Sparkles size={13} className="text-yellow-300" />
-            <span className="text-white/90 text-xs font-medium">Trusted by 6,000+ creators worldwide</span>
+          <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-3.5 py-1.5 mb-7">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-white/70 text-xs font-medium">6,000+ creators earning today</span>
           </div>
-          <h1 className="text-5xl font-heading font-extrabold text-white leading-[1.1] mb-5 tracking-tight">
+
+          <h1 className="text-4xl font-heading font-extrabold text-white leading-[1.1] mb-4 tracking-tight">
             Where Creators<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-pink-300">Meet Brands</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-pink-400">
+              Meet Brands
+            </span>
           </h1>
-          <p className="text-white/70 text-lg leading-relaxed max-w-sm">
-            The content-first influencer marketplace. Get paid for your creativity.
+
+          <p className="text-white/50 text-base leading-relaxed max-w-xs mb-10">
+            The influencer marketplace built for real deals — escrow payments, direct connections, no middlemen.
           </p>
-          <div className="grid grid-cols-4 gap-3 mt-10">
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 gap-3">
             {stats.map(s => (
-              <div key={s.label} className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4">
-                <div className="font-heading font-extrabold text-white text-xl">{s.num}</div>
-                <div className="text-white/60 text-xs mt-0.5">{s.label}</div>
+              <div key={s.label} className="bg-white/[0.04] border border-white/[0.07] rounded-2xl p-4">
+                <div className="font-heading font-extrabold text-white text-2xl tracking-tight">{s.num}</div>
+                <div className="text-white/40 text-xs mt-0.5">{s.label}</div>
               </div>
             ))}
           </div>
         </div>
 
+        {/* Avatars */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="flex">
             {[47, 48, 49, 50, 51].map((img, i) => (
-              <img key={img} src={`https://i.pravatar.cc/36?img=${img}`} alt="" className="w-9 h-9 rounded-full border-2 border-white/40 object-cover" style={{ marginLeft: i > 0 ? '-10px' : 0 }} />
+              <img key={img} src={`https://i.pravatar.cc/36?img=${img}`} alt=""
+                className="w-8 h-8 rounded-full border-2 border-[#0A0A12] object-cover"
+                style={{ marginLeft: i > 0 ? '-8px' : 0 }}
+              />
             ))}
           </div>
-          <p className="text-white/70 text-sm">Join thousands of creators earning today</p>
+          <p className="text-white/40 text-xs">Joined this week</p>
         </div>
       </div>
 
-      {/* ── Right form panel ── */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#FAFAFA] dark:bg-[#0D0D14]">
+      {/* Right panel */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 bg-[#FAFAFA] dark:bg-[#0D0D15]">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-full max-w-[400px]"
+          transition={{ duration: 0.35 }}
+          className="w-full max-w-sm"
         >
           {/* Mobile logo */}
-          <div className="flex items-center gap-3 mb-10 lg:hidden">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center">
-              <span className="text-white font-heading font-bold">O</span>
+          <Link to="/" className="flex items-center gap-2.5 mb-10 lg:hidden">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+              <span className="text-white font-heading font-bold text-sm">O</span>
             </div>
-            <span className="font-heading font-bold text-gray-900 dark:text-white text-xl">OgisBack</span>
-          </div>
-
-          <Link to="/" className="inline-flex items-center gap-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm mb-8 transition-colors">
-            <ArrowLeft size={15} /> Back to home
+            <span className="font-heading font-bold text-gray-900 dark:text-white">OgisBack</span>
           </Link>
 
-          <div className="mb-7">
-            <h2 className="text-3xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-1">
+          <div className="mb-8">
+            <h2 className="text-2xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-1.5">
               Welcome back
             </h2>
-            <p className="text-gray-500 text-sm">Sign in with your social account</p>
-          </div>
-
-          {/* Optional role picker (for returning users) */}
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            {[
-              { id: 'creator', emoji: '🎬', label: 'Creator', sub: 'I make content', border: 'border-purple-400', bg: 'bg-purple-50 dark:bg-purple-900/20', ring: 'ring-purple-400', dot: 'bg-purple-500' },
-              { id: 'brand',   emoji: '🏢', label: 'Brand',   sub: 'I hire creators', border: 'border-blue-400',   bg: 'bg-blue-50 dark:bg-blue-900/20',     ring: 'ring-blue-400',   dot: 'bg-blue-500'   },
-            ].map(r => (
-              <motion.button
-                key={r.id}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setSelectedRole(r.id)}
-                disabled={anyLoading}
-                className={`relative p-3 rounded-2xl border-2 text-left transition-all duration-200 disabled:opacity-50
-                  ${selectedRole === r.id
-                    ? `${r.bg} ${r.border} ring-2 ${r.ring} ring-offset-2 ring-offset-[#FAFAFA] dark:ring-offset-[#0D0D14]`
-                    : 'border-gray-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.03] hover:border-gray-300 dark:hover:border-white/20'
-                  }`}
-              >
-                {selectedRole === r.id && (
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute top-2 right-2">
-                    <div className={`w-4 h-4 rounded-full ${r.dot} flex items-center justify-center`}>
-                      <CheckCircle size={10} className="text-white" />
-                    </div>
-                  </motion.div>
-                )}
-                <div className="text-xl mb-1">{r.emoji}</div>
-                <div className="font-heading font-bold text-gray-900 dark:text-white text-xs">{r.label}</div>
-                <div className="text-[10px] text-gray-500 mt-0.5">{r.sub}</div>
-              </motion.button>
-            ))}
+            <p className="text-gray-400 text-sm">Sign in with your account</p>
           </div>
 
           {/* OAuth buttons */}
-          <div className="space-y-2.5 mb-6">
+          <div className="space-y-3 mb-8">
+            {/* Google → Brand */}
             <motion.button
-              whileTap={{ scale: 0.98 }}
+              whileTap={{ scale: 0.985 }}
               onClick={handleGoogle}
-              disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-12 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold transition-all shadow-sm hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50"
+              disabled={busy}
+              className="w-full flex items-center gap-3.5 h-[52px] px-5 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50 transition-all"
             >
-              {oauthLoading === 'google'
-                ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
-                : <GoogleIcon />}
-              Continue with Google
+              {loading === 'google'
+                ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto" />
+                : <>
+                    <GoogleIcon />
+                    <span className="flex-1 text-left">Continue with Google</span>
+                    <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Brand</span>
+                  </>
+              }
             </motion.button>
 
+            {/* Instagram → Creator */}
             <motion.button
-              whileTap={{ scale: 0.98 }}
+              whileTap={{ scale: 0.985 }}
               onClick={handleInstagram}
-              disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-12 rounded-2xl text-white text-sm font-semibold transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCB045 100%)' }}
+              disabled={busy}
+              className="w-full flex items-center gap-3.5 h-[52px] px-5 rounded-2xl text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-all"
+              style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #C026D3 50%, #EC4899 100%)' }}
             >
-              {oauthLoading === 'instagram'
-                ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                : <InstagramIcon />}
-              Continue with Instagram
+              {loading === 'instagram'
+                ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
+                : <>
+                    <InstagramIcon />
+                    <span className="flex-1 text-left">Continue with Instagram</span>
+                    <span className="text-[10px] font-medium text-white/60 bg-white/10 px-2 py-0.5 rounded-full">Creator</span>
+                  </>
+              }
             </motion.button>
           </div>
 
+          {/* Provider hint */}
+          <div className="flex items-center gap-2 mb-8">
+            <div className="h-px flex-1 bg-gray-200 dark:bg-white/[0.06]" />
+            <span className="text-[11px] text-gray-400 dark:text-gray-600 px-1">Google = Brand · Instagram = Creator</span>
+            <div className="h-px flex-1 bg-gray-200 dark:bg-white/[0.06]" />
+          </div>
+
           {/* Demo accounts */}
-          <div className="pt-5 border-t border-gray-200 dark:border-white/5 space-y-2">
-            <p className="text-xs text-gray-400 dark:text-gray-600 text-center mb-3">Try a demo account</p>
+          <div className="space-y-2">
+            <p className="text-[11px] text-gray-400 dark:text-gray-600 text-center mb-2.5">Try without signing up</p>
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => { loginAsCreator(); toast.success('Demo: Creator'); }}
-                disabled={anyLoading}
-                className="py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
+                onClick={() => { loginAsCreator(); toast.success('Creator demo loaded'); }}
+                disabled={busy}
+                className="h-9 rounded-xl text-xs font-medium bg-white dark:bg-white/[0.04] hover:bg-gray-50 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/[0.08] text-gray-600 dark:text-gray-400 transition-all disabled:opacity-40"
               >
                 Creator Demo
               </button>
               <button
-                onClick={() => { loginAsBrand(); toast.success('Demo: Brand'); }}
-                disabled={anyLoading}
-                className="py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
+                onClick={() => { loginAsBrand(); toast.success('Brand demo loaded'); }}
+                disabled={busy}
+                className="h-9 rounded-xl text-xs font-medium bg-white dark:bg-white/[0.04] hover:bg-gray-50 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/[0.08] text-gray-600 dark:text-gray-400 transition-all disabled:opacity-40"
               >
                 Brand Demo
               </button>
             </div>
           </div>
 
-          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-6">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-semibold transition-colors">Sign up free</Link>
+          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-7">
+            New here?{' '}
+            <Link to="/signup" className="text-violet-600 dark:text-violet-400 font-semibold hover:underline transition-colors">
+              Create an account
+            </Link>
           </p>
         </motion.div>
       </div>

@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CheckCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const GoogleIcon = () => (
@@ -15,187 +14,218 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const InstagramIcon = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+const InstagramIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
     <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
   </svg>
 );
 
-const roles = [
-  {
-    id: 'creator',
-    emoji: '🎬',
-    title: 'Influencer / Creator',
-    subtitle: 'I create content & partner with brands',
-    perks: ['Keep 80% of every deal', 'Secure escrow payments', 'Direct brand connections', 'Free to join — always'],
-    gradient: 'from-purple-600 to-pink-600',
-    border: 'border-purple-400',
-    bg: 'bg-purple-50 dark:bg-purple-900/20',
-    check: 'text-purple-500',
-    ring: 'ring-purple-400',
-    oauthProvider: 'instagram',
-  },
-  {
-    id: 'brand',
-    emoji: '🏢',
-    title: 'Brand',
-    subtitle: 'I hire creators for campaigns',
-    perks: ['Access 6,000+ verified creators', 'Campaign management tools', 'Escrow payment protection', 'Analytics & reporting'],
-    gradient: 'from-blue-600 to-cyan-500',
-    border: 'border-blue-400',
-    bg: 'bg-blue-50 dark:bg-blue-900/20',
-    check: 'text-blue-500',
-    ring: 'ring-blue-400',
-    oauthProvider: 'google',
-  },
+const creatorPerks = [
+  'Keep 80% of every deal',
+  'Secure escrow payments',
+  'Direct brand connections',
+  'Free to join — always',
+];
+
+const brandPerks = [
+  'Access 6,000+ creators',
+  'Campaign management tools',
+  'Escrow payment protection',
+  'Analytics & reporting',
 ];
 
 export default function Signup() {
   const { signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
-  const [oauthLoading, setOauthLoading] = useState(null);
+  const [loading, setLoading] = useState(null);
 
   useEffect(() => {
-    if (isLoggedIn) navigate(activeRole === 'creator' ? '/creator/dashboard' : '/brand/dashboard');
+    if (isLoggedIn) navigate(
+      activeRole === 'creator' ? '/creator/dashboard' : '/brand/dashboard'
+    , { replace: true });
   }, [isLoggedIn]);
 
   const handleGoogle = async () => {
-    setOauthLoading('google');
+    setLoading('google');
     try { await signInWithGoogle(); }
-    catch (err) { toast.error(err.message || 'Google sign-in failed.'); setOauthLoading(null); }
+    catch (err) { toast.error(err.message || 'Google sign-in failed.'); setLoading(null); }
   };
 
   const handleInstagram = async () => {
-    setOauthLoading('instagram');
+    setLoading('instagram');
     try { await signInWithInstagram(); }
-    catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setOauthLoading(null); }
+    catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setLoading(null); }
   };
 
-  const anyLoading = !!oauthLoading;
+  const busy = !!loading;
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F] flex flex-col">
-      <SEO title="Join OgisBack — Free for Creators & Brands" description="Create your free OgisBack account as a creator or brand." url="/signup" />
+    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#09090F] flex flex-col">
+      <SEO title="Join OgisBack" description="Create your free OgisBack account." url="/signup" />
 
       {/* Top bar */}
-      <div className="flex items-center justify-between px-8 py-6">
+      <div className="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#EC4899] flex items-center justify-center shadow-sm">
-            <span className="font-heading font-bold text-white">O</span>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-sm">
+            <span className="font-heading font-bold text-white text-sm">O</span>
           </div>
-          <span className="font-heading font-bold text-gray-900 dark:text-white text-lg tracking-tight">OgisBack</span>
+          <span className="font-heading font-bold text-gray-900 dark:text-white tracking-tight">OgisBack</span>
         </Link>
-        <Link to="/" className="inline-flex items-center gap-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-sm transition-colors">
-          <ArrowLeft size={15} /> Back
+        <Link to="/login" className="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+          Already have an account? <span className="text-violet-600 dark:text-violet-400 font-semibold">Sign in</span>
         </Link>
       </div>
 
+      {/* Main */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-full max-w-lg"
+          transition={{ duration: 0.35 }}
+          className="w-full max-w-4xl"
         >
-          {/* Badge */}
-          <div className="flex justify-center mb-6">
-            <div className="inline-flex items-center gap-2 bg-purple-50 dark:bg-white/5 border border-purple-100 dark:border-white/10 rounded-full px-4 py-1.5">
-              <Sparkles size={13} className="text-yellow-500 dark:text-yellow-400" />
-              <span className="text-purple-700 dark:text-gray-400 text-xs font-medium">Join 6,000+ creators & brands</span>
-            </div>
-          </div>
-
-          <div className="text-center mb-8">
+          {/* Header */}
+          <div className="text-center mb-10">
             <h1 className="text-4xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">
-              Create your account
+              Join OgisBack
             </h1>
-            <p className="text-gray-500 text-base">Sign in with the right social account for your role</p>
+            <p className="text-gray-400 text-base">
+              Choose how you want to sign up — your role is set automatically
+            </p>
           </div>
 
-          {/* Role info cards */}
-          <div className="grid grid-cols-2 gap-4 mb-8">
-            {roles.map(role => (
-              <div
-                key={role.id}
-                className={`relative p-5 rounded-2xl border-2 text-left ${role.bg} ${role.border}`}
-              >
-                <div className="text-3xl mb-3">{role.emoji}</div>
-                <div className="font-heading font-bold text-gray-900 dark:text-white text-sm mb-1">{role.title}</div>
-                <p className="text-[11px] text-gray-500 leading-relaxed mb-3">{role.subtitle}</p>
-                <ul className="space-y-1.5">
-                  {role.perks.map(p => (
-                    <li key={p} className="flex items-start gap-1.5 text-[11px] text-gray-500 dark:text-gray-500">
-                      <CheckCircle size={10} className={`${role.check} flex-shrink-0 mt-0.5`} />
+          {/* Two cards side by side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+
+            {/* Creator card */}
+            <div className="relative bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-3xl p-7 flex flex-col overflow-hidden">
+              {/* Accent glow */}
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-violet-500/10 to-pink-500/10 rounded-full blur-2xl -translate-y-10 translate-x-10 pointer-events-none" />
+
+              <div className="relative">
+                {/* Badge */}
+                <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-violet-500/10 to-pink-500/10 border border-violet-200 dark:border-violet-800/50 rounded-full px-3 py-1 mb-5">
+                  <span className="text-violet-600 dark:text-violet-400 text-xs font-semibold">Creator / Influencer</span>
+                </div>
+
+                <h2 className="text-xl font-heading font-bold text-gray-900 dark:text-white mb-1.5">
+                  I create content
+                </h2>
+                <p className="text-gray-400 text-sm mb-5 leading-relaxed">
+                  Partner with brands, get paid through secure escrow, build your business.
+                </p>
+
+                <ul className="space-y-2.5 mb-7">
+                  {creatorPerks.map(p => (
+                    <li key={p} className="flex items-center gap-2.5 text-sm text-gray-600 dark:text-gray-400">
+                      <span className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center flex-shrink-0">
+                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                          <path d="M1.5 4L3 5.5L6.5 2" stroke="#7C3AED" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
                       {p}
                     </li>
                   ))}
                 </ul>
-                <div className={`mt-3 text-[10px] font-semibold ${role.check}`}>
-                  {role.id === 'creator' ? '→ Sign in with Instagram' : '→ Sign in with Google'}
-                </div>
+
+                <motion.button
+                  whileTap={{ scale: 0.985 }}
+                  onClick={handleInstagram}
+                  disabled={busy}
+                  className="w-full flex items-center gap-3 h-12 px-5 rounded-2xl text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-all"
+                  style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #C026D3 50%, #EC4899 100%)' }}
+                >
+                  {loading === 'instagram'
+                    ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
+                    : <>
+                        <InstagramIcon />
+                        <span className="flex-1 text-left">Join with Instagram</span>
+                        <span className="text-white/50 text-xs">Free</span>
+                      </>
+                  }
+                </motion.button>
               </div>
-            ))}
+            </div>
+
+            {/* Brand card */}
+            <div className="relative bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-3xl p-7 flex flex-col overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-2xl -translate-y-10 translate-x-10 pointer-events-none" />
+
+              <div className="relative">
+                <div className="inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-full px-3 py-1 mb-5">
+                  <span className="text-blue-600 dark:text-blue-400 text-xs font-semibold">Brand / Business</span>
+                </div>
+
+                <h2 className="text-xl font-heading font-bold text-gray-900 dark:text-white mb-1.5">
+                  I hire creators
+                </h2>
+                <p className="text-gray-400 text-sm mb-5 leading-relaxed">
+                  Find and work with the right creators for your campaigns, all in one place.
+                </p>
+
+                <ul className="space-y-2.5 mb-7">
+                  {brandPerks.map(p => (
+                    <li key={p} className="flex items-center gap-2.5 text-sm text-gray-600 dark:text-gray-400">
+                      <span className="w-4 h-4 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                          <path d="M1.5 4L3 5.5L6.5 2" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+
+                <motion.button
+                  whileTap={{ scale: 0.985 }}
+                  onClick={handleGoogle}
+                  disabled={busy}
+                  className="w-full flex items-center gap-3 h-12 px-5 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50 transition-all"
+                >
+                  {loading === 'google'
+                    ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto" />
+                    : <>
+                        <GoogleIcon />
+                        <span className="flex-1 text-left">Join with Google</span>
+                        <span className="text-gray-400 text-xs">Free</span>
+                      </>
+                  }
+                </motion.button>
+              </div>
+            </div>
           </div>
 
-          {/* OAuth buttons — provider determines role automatically */}
-          <div className="space-y-3 mb-4">
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={handleGoogle}
-              disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold transition-all shadow-sm hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50"
-            >
-              {oauthLoading === 'google'
-                ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
-                : <GoogleIcon />}
-              Join as Brand — Google
-            </motion.button>
+          {/* Demo + legal */}
+          <div className="text-center space-y-4">
+            <div className="flex items-center gap-3 max-w-sm mx-auto">
+              <div className="h-px flex-1 bg-gray-200 dark:bg-white/[0.06]" />
+              <span className="text-[11px] text-gray-400">or try a demo</span>
+              <div className="h-px flex-1 bg-gray-200 dark:bg-white/[0.06]" />
+            </div>
 
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={handleInstagram}
-              disabled={anyLoading}
-              className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl text-white text-sm font-semibold transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #FCB045 100%)' }}
-            >
-              {oauthLoading === 'instagram'
-                ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                : <InstagramIcon size={20} />}
-              Join as Creator — Instagram
-            </motion.button>
-          </div>
-
-          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mb-6">
-            By signing up, you agree to our Terms of Service and Privacy Policy
-          </p>
-
-          {/* Demo accounts */}
-          <div className="pt-5 border-t border-gray-200 dark:border-white/5">
-            <p className="text-xs text-gray-400 dark:text-gray-600 text-center mb-3">Just exploring? Try a demo</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center justify-center gap-2">
               <button
-                onClick={() => { loginAsCreator(); toast.success('Demo: Creator'); }}
-                disabled={anyLoading}
-                className="py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
+                onClick={() => { loginAsCreator(); toast.success('Creator demo loaded'); }}
+                disabled={busy}
+                className="h-8 px-4 rounded-xl text-xs font-medium bg-white dark:bg-white/[0.04] hover:bg-gray-50 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/[0.08] text-gray-500 dark:text-gray-400 transition-all disabled:opacity-40"
               >
                 Creator Demo
               </button>
               <button
-                onClick={() => { loginAsBrand(); toast.success('Demo: Brand'); }}
-                disabled={anyLoading}
-                className="py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 text-xs font-medium transition-all disabled:opacity-40"
+                onClick={() => { loginAsBrand(); toast.success('Brand demo loaded'); }}
+                disabled={busy}
+                className="h-8 px-4 rounded-xl text-xs font-medium bg-white dark:bg-white/[0.04] hover:bg-gray-50 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/[0.08] text-gray-500 dark:text-gray-400 transition-all disabled:opacity-40"
               >
                 Brand Demo
               </button>
             </div>
-          </div>
 
-          <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-6">
-            Already have an account?{' '}
-            <Link to="/login" className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-semibold transition-colors">Sign in</Link>
-          </p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-600">
+              By signing up you agree to our Terms of Service and Privacy Policy
+            </p>
+          </div>
         </motion.div>
       </div>
     </div>
