@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
-import { updateCreatorProfile } from '../../lib/db';
+import { updateCreatorProfile, getCreatorProfile } from '../../lib/db';
 import { uploadAvatar, uploadCover } from '../../lib/storage';
 
 const niches = [
@@ -154,6 +154,49 @@ export default function CreatorProfileEdit() {
     audienceLocations: [{ country: '', percent: '' }],
   });
   const [saving, setSaving] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  // Pre-populate form from existing creator_profiles row
+  useEffect(() => {
+    if (!user?.id) { setProfileLoading(false); return; }
+    getCreatorProfile(user.id)
+      .then(profile => {
+        if (!profile) return;
+        if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
+        if (profile.cover_url) setCoverUrl(profile.cover_url);
+        setForm({
+          name: profile.name || user?.name || '',
+          bio: profile.bio || '',
+          location: profile.location || '',
+          website: profile.website || '',
+          instagram: profile.instagram || '',
+          tiktok: profile.tiktok || '',
+          youtube: profile.youtube || '',
+          instagramFollowers: profile.instagram_followers || '',
+          tiktokFollowers: profile.tiktok_followers || '',
+          youtubeFollowers: profile.youtube_followers || '',
+          instagramEngagement: profile.instagram_engagement || '',
+          tiktokEngagement: profile.tiktok_engagement || '',
+          youtubeEngagement: profile.youtube_engagement || '',
+          instagramAvgLikes: profile.instagram_avg_likes || '',
+          instagramAvgComments: profile.instagram_avg_comments || '',
+          tiktokAvgLikes: profile.tiktok_avg_likes || '',
+          tiktokAvgComments: profile.tiktok_avg_comments || '',
+          youtubeAvgLikes: profile.youtube_avg_likes || '',
+          youtubeAvgComments: profile.youtube_avg_comments || '',
+          ratePost: profile.rate_post || '',
+          rateReel: profile.rate_reel || '',
+          rateStory: profile.rate_story || '',
+          rateVideo: profile.rate_video || '',
+          niche: profile.niche || [],
+          audienceLocations: profile.audience_locations?.length
+            ? profile.audience_locations.map(l => ({ country: l.country, percent: String(l.percent) }))
+            : [{ country: '', percent: '' }],
+        });
+      })
+      .catch(err => console.error('[ProfileEdit] load error:', err))
+      .finally(() => setProfileLoading(false));
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -270,6 +313,16 @@ export default function CreatorProfileEdit() {
     form.ratePost || form.rateReel,
   ].filter(Boolean).length;
   const progress = Math.round((filled / 6) * 100);
+
+  if (profileLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[40vh]">
+          <span className="w-8 h-8 border-4 border-creator/20 border-t-creator rounded-full animate-spin" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

@@ -77,7 +77,9 @@ export default function CreatorCard({ creator, onHire, onMessage, linkPrefix = '
         {/* Starting rate */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs text-gray-500">Starting from</span>
-          <span className="font-heading font-bold text-sm text-gray-900 dark:text-white">${creator.rates.post.toLocaleString()}</span>
+          <span className="font-heading font-bold text-sm text-gray-900 dark:text-white">
+            {creator.rates?.post ? `$${creator.rates.post.toLocaleString()}` : 'Contact'}
+          </span>
         </div>
 
         {/* CTA */}

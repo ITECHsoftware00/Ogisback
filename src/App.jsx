@@ -178,7 +178,7 @@ export default function App() {
             duration: 3000,
             style: { fontFamily: 'Inter, sans-serif', fontSize: '14px', borderRadius: '12px' },
             success: { iconTheme: { primary: '#10B981', secondary: '#fff' } },
-            error: { iconTheme: { primary: '#EF4444', secondary: '#fff' } },
+            error:   { iconTheme: { primary: '#EF4444', secondary: '#fff' } },
           }}
         />
       </AuthProvider>

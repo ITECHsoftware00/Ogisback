@@ -1,22 +1,26 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import SEO from '../components/SEO';
 
-/**
- * Landing page after OAuth redirect.
- * AuthContext handles all profile creation via onAuthStateChange → fetchProfile.
- * This page detects provider (google → brand, instagram → creator) and routes
- * new users to onboarding, returning users to their dashboard.
- */
 export default function AuthCallback() {
   const { user, loading, settling } = useAuth();
   const navigate = useNavigate();
+  // Safety net: if after 10s there's still no user, give up and send to signup
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
-    // Wait until AuthContext has finished both initial load and SIGNED_IN settling
+    const t = setTimeout(() => setTimedOut(true), 10000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    // Keep waiting while auth context is still working
     if (loading || settling) return;
+    // Also keep waiting if we have a ?code= but no user yet (SIGNED_IN hasn't fired)
+    const hasCode = new URLSearchParams(window.location.search).has('code');
+    if (hasCode && !user && !timedOut) return;
 
     if (user) {
       const isNewUser = !user.profileComplete;
@@ -41,9 +45,9 @@ export default function AuthCallback() {
       }
     } else {
       // No session after settling — auth failed or user denied
-      navigate('/', { replace: true });
+      navigate('/signup', { replace: true });
     }
-  }, [user, loading, settling]);
+  }, [user, loading, settling, timedOut]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] dark:bg-[#0A0A0F] gap-5">

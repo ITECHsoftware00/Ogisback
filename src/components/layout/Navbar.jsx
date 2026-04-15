@@ -6,22 +6,35 @@ import {
   User, LogOut, Settings, Repeat2, Wallet
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useMessageNotifications } from '../../context/MessageNotificationContext';
 import { getNotifications } from '../../lib/db';
 import Logo from '../Logo';
 
 export default function Navbar() {
   const { user, activeRole, darkMode, toggleDark, logout, switchRole, isLoggedIn } = useAuth();
+  const { unreadCount: unreadMessages } = useMessageNotifications();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadNotifs, setUnreadNotifs] = useState(0);
+  const [bellShake, setBellShake] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
     getNotifications(user.id, 30)
-      .then(notifs => setUnreadCount(notifs.filter(n => !n.is_read).length))
+      .then(notifs => setUnreadNotifs(notifs.filter(n => !n.is_read).length))
       .catch(() => {});
   }, [user?.id]);
+
+  // Shake the bell whenever a new message arrives
+  useEffect(() => {
+    if (unreadMessages === 0) return;
+    setBellShake(true);
+    const t = setTimeout(() => setBellShake(false), 600);
+    return () => clearTimeout(t);
+  }, [unreadMessages]);
+
+  const totalUnread = unreadNotifs + unreadMessages;
 
   const handleLogout = () => {
     logout();
@@ -82,11 +95,17 @@ export default function Navbar() {
           {isLoggedIn ? (
             <>
               {/* Notifications */}
-              <Link to="/notifications" className="relative p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all">
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-creator rounded-full text-white text-[9px] font-bold flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
+              <Link
+                to="/notifications"
+                className="relative p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all"
+              >
+                <Bell
+                  size={18}
+                  className={bellShake ? 'animate-[wiggle_0.4s_ease-in-out]' : ''}
+                />
+                {totalUnread > 0 && (
+                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center">
+                    {totalUnread > 9 ? '9+' : totalUnread}
                   </span>
                 )}
               </Link>

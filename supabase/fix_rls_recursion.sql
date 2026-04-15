@@ -1,11 +1,11 @@
--- Add admin role support
+-- ═══════════════════════════════════════════════════════════════
+-- Fix: infinite recursion in profiles RLS policies
+-- Root cause: admin policies query profiles table inside profiles policy
+-- Fix: use a SECURITY DEFINER function that bypasses RLS
+-- ═══════════════════════════════════════════════════════════════
 
--- Allow 'admin' as a valid role in profiles
-ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
-ALTER TABLE profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('creator', 'brand', 'admin'));
-
--- Helper function: reads current user's role bypassing RLS (SECURITY DEFINER)
--- This prevents infinite recursion when policies on profiles query profiles
+-- Step 1: Create a helper function that reads the current user's role
+-- SECURITY DEFINER = runs as DB owner, bypasses RLS, no recursion
 CREATE OR REPLACE FUNCTION get_my_role()
 RETURNS TEXT
 LANGUAGE sql
@@ -15,7 +15,7 @@ AS $$
   SELECT role FROM profiles WHERE id = auth.uid();
 $$;
 
--- Drop old recursive policies
+-- Step 2: Drop all the broken recursive admin policies
 DROP POLICY IF EXISTS "Admin read all profiles"        ON profiles;
 DROP POLICY IF EXISTS "Admin read all creators"        ON creator_profiles;
 DROP POLICY IF EXISTS "Admin read all brands"          ON brand_profiles;
@@ -32,7 +32,7 @@ DROP POLICY IF EXISTS "Admin update creators"          ON creator_profiles;
 DROP POLICY IF EXISTS "Admin update withdrawals"       ON withdrawals;
 DROP POLICY IF EXISTS "Admin update orders"            ON orders;
 
--- Recreate using get_my_role() — no recursion
+-- Step 3: Recreate all admin policies using get_my_role() — no recursion
 CREATE POLICY "Admin read all profiles"        ON profiles             FOR SELECT USING (get_my_role() = 'admin');
 CREATE POLICY "Admin read all creators"        ON creator_profiles     FOR SELECT USING (get_my_role() = 'admin');
 CREATE POLICY "Admin read all brands"          ON brand_profiles       FOR SELECT USING (get_my_role() = 'admin');
@@ -49,5 +49,5 @@ CREATE POLICY "Admin update creators"          ON creator_profiles     FOR UPDAT
 CREATE POLICY "Admin update withdrawals"       ON withdrawals          FOR UPDATE USING (get_my_role() = 'admin');
 CREATE POLICY "Admin update orders"            ON orders               FOR UPDATE USING (get_my_role() = 'admin');
 
--- Promote a user to admin (run manually after creating the account):
--- UPDATE profiles SET role = 'admin' WHERE id = '<your-admin-user-uuid>';
+-- Step 4: Verify — this should return your user's role without error
+SELECT get_my_role();

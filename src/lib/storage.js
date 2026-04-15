@@ -70,6 +70,16 @@ export async function uploadContent(userId, orderId, file) {
 }
 
 /**
+ * Upload a feed content file (image or video) — no orderId needed.
+ * Used by the NewPost page.
+ */
+export async function uploadContentFile(userId, file) {
+  const ext = file.name.split('.').pop();
+  const path = `${userId}/feed/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  return uploadFile(BUCKET_CONTENT, path, file);
+}
+
+/**
  * Delete a file from storage by its public URL.
  */
 export async function deleteFileByUrl(bucket, publicUrl) {

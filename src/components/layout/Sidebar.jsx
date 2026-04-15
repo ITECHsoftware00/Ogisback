@@ -6,6 +6,7 @@ import {
   Settings, Search, Star, CreditCard, BookMarked, Zap
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useMessageNotifications } from '../../context/MessageNotificationContext';
 
 const creatorLinks = [
   { to: '/creator/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -36,6 +37,7 @@ const brandLinks = [
 
 export default function Sidebar() {
   const { activeRole, user } = useAuth();
+  const { unreadCount } = useMessageNotifications();
   const links = activeRole === 'creator' ? creatorLinks : brandLinks;
   const isCreator = activeRole === 'creator';
 
@@ -45,11 +47,17 @@ export default function Sidebar() {
       <div className="px-4 mb-6">
         <div className={`rounded-2xl p-4 ${isCreator ? 'bg-creator/5 border border-creator/10' : 'bg-brand/5 border border-brand/10'}`}>
           <div className="flex items-center gap-3">
-            <img
-              src={user?.avatar || user?.logo}
-              alt={user?.name}
-              className="w-10 h-10 rounded-full object-cover"
-            />
+            {(user?.avatar || user?.logo) ? (
+              <img
+                src={user.avatar || user.logo}
+                alt={user?.name}
+                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${isCreator ? 'bg-gradient-creator' : 'bg-gradient-brand'}`}>
+                {user?.name?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+            )}
             <div className="min-w-0">
               <p className="font-semibold text-sm text-gray-900 dark:text-white truncate">{user?.name}</p>
               <span className={`text-xs font-medium ${isCreator ? 'text-creator' : 'text-brand'}`}>
@@ -68,27 +76,42 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 space-y-0.5">
-        {links.map(({ to, icon: Icon, label, highlight }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `${isCreator ? 'sidebar-link-creator' : 'sidebar-link-brand'} sidebar-link ${isActive ? 'active' : ''} ${highlight ? 'mt-2' : ''}`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <Icon size={17} className={highlight && !isActive ? (isCreator ? 'text-creator' : 'text-brand') : ''} />
-                <span>{label}</span>
-                {highlight && !isActive && (
-                  <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isCreator ? 'bg-creator/10 text-creator' : 'bg-brand/10 text-brand'}`}>
-                    NEW
-                  </span>
-                )}
-              </>
-            )}
-          </NavLink>
-        ))}
+        {links.map(({ to, icon: Icon, label, highlight }) => {
+          const isMessages = label === 'Messages';
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `${isCreator ? 'sidebar-link-creator' : 'sidebar-link-brand'} sidebar-link ${isActive ? 'active' : ''} ${highlight ? 'mt-2' : ''}`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <div className="relative flex-shrink-0">
+                    <Icon size={17} className={highlight && !isActive ? (isCreator ? 'text-creator' : 'text-brand') : ''} />
+                    {isMessages && unreadCount > 0 && !isActive && (
+                      <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center animate-pulse">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <span>{label}</span>
+                  {isMessages && unreadCount > 0 && !isActive && (
+                    <span className="ml-auto min-w-[20px] h-5 px-1 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                  {highlight && !isActive && !isMessages && (
+                    <span className={`ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isCreator ? 'bg-creator/10 text-creator' : 'bg-brand/10 text-brand'}`}>
+                      NEW
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       {/* Bottom CTA */}

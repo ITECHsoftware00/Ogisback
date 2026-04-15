@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../context/AuthContext';
+import { MessageNotificationProvider } from '../../context/MessageNotificationContext';
 
 export default function DashboardLayout({ children, requiredRole }) {
   const { user, activeRole, isLoggedIn } = useAuth();
@@ -21,14 +22,16 @@ export default function DashboardLayout({ children, requiredRole }) {
   }, [isLoggedIn, user, activeRole]);
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F]">
-      <Navbar />
-      <div className="flex max-w-[1440px] mx-auto">
-        <Sidebar />
-        <main className="flex-1 min-w-0 p-6 lg:p-8 animate-fade-in">
-          {children}
-        </main>
+    <MessageNotificationProvider>
+      <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F]">
+        <Navbar />
+        <div className="flex max-w-[1440px] mx-auto">
+          <Sidebar />
+          <main className="flex-1 min-w-0 p-6 lg:p-8 animate-fade-in">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </MessageNotificationProvider>
   );
 }

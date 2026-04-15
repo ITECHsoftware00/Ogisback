@@ -15,87 +15,142 @@ export function AuthProvider({ children }) {
   const [darkMode, setDarkMode]     = useState(() => localStorage.getItem('ogisback_dark') === 'true');
   const [loading, setLoading]       = useState(true);
   // settling = true while fetchProfile is running after SIGNED_IN
-  const [settling, setSettling]     = useState(false);
+  // If the page loaded with ?code= (OAuth callback), start as settling so
+  // AuthCallback waits for SIGNED_IN before deciding where to route.
+  const [settling, setSettling] = useState(
+    () => new URLSearchParams(window.location.search).has('code')
+  );
 
   /* ── Build the merged user object from DB profile rows ── */
   async function fetchProfile(authUser) {
     if (!authUser) { setUser(null); setActiveRole(null); return; }
 
-    let { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', authUser.id)
-      .single();
+    try {
+      // ── 1. Read existing profile ──
+      let { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
 
-    // Trigger may have missed — create rows from OAuth metadata as fallback
-    if (!profile) {
-      const meta  = authUser.user_metadata || {};
-      const role  = meta.role || localStorage.getItem('ogisback_pending_role') || 'creator';
-      const name  = meta.full_name || meta.name || authUser.email?.split('@')[0] || 'User';
-
-      await supabase.from('profiles').upsert(
-        { id: authUser.id, role, plan: 'free', profile_complete: false },
-        { onConflict: 'id' }
-      );
-
-      if (role === 'creator') {
-        const username = (authUser.email?.split('@')[0] ?? 'user')
-          .replace(/[^a-z0-9]/gi, '').toLowerCase()
-          + Math.floor(Math.random() * 9000 + 1000);
-        await supabase.from('creator_profiles').upsert(
-          { id: authUser.id, username, name },
-          { onConflict: 'id' }
-        );
-      } else {
-        const slug = name.toLowerCase().replace(/\s+/g, '-')
-          + Math.floor(Math.random() * 9000 + 1000);
-        await supabase.from('brand_profiles').upsert(
-          { id: authUser.id, slug, name },
-          { onConflict: 'id' }
-        );
+      if (profileErr && profileErr.code !== 'PGRST116') {
+        // PGRST116 = "no rows" — anything else is a real DB error
+        console.error('[fetchProfile] profiles read error:', profileErr);
       }
 
-      const { data: fresh } = await supabase
-        .from('profiles').select('*').eq('id', authUser.id).single();
-      profile = fresh;
+      // ── 2. Create profile rows if missing (trigger may have not run) ──
+      if (!profile) {
+        const meta = authUser.user_metadata || {};
+        const role = meta.role
+          || localStorage.getItem('ogisback_pending_role')
+          || 'creator';
+        const name = meta.full_name || meta.name
+          || authUser.email?.split('@')[0]
+          || 'User';
+
+        const { error: upsertErr } = await supabase
+          .from('profiles')
+          .upsert(
+            { id: authUser.id, role, plan: 'free', profile_complete: false },
+            { onConflict: 'id' }
+          );
+        if (upsertErr) console.error('[fetchProfile] profiles upsert error:', upsertErr);
+
+        if (role === 'creator') {
+          const username = (authUser.email?.split('@')[0] ?? 'user')
+            .replace(/[^a-z0-9]/gi, '').toLowerCase()
+            + Math.floor(Math.random() * 9000 + 1000);
+          const { error: cpErr } = await supabase
+            .from('creator_profiles')
+            .upsert({ id: authUser.id, username, name }, { onConflict: 'id' });
+          if (cpErr) console.error('[fetchProfile] creator_profiles upsert error:', cpErr);
+        } else {
+          const slug = name.toLowerCase().replace(/\s+/g, '-')
+            + Math.floor(Math.random() * 9000 + 1000);
+          const { error: bpErr } = await supabase
+            .from('brand_profiles')
+            .upsert({ id: authUser.id, slug, name }, { onConflict: 'id' });
+          if (bpErr) console.error('[fetchProfile] brand_profiles upsert error:', bpErr);
+        }
+
+        const { data: fresh, error: freshErr } = await supabase
+          .from('profiles').select('*').eq('id', authUser.id).single();
+        if (freshErr) console.error('[fetchProfile] profiles re-read error:', freshErr);
+        profile = fresh;
+      }
+
+      // ── 3. Fallback: if DB is unreachable, still log user in with minimal data ──
+      if (!profile) {
+        console.warn('[fetchProfile] profile still null after upsert — using fallback');
+        const fallbackRole = localStorage.getItem('ogisback_pending_role') || 'creator';
+        setUser({
+          id: authUser.id,
+          email: authUser.email,
+          role: fallbackRole,
+          plan: 'free',
+          profileComplete: false,
+          name: authUser.email?.split('@')[0] || 'User',
+        });
+        setActiveRole(fallbackRole);
+        return;
+      }
+
+      // ── 4. Mark online (fire-and-forget) ──
+      supabase.from('profiles').update({
+        is_online: true,
+        last_seen: new Date().toISOString(),
+      }).eq('id', authUser.id);
+
+      // ── 5. Load sub-profile ──
+      const role = profile.role;
+      let subProfile = null;
+
+      if (role === 'creator') {
+        const { data, error } = await supabase
+          .from('creator_profiles').select('*').eq('id', authUser.id).single();
+        if (error && error.code !== 'PGRST116')
+          console.error('[fetchProfile] creator_profiles read error:', error);
+        subProfile = data;
+      } else if (role === 'brand') {
+        const { data, error } = await supabase
+          .from('brand_profiles').select('*').eq('id', authUser.id).single();
+        if (error && error.code !== 'PGRST116')
+          console.error('[fetchProfile] brand_profiles read error:', error);
+        subProfile = data;
+      }
+
+      setUser({
+        id: authUser.id,
+        email: authUser.email,
+        role,
+        plan: profile.plan,
+        profileComplete: profile.profile_complete,
+        darkMode: profile.dark_mode,
+        name: subProfile?.name || authUser.email,
+        username: subProfile?.username || null,
+        avatar: subProfile?.avatar_url || null,
+        logo: subProfile?.logo_url || null,
+        slug: subProfile?.slug || null,
+        walletBalance: subProfile?.wallet_balance || 0,
+        pendingBalance: subProfile?.pending_balance || 0,
+        ...subProfile,
+      });
+      setActiveRole(role);
+
+    } catch (err) {
+      // Last-resort fallback — never leave the user stuck on the spinner
+      console.error('[fetchProfile] unexpected error:', err);
+      const fallbackRole = localStorage.getItem('ogisback_pending_role') || 'creator';
+      setUser({
+        id: authUser.id,
+        email: authUser.email,
+        role: fallbackRole,
+        plan: 'free',
+        profileComplete: false,
+        name: authUser.email?.split('@')[0] || 'User',
+      });
+      setActiveRole(fallbackRole);
     }
-
-    if (!profile) { setUser(null); setActiveRole(null); return; }
-
-    // Mark user as online
-    supabase.from('profiles').update({
-      is_online: true,
-      last_seen: new Date().toISOString(),
-    }).eq('id', authUser.id);
-
-    const role = profile.role;
-    let subProfile = null;
-
-    if (role === 'creator') {
-      const { data } = await supabase.from('creator_profiles').select('*').eq('id', authUser.id).single();
-      subProfile = data;
-    } else if (role === 'brand') {
-      const { data } = await supabase.from('brand_profiles').select('*').eq('id', authUser.id).single();
-      subProfile = data;
-    }
-
-    setUser({
-      id: authUser.id,
-      email: authUser.email,
-      role,
-      plan: profile.plan,
-      profileComplete: profile.profile_complete,
-      darkMode: profile.dark_mode,
-      name: subProfile?.name || authUser.email,
-      username: subProfile?.username || null,
-      avatar: subProfile?.avatar_url || null,
-      logo: subProfile?.logo_url || null,
-      slug: subProfile?.slug || null,
-      walletBalance: subProfile?.wallet_balance || 0,
-      pendingBalance: subProfile?.pending_balance || 0,
-      ...subProfile,
-    });
-    setActiveRole(role);
   }
 
   /* ── Auth state listener — OAuth events only ── */
@@ -128,11 +183,42 @@ export function AuthProvider({ children }) {
     localStorage.setItem('ogisback_dark', darkMode);
   }, [darkMode]);
 
-  /* ── OAuth sign-in (the only auth methods) ── */
+  /* ── Email auth ── */
 
-  // Google → brand dashboard (role is always 'brand' for Google)
-  const signInWithGoogle = async () => {
-    localStorage.setItem('ogisback_pending_role', 'brand');
+  const signUpWithEmail = async (email, password, role = 'creator') => {
+    localStorage.setItem('ogisback_pending_role', role);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: { role }, // passed into raw_user_meta_data so the DB trigger reads it
+      },
+    });
+    if (error) throw error;
+  };
+
+  const signInWithEmail = async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+  };
+
+  const resendConfirmation = async (email) => {
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    if (error) throw error;
+  };
+
+  const resetPassword = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+    if (error) throw error;
+  };
+
+  /* ── OAuth sign-in ── */
+
+  const signInWithGoogle = async (role = 'brand') => {
+    localStorage.setItem('ogisback_pending_role', role);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -143,9 +229,8 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   };
 
-  // Instagram → creator dashboard (role is always 'creator' for Instagram)
-  const signInWithInstagram = async () => {
-    localStorage.setItem('ogisback_pending_role', 'creator');
+  const signInWithInstagram = async (role = 'creator') => {
+    localStorage.setItem('ogisback_pending_role', role);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'facebook',
       options: {
@@ -229,6 +314,10 @@ export function AuthProvider({ children }) {
     logout,
     signInWithGoogle,
     signInWithInstagram,
+    signInWithEmail,
+    signUpWithEmail,
+    resendConfirmation,
+    resetPassword,
     setupOAuthProfile,
     completeProfile,
     upgradePlan,

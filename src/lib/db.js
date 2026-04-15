@@ -33,16 +33,39 @@ export async function getCreatorByUsername(username) {
 }
 
 export async function updateCreatorProfile(id, updates) {
+  // Use update (not upsert) — username is NOT NULL so upsert without it fails on insert.
+  // The row must already exist (created by DB trigger or fetchProfile).
   const { data, error } = await supabase
     .from('creator_profiles')
-    .upsert({ id, ...updates }, { onConflict: 'id' })
+    .update(updates)
+    .eq('id', id)
     .select()
     .single();
   if (error) throw error;
   return data;
 }
 
+export async function getCreatorProfile(id) {
+  const { data, error } = await supabase
+    .from('creator_profiles')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 /* ─────────────────────── BRANDS ─────────────────────── */
+
+export async function getBrandProfile(id) {
+  const { data, error } = await supabase
+    .from('brand_profiles')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data;
+}
 
 export async function getBrandBySlug(slug) {
   const { data, error } = await supabase
@@ -432,6 +455,50 @@ export async function incrementPostViews(postId) {
 
 export async function incrementPostLikes(postId) {
   await supabase.rpc('increment_post_likes', { p_post_id: postId });
+}
+
+export async function togglePostLike(postId, userId) {
+  const { data, error } = await supabase.rpc('toggle_post_like', {
+    p_post_id: postId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  return data; // true = now liked, false = now unliked
+}
+
+export async function checkPostLiked(postId, userId) {
+  const { data } = await supabase
+    .from('post_likes')
+    .select('id')
+    .eq('post_id', postId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return !!data;
+}
+
+export async function getPostComments(postId) {
+  const { data, error } = await supabase
+    .from('post_comments')
+    .select('*')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addPostComment(postId, userId, userRole, body, authorName, authorAvatar) {
+  const { data, error } = await supabase
+    .from('post_comments')
+    .insert({ post_id: postId, user_id: userId, user_role: userRole, body, author_name: authorName, author_avatar: authorAvatar })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deletePostComment(commentId) {
+  const { error } = await supabase.from('post_comments').delete().eq('id', commentId);
+  if (error) throw error;
 }
 
 /* ─────────────────────── REVIEWS ─────────────────────── */

@@ -12,7 +12,7 @@ import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
 import { getCreators, getContentPosts, createOrder, getOrCreateConversation } from '../../lib/db';
 import { createEscrow, getFeeRate } from '../../lib/payments';
-import { normalizeCreator, formatCurrency } from '../../lib/normalize';
+import { normalizeCreator, normalizePost, formatCurrency } from '../../lib/normalize';
 
 const NICHES = ['All', 'Fashion', 'Beauty', 'Tech', 'Fitness', 'Food', 'Travel', 'Finance', 'Lifestyle'];
 const PLATFORMS = ['All Platforms', 'Instagram', 'TikTok', 'YouTube'];
@@ -35,7 +35,7 @@ export default function BrandDiscover() {
   useEffect(() => {
     setLoading(true);
     Promise.all([getCreators({ limit: 60 }), getContentPosts({ limit: 30 })])
-      .then(([c, posts]) => { setCreators(c.map(normalizeCreator)); setContent(posts); })
+      .then(([c, posts]) => { setCreators(c.map(normalizeCreator)); setContent(posts.map(normalizePost)); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

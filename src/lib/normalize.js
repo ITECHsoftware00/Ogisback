@@ -6,19 +6,44 @@
 /** Map a creator_profiles row → CreatorCard / page-compatible shape */
 export function normalizeCreator(row) {
   if (!row) return null;
+  const ig = row.instagram_followers || 0;
+  const tt = row.tiktok_followers || 0;
+  const yt = row.youtube_followers || 0;
   return {
     ...row,
-    // CreatorCard reads `avatar`, mock data used `avatar`
     avatar: row.avatar_url || `https://i.pravatar.cc/150?u=${row.id}`,
-    // CreatorCard reads `creator.followers` as an object
-    followers: {
-      instagram: row.instagram_followers || 0,
-      tiktok: row.tiktok_followers || 0,
-      youtube: row.youtube_followers || 0,
-    },
+    cover: row.cover_url || null,
+    followers: { instagram: ig, tiktok: tt, youtube: yt },
+    totalFollowers: ig + tt + yt,
+    engagementRate: row.instagram_engagement || row.tiktok_engagement || row.youtube_engagement || 0,
+    reviewCount: row.review_count || 0,
+    verified: row.is_verified || false,
+    isVerified: row.is_verified || false,
+    isOnline: row.is_online || false,
     niche: row.niche || [],
     plan: row.profiles?.plan || 'free',
-    isVerified: row.is_verified || false,
+    rates: {
+      post: row.rate_post || 0,
+      reel: row.rate_reel || 0,
+      story: row.rate_story || 0,
+      video: row.rate_video || 0,
+    },
+  };
+}
+
+/** Map a content_posts row (with creator_profiles join) → ContentCard-compatible shape */
+export function normalizePost(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    thumbnail: row.thumbnail_url || row.media_url || `https://picsum.photos/seed/${row.id}/400/400`,
+    creator: row.creator_profiles?.name || 'Creator',
+    username: row.creator_profiles?.username || 'creator',
+    avatar: row.creator_profiles?.avatar_url || `https://i.pravatar.cc/40?u=${row.creator_id}`,
+    postedDate: row.created_at,
+    likes: row.likes || row.like_count || 0,
+    views: row.views || row.view_count || 0,
+    saves: row.saves || row.save_count || 0,
   };
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,212 +22,382 @@ const InstagramIcon = () => (
   </svg>
 );
 
-const creatorPerks = [
-  'Keep 80% of every deal',
-  'Secure escrow payments',
-  'Direct brand connections',
-  'Free to join — always',
-];
+const CheckIcon = () => (
+  <svg className="w-4 h-4 flex-shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+  </svg>
+);
 
-const brandPerks = [
-  'Access 6,000+ creators',
-  'Campaign management tools',
-  'Escrow payment protection',
-  'Analytics & reporting',
+const roles = {
+  creator: {
+    label: 'Creator / Influencer',
+    perks: [
+      'Keep 80% of every deal',
+      'Secure escrow payments',
+      'Direct brand connections',
+      'Free to join — always',
+    ],
+  },
+  brand: {
+    label: 'Brand / Business',
+    perks: [
+      'Access 6,000+ creators',
+      'Campaign management tools',
+      'Escrow payment protection',
+      'Analytics & reporting',
+    ],
+  },
+};
+
+const sharedPerks = [
+  'Over 6,000+ verified creators',
+  'Secure escrow on every deal',
+  'Quality campaigns done faster',
+  'Access to talent & brands worldwide',
 ];
 
 export default function Signup() {
-  const { signInWithGoogle, signInWithInstagram, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
+  const { signInWithGoogle, signInWithInstagram, signUpWithEmail, signInWithEmail, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(null);
+  const [role, setRole] = useState('creator');
+  const [showEmail, setShowEmail] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
 
   useEffect(() => {
     if (isLoggedIn) navigate(
-      activeRole === 'creator' ? '/creator/dashboard' : '/brand/dashboard'
-    , { replace: true });
+      activeRole === 'creator' ? '/creator/dashboard' : '/brand/dashboard',
+      { replace: true }
+    );
   }, [isLoggedIn]);
 
   const handleGoogle = async () => {
     setLoading('google');
-    try { await signInWithGoogle(); }
+    try { await signInWithGoogle(role); }
     catch (err) { toast.error(err.message || 'Google sign-in failed.'); setLoading(null); }
   };
 
   const handleInstagram = async () => {
     setLoading('instagram');
-    try { await signInWithInstagram(); }
+    try { await signInWithInstagram(role); }
     catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setLoading(null); }
+  };
+
+  const passwordRules = [
+    { key: 'length',    label: 'At least 8 characters',          test: p => p.length >= 8 },
+    { key: 'lower',     label: 'One lowercase letter (a–z)',      test: p => /[a-z]/.test(p) },
+    { key: 'upper',     label: 'One uppercase letter (A–Z)',      test: p => /[A-Z]/.test(p) },
+    { key: 'number',    label: 'One number (0–9)',                test: p => /[0-9]/.test(p) },
+    { key: 'special',   label: 'One special character (!@#$…)',   test: p => /[!@#$%^&*()_+\-=\[\]{};':"\\|<>?,./`~]/.test(p) },
+  ];
+  const passwordChecks = passwordRules.map(r => ({ ...r, passed: r.test(password) }));
+  const passwordValid  = passwordChecks.every(r => r.passed);
+
+  const handleEmail = async (e) => {
+    e.preventDefault();
+    if (!passwordValid) { toast.error('Please meet all password requirements.'); return; }
+    if (password !== confirm) { toast.error('Passwords do not match.'); return; }
+    setLoading('email');
+
+    const tryAutoLogin = async () => {
+      try {
+        await signInWithEmail(email, password);
+        // onAuthStateChange fires → navigates automatically
+      } catch {
+        toast.success('Account created! Check your email to confirm before signing in.');
+        setLoading(null);
+      }
+    };
+
+    try {
+      await signUpWithEmail(email, password, role);
+      await tryAutoLogin();
+    } catch (err) {
+      if (err.message?.toLowerCase().includes('sending confirmation email')) {
+        // Account was created but email sending failed — still try to sign in
+        await tryAutoLogin();
+      } else if (err.message?.toLowerCase().includes('already registered')) {
+        toast.error('An account with this email already exists. Try signing in.');
+        setLoading(null);
+      } else {
+        toast.error(err.message || 'Sign-up failed.');
+        setLoading(null);
+      }
+    }
   };
 
   const busy = !!loading;
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#09090F] flex flex-col">
+    <div className="min-h-screen bg-gray-100 dark:bg-[#09090F] flex flex-col items-center justify-center p-4">
       <SEO title="Join OgisBack" description="Create your free OgisBack account." url="/signup" />
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-5 max-w-5xl mx-auto w-full">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow-sm">
-            <span className="font-heading font-bold text-white text-sm">O</span>
-          </div>
-          <span className="font-heading font-bold text-gray-900 dark:text-white tracking-tight">OgisBack</span>
-        </Link>
-        <Link to="/login" className="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-          Already have an account? <span className="text-violet-600 dark:text-violet-400 font-semibold">Sign in</span>
-        </Link>
-      </div>
-
-      {/* Main */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="w-full max-w-4xl"
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="w-full max-w-3xl bg-white dark:bg-[#111118] rounded-2xl shadow-2xl shadow-black/10 dark:shadow-black/40 overflow-hidden flex flex-col md:flex-row"
+      >
+        {/* ── Left panel ── */}
+        <div
+          className="relative md:w-[42%] flex-shrink-0 flex flex-col justify-between p-8 overflow-hidden"
+          style={{ background: 'linear-gradient(145deg, #1a0533 0%, #2d0a5e 40%, #1e1050 70%, #0d1a3a 100%)' }}
         >
-          {/* Header */}
-          <div className="text-center mb-10">
-            <h1 className="text-4xl font-heading font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">
-              Join OgisBack
+          {/* Decorative blobs */}
+          <div className="absolute -top-10 -right-10 w-48 h-48 bg-violet-600/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-10 -left-10 w-40 h-40 bg-pink-600/15 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative">
+            {/* Logo */}
+            <Link to="/" className="inline-flex items-center gap-2 mb-10">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center shadow">
+                <span className="font-bold text-white text-xs">O</span>
+              </div>
+              <span className="font-bold text-white text-sm tracking-tight">OgisBack</span>
+            </Link>
+
+            <h2 className="text-2xl font-extrabold text-white leading-snug mb-6">
+              Success starts here
+            </h2>
+
+            <ul className="space-y-3.5">
+              {sharedPerks.map(perk => (
+                <li key={perk} className="flex items-start gap-3 text-sm text-white/80">
+                  <CheckIcon />
+                  {perk}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Bottom tagline */}
+          <p className="relative text-white/30 text-xs mt-8">
+            Trusted by creators & brands worldwide
+          </p>
+        </div>
+
+        {/* ── Right panel ── */}
+        <div className="flex-1 flex flex-col justify-center p-8">
+          <div className="max-w-xs mx-auto w-full">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+              Create a new account
             </h1>
-            <p className="text-gray-400 text-base">
-              Choose how you want to sign up — your role is set automatically
+            <p className="text-sm text-gray-400 dark:text-gray-500 mb-6">
+              Already have an account?{' '}
+              <Link to="/login" className="text-violet-600 dark:text-violet-400 font-medium hover:underline">
+                Sign in
+              </Link>
             </p>
-          </div>
 
-          {/* Two cards side by side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-
-            {/* Creator card */}
-            <div className="relative bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-3xl p-7 flex flex-col overflow-hidden">
-              {/* Accent glow */}
-              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-violet-500/10 to-pink-500/10 rounded-full blur-2xl -translate-y-10 translate-x-10 pointer-events-none" />
-
-              <div className="relative">
-                {/* Badge */}
-                <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-violet-500/10 to-pink-500/10 border border-violet-200 dark:border-violet-800/50 rounded-full px-3 py-1 mb-5">
-                  <span className="text-violet-600 dark:text-violet-400 text-xs font-semibold">Creator / Influencer</span>
-                </div>
-
-                <h2 className="text-xl font-heading font-bold text-gray-900 dark:text-white mb-1.5">
-                  I create content
-                </h2>
-                <p className="text-gray-400 text-sm mb-5 leading-relaxed">
-                  Partner with brands, get paid through secure escrow, build your business.
-                </p>
-
-                <ul className="space-y-2.5 mb-7">
-                  {creatorPerks.map(p => (
-                    <li key={p} className="flex items-center gap-2.5 text-sm text-gray-600 dark:text-gray-400">
-                      <span className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center flex-shrink-0">
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                          <path d="M1.5 4L3 5.5L6.5 2" stroke="#7C3AED" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
-                      {p}
-                    </li>
-                  ))}
-                </ul>
-
-                <motion.button
-                  whileTap={{ scale: 0.985 }}
-                  onClick={handleInstagram}
+            {/* Role tabs */}
+            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-white/[0.05] rounded-xl mb-6">
+              {Object.entries(roles).map(([key, val]) => (
+                <button
+                  key={key}
+                  onClick={() => setRole(key)}
                   disabled={busy}
-                  className="w-full flex items-center gap-3 h-12 px-5 rounded-2xl text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-all"
-                  style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #C026D3 50%, #EC4899 100%)' }}
+                  className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                    role === key
+                      ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
                 >
-                  {loading === 'instagram'
-                    ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
-                    : <>
-                        <InstagramIcon />
-                        <span className="flex-1 text-left">Join with Instagram</span>
-                        <span className="text-white/50 text-xs">Free</span>
-                      </>
-                  }
-                </motion.button>
+                  {val.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Perks for selected role */}
+            <AnimatePresence mode="wait">
+              <motion.ul
+                key={role}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+                className="space-y-1.5 mb-6"
+              >
+                {roles[role].perks.map(perk => (
+                  <li key={perk} className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <svg className="w-3 h-3 flex-shrink-0 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    {perk}
+                  </li>
+                ))}
+              </motion.ul>
+            </AnimatePresence>
+
+            {/* Auth buttons */}
+            <div className="space-y-3">
+              <motion.button
+                whileTap={{ scale: 0.985 }}
+                onClick={handleGoogle}
+                disabled={busy}
+                className="w-full flex items-center gap-3 h-11 px-4 rounded-xl bg-white dark:bg-white/[0.06] border border-gray-200 dark:border-white/[0.1] text-gray-800 dark:text-gray-200 text-sm font-medium shadow-sm hover:bg-gray-50 dark:hover:bg-white/[0.1] disabled:opacity-50 transition-all"
+              >
+                {loading === 'google'
+                  ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto" />
+                  : <><GoogleIcon /><span>Continue with Google</span></>
+                }
+              </motion.button>
+
+              <motion.button
+                whileTap={{ scale: 0.985 }}
+                onClick={handleInstagram}
+                disabled={busy}
+                className="w-full flex items-center gap-3 h-11 px-4 rounded-xl bg-white dark:bg-white/[0.06] border border-gray-200 dark:border-white/[0.1] text-gray-800 dark:text-gray-200 text-sm font-medium shadow-sm hover:bg-gray-50 dark:hover:bg-white/[0.1] disabled:opacity-50 transition-all"
+              >
+                {loading === 'instagram'
+                  ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto" />
+                  : <><InstagramIcon /><span>Continue with Instagram</span></>
+                }
+              </motion.button>
+
+              {/* Email toggle */}
+              <button
+                type="button"
+                onClick={() => setShowEmail(v => !v)}
+                disabled={busy}
+                className="w-full flex items-center gap-3 h-11 px-4 rounded-xl bg-white dark:bg-white/[0.06] border border-gray-200 dark:border-white/[0.1] text-gray-800 dark:text-gray-200 text-sm font-medium shadow-sm hover:bg-gray-50 dark:hover:bg-white/[0.1] disabled:opacity-50 transition-all"
+              >
+                <svg className="w-5 h-5 flex-shrink-0 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span>Continue with email</span>
+              </button>
+
+              {/* Expandable email sign-up form */}
+              <AnimatePresence>
+                {showEmail && (
+                  <motion.form
+                    onSubmit={handleEmail}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden space-y-2.5 pt-1"
+                  >
+                    <input
+                      type="email"
+                      placeholder="Email address"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
+                      className="w-full h-11 px-4 rounded-xl border border-gray-200 dark:border-white/[0.1] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
+                      className={`w-full h-11 px-4 rounded-xl border bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all ${
+                        password && !passwordValid
+                          ? 'border-amber-300 dark:border-amber-700'
+                          : password && passwordValid
+                          ? 'border-emerald-400 dark:border-emerald-600'
+                          : 'border-gray-200 dark:border-white/[0.1]'
+                      }`}
+                    />
+
+                    {/* Live password requirements */}
+                    {password && (
+                      <div className="rounded-xl border border-gray-100 dark:border-white/[0.07] bg-gray-50 dark:bg-white/[0.03] p-3 space-y-1.5">
+                        {passwordChecks.map(rule => (
+                          <div key={rule.key} className="flex items-center gap-2">
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                              rule.passed
+                                ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                                : 'bg-gray-100 dark:bg-white/[0.05]'
+                            }`}>
+                              {rule.passed
+                                ? <svg className="w-2.5 h-2.5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                : <svg className="w-2.5 h-2.5 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                              }
+                            </span>
+                            <span className={`text-xs transition-colors ${
+                              rule.passed
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-gray-400 dark:text-gray-500'
+                            }`}>
+                              {rule.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <input
+                      type="password"
+                      placeholder="Confirm password"
+                      value={confirm}
+                      onChange={e => setConfirm(e.target.value)}
+                      required
+                      className={`w-full h-11 px-4 rounded-xl border bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all ${
+                        confirm && confirm !== password
+                          ? 'border-red-300 dark:border-red-700'
+                          : confirm && confirm === password
+                          ? 'border-emerald-400 dark:border-emerald-600'
+                          : 'border-gray-200 dark:border-white/[0.1]'
+                      }`}
+                    />
+                    {confirm && confirm !== password && (
+                      <p className="text-xs text-red-500 dark:text-red-400 -mt-1">Passwords do not match</p>
+                    )}
+                    <motion.button
+                      whileTap={{ scale: 0.985 }}
+                      type="submit"
+                      disabled={busy || !passwordValid || confirm !== password}
+                      className="w-full h-11 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
+                      style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #C026D3 100%)' }}
+                    >
+                      {loading === 'email'
+                        ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                        : `Create ${roles[role].label} account`
+                      }
+                    </motion.button>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+
+              {/* OR divider */}
+              <div className="flex items-center gap-3 py-1">
+                <div className="h-px flex-1 bg-gray-100 dark:bg-white/[0.06]" />
+                <span className="text-[11px] text-gray-400 font-medium">OR</span>
+                <div className="h-px flex-1 bg-gray-100 dark:bg-white/[0.06]" />
+              </div>
+
+              {/* Demo buttons */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => { loginAsCreator(); toast.success('Creator demo loaded'); }}
+                  disabled={busy}
+                  className="h-10 rounded-xl text-xs font-medium bg-gray-50 dark:bg-white/[0.04] hover:bg-gray-100 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/[0.08] text-gray-500 dark:text-gray-400 transition-all disabled:opacity-40"
+                >
+                  Creator Demo
+                </button>
+                <button
+                  onClick={() => { loginAsBrand(); toast.success('Brand demo loaded'); }}
+                  disabled={busy}
+                  className="h-10 rounded-xl text-xs font-medium bg-gray-50 dark:bg-white/[0.04] hover:bg-gray-100 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/[0.08] text-gray-500 dark:text-gray-400 transition-all disabled:opacity-40"
+                >
+                  Brand Demo
+                </button>
               </div>
             </div>
 
-            {/* Brand card */}
-            <div className="relative bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-3xl p-7 flex flex-col overflow-hidden">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-2xl -translate-y-10 translate-x-10 pointer-events-none" />
-
-              <div className="relative">
-                <div className="inline-flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-full px-3 py-1 mb-5">
-                  <span className="text-blue-600 dark:text-blue-400 text-xs font-semibold">Brand / Business</span>
-                </div>
-
-                <h2 className="text-xl font-heading font-bold text-gray-900 dark:text-white mb-1.5">
-                  I hire creators
-                </h2>
-                <p className="text-gray-400 text-sm mb-5 leading-relaxed">
-                  Find and work with the right creators for your campaigns, all in one place.
-                </p>
-
-                <ul className="space-y-2.5 mb-7">
-                  {brandPerks.map(p => (
-                    <li key={p} className="flex items-center gap-2.5 text-sm text-gray-600 dark:text-gray-400">
-                      <span className="w-4 h-4 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                          <path d="M1.5 4L3 5.5L6.5 2" stroke="#2563EB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </span>
-                      {p}
-                    </li>
-                  ))}
-                </ul>
-
-                <motion.button
-                  whileTap={{ scale: 0.985 }}
-                  onClick={handleGoogle}
-                  disabled={busy}
-                  className="w-full flex items-center gap-3 h-12 px-5 rounded-2xl bg-white dark:bg-white border border-gray-200 dark:border-transparent text-gray-900 text-sm font-semibold shadow-sm hover:bg-gray-50 dark:hover:bg-gray-100 disabled:opacity-50 transition-all"
-                >
-                  {loading === 'google'
-                    ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto" />
-                    : <>
-                        <GoogleIcon />
-                        <span className="flex-1 text-left">Join with Google</span>
-                        <span className="text-gray-400 text-xs">Free</span>
-                      </>
-                  }
-                </motion.button>
-              </div>
-            </div>
-          </div>
-
-          {/* Demo + legal */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center gap-3 max-w-sm mx-auto">
-              <div className="h-px flex-1 bg-gray-200 dark:bg-white/[0.06]" />
-              <span className="text-[11px] text-gray-400">or try a demo</span>
-              <div className="h-px flex-1 bg-gray-200 dark:bg-white/[0.06]" />
-            </div>
-
-            <div className="flex items-center justify-center gap-2">
-              <button
-                onClick={() => { loginAsCreator(); toast.success('Creator demo loaded'); }}
-                disabled={busy}
-                className="h-8 px-4 rounded-xl text-xs font-medium bg-white dark:bg-white/[0.04] hover:bg-gray-50 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/[0.08] text-gray-500 dark:text-gray-400 transition-all disabled:opacity-40"
-              >
-                Creator Demo
-              </button>
-              <button
-                onClick={() => { loginAsBrand(); toast.success('Brand demo loaded'); }}
-                disabled={busy}
-                className="h-8 px-4 rounded-xl text-xs font-medium bg-white dark:bg-white/[0.04] hover:bg-gray-50 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/[0.08] text-gray-500 dark:text-gray-400 transition-all disabled:opacity-40"
-              >
-                Brand Demo
-              </button>
-            </div>
-
-            <p className="text-[11px] text-gray-400 dark:text-gray-600">
-              By signing up you agree to our Terms of Service and Privacy Policy
+            <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-5 leading-relaxed">
+              By joining, you agree to our{' '}
+              <span className="underline cursor-pointer hover:text-gray-600">Terms of Service</span>{' '}
+              and{' '}
+              <span className="underline cursor-pointer hover:text-gray-600">Privacy Policy</span>.
             </p>
           </div>
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

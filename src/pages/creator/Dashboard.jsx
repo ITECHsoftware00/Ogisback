@@ -1,132 +1,281 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import {
-  DollarSign, ShoppingBag, TrendingUp, Users, ArrowRight,
-  Plus, Zap, BarChart3, MessageSquare, Clock
+  DollarSign, ShoppingBag, Users, ArrowRight, Plus,
+  Zap, BarChart3, MessageSquare, Clock, TrendingUp, Image,
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import StatCard from '../../components/ui/StatCard';
 import { StatusBadge } from '../../components/ui/Badge';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
-import { getOrders, getCreatorPosts } from '../../lib/db';
-import { getWalletTransactions } from '../../lib/payments';
+import { supabase } from '../../supabaseClient';
+import { getCreatorPosts } from '../../lib/db';
 import { formatCurrency, formatNumber, normalizeOrder } from '../../lib/normalize';
+
+/* ── time-of-day greeting ── */
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/* ── build 6-month earnings chart from transactions ── */
+function buildEarningsChart(txs) {
+  const map = {};
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    map[key] = { month: d.toLocaleString('default', { month: 'short' }), earnings: 0 };
+  }
+  txs.forEach(tx => {
+    if (tx.amount <= 0) return;
+    const d = new Date(tx.created_at);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (map[key]) map[key].earnings += Number(tx.amount);
+  });
+  return Object.values(map);
+}
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl px-4 py-2.5 shadow-lg text-xs">
+      <p className="text-gray-500 mb-1">{label}</p>
+      <p className="font-bold text-creator text-sm">{formatCurrency(payload[0].value)}</p>
+    </div>
+  );
+};
 
 export default function CreatorDashboard() {
   const { user } = useAuth();
-  const [myOrders, setMyOrders] = useState([]);
-  const [recentContent, setRecentContent] = useState([]);
-  const [chartData, setChartData] = useState([]);
 
+  const [orders,        setOrders]        = useState([]);
+  const [recentContent, setRecentContent] = useState([]);
+  const [transactions,  setTransactions]  = useState([]);
+  const [profile,       setProfile]       = useState(null);
+  const [loading,       setLoading]       = useState(true);
+
+  /* ── initial load ── */
   useEffect(() => {
     if (!user?.id) return;
-    getOrders(user.id, 'creator')
-      .then(data => setMyOrders(data.map(normalizeOrder).slice(0, 4)))
-      .catch(() => {});
-    getCreatorPosts(user.id)
-      .then(posts => setRecentContent(posts.slice(0, 3)))
-      .catch(() => {});
-    getWalletTransactions(user.id, 200)
-      .then(txs => {
-        const released = txs.filter(tx => tx.amount > 0 && tx.type !== 'escrow_credit');
-        const monthly = {};
-        released.forEach(tx => {
-          const key = new Date(tx.created_at).toLocaleDateString('en-US', { month: 'short' });
-          monthly[key] = (monthly[key] || 0) + tx.amount;
-        });
-        setChartData(Object.entries(monthly).map(([month, earnings]) => ({ month, earnings })));
-      })
-      .catch(() => {});
+
+    async function load() {
+      const [ordRes, txRes, profRes] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('*, brand_profiles(name, logo_url, slug)')
+          .eq('creator_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('wallet_transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(200),
+        supabase
+          .from('creator_profiles')
+          .select('wallet_balance, pending_balance, instagram_followers, tiktok_followers, youtube_followers, name, avatar_url')
+          .eq('id', user.id)
+          .single(),
+      ]);
+
+      setOrders(ordRes.data || []);
+      setTransactions(txRes.data || []);
+      setProfile(profRes.data || null);
+
+      // posts separately (can fail silently)
+      getCreatorPosts(user.id)
+        .then(posts => setRecentContent(posts.slice(0, 3)))
+        .catch(() => {});
+
+      setLoading(false);
+    }
+
+    load().catch(() => setLoading(false));
   }, [user?.id]);
+
+  /* ── realtime ── */
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`creator-dash-${user.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'orders', filter: `creator_id=eq.${user.id}`,
+      }, payload => {
+        if (payload.eventType === 'INSERT') setOrders(p => [payload.new, ...p]);
+        else if (payload.eventType === 'UPDATE') setOrders(p => p.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o));
+        else if (payload.eventType === 'DELETE') setOrders(p => p.filter(o => o.id !== payload.old.id));
+      })
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'wallet_transactions', filter: `user_id=eq.${user.id}`,
+      }, payload => {
+        setTransactions(p => [payload.new, ...p]);
+        // re-fetch live wallet balance
+        supabase.from('creator_profiles').select('wallet_balance, pending_balance').eq('id', user.id).single()
+          .then(({ data }) => { if (data) setProfile(prev => ({ ...prev, ...data })); });
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [user?.id]);
+
+  /* ── computed ── */
+  const walletBalance   = profile?.wallet_balance  ?? user?.walletBalance  ?? 0;
+  const pendingBalance  = profile?.pending_balance ?? user?.pendingBalance ?? 0;
+  const activeOrders    = orders.filter(o => ['active', 'in_review', 'delivered'].includes(o.status)).length;
+  const totalFollowers  = (profile?.instagram_followers || 0) + (profile?.tiktok_followers || 0) + (profile?.youtube_followers || 0);
+  const earningsChart   = buildEarningsChart(transactions);
+  const recentOrders    = orders.slice(0, 5).map(normalizeOrder);
+
+  const thisMonthKey    = `${new Date().getFullYear()}-${new Date().getMonth()}`;
+  const thisMonthEarn   = transactions.filter(tx => {
+    const d = new Date(tx.created_at);
+    return tx.amount > 0 && `${d.getFullYear()}-${d.getMonth()}` === thisMonthKey;
+  }).reduce((s, tx) => s + Number(tx.amount), 0);
+  const totalEarnings   = transactions.filter(tx => tx.amount > 0).reduce((s, tx) => s + Number(tx.amount), 0);
+
+  const statCards = [
+    { title: 'Wallet Balance',   value: formatCurrency(walletBalance),  icon: DollarSign, color: 'from-wallet/20 to-wallet/5',     iconColor: 'text-wallet',   border: 'border-wallet/20' },
+    { title: 'Pending Earnings', value: formatCurrency(pendingBalance), icon: Clock,      color: 'from-primary/20 to-primary/5',   iconColor: 'text-primary',  border: 'border-primary/20' },
+    { title: 'Active Orders',    value: activeOrders,                   icon: ShoppingBag,color: 'from-creator/20 to-creator/5',   iconColor: 'text-creator',  border: 'border-creator/20' },
+    { title: 'Total Followers',  value: formatNumber(totalFollowers),   icon: Users,      color: 'from-brand/20 to-brand/5',       iconColor: 'text-brand',    border: 'border-brand/20' },
+  ];
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <span className="w-10 h-10 border-4 border-creator/20 border-t-creator rounded-full animate-spin" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
       <SEO title="Creator Dashboard" noindex={true} />
-      {/* Welcome */}
-      <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="page-title">Good morning, {user?.name?.split(' ')[0]} 👋</h1>
-          <p className="page-subtitle">Here's what's happening with your creator account</p>
+          <h1 className="text-2xl font-heading font-bold text-gray-900 dark:text-white">
+            {greeting()}, {user?.name?.split(' ')[0]} 👋
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">Here's what's happening with your creator account</p>
         </div>
-        <Link to="/creator/post/new" className="btn btn-creator btn-md">
+        <Link to="/creator/post/new" className="btn btn-creator btn-md self-start sm:self-auto">
           <Plus size={16} /> New Post
         </Link>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard title="Wallet Balance" value={`$${user?.walletBalance?.toLocaleString() || '3,120'}`} icon={DollarSign} color="wallet" trend="up" trendValue={12} delay={0} />
-        <StatCard title="Pending Earnings" value={`$${user?.pendingBalance?.toLocaleString() || '2,240'}`} icon={Clock} color="primary" delay={0.05} />
-        <StatCard title="Active Orders" value={myOrders.filter(o => ['active', 'in_review', 'delivered'].includes(o.status)).length.toString()} icon={ShoppingBag} color="creator" trend="up" trendValue={8} delay={0.1} />
-        <StatCard title="Total Followers" value={formatNumber(401000)} icon={Users} color="brand" trend="up" trendValue={3} delay={0.15} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {statCards.map((s, i) => (
+          <motion.div
+            key={s.title}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06 }}
+            className={`card p-5 border ${s.border} bg-gradient-to-br ${s.color}`}
+          >
+            <div className="mb-3">
+              <div className="w-9 h-9 rounded-xl bg-white/60 dark:bg-gray-900/40 flex items-center justify-center">
+                <s.icon size={17} className={s.iconColor} />
+              </div>
+            </div>
+            <p className="text-2xl font-heading font-bold text-gray-900 dark:text-white leading-none mb-1">{s.value}</p>
+            <p className="text-xs text-gray-500">{s.title}</p>
+          </motion.div>
+        ))}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Earnings Chart */}
         <div className="lg:col-span-2 card p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="section-title mb-0">Earnings Overview</h2>
-            <Link to="/creator/earnings" className="btn btn-ghost btn-sm text-primary">View all <ArrowRight size={14} /></Link>
+            <div>
+              <h2 className="font-heading font-semibold text-gray-900 dark:text-white">Earnings Overview</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Last 6 months</p>
+            </div>
+            <Link to="/creator/earnings" className="btn btn-ghost btn-sm text-creator gap-1">
+              View all <ArrowRight size={13} />
+            </Link>
           </div>
-          <div className="h-52" style={{ minHeight: '208px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="creatorGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#EC4899" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#EC4899" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `$${v/1000}k`} />
-                <Tooltip formatter={(v) => [`$${v.toLocaleString()}`, 'Earnings']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.1)', fontFamily: 'Inter' }} />
-                <Area type="monotone" dataKey="earnings" stroke="#EC4899" strokeWidth={2.5} fill="url(#creatorGrad)" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+
+          {earningsChart.every(d => d.earnings === 0) ? (
+            <div className="h-52 flex flex-col items-center justify-center text-center">
+              <TrendingUp size={28} className="text-gray-300 dark:text-gray-700 mb-2" />
+              <p className="text-sm font-medium text-gray-500">No earnings yet</p>
+              <p className="text-xs text-gray-400 mt-1">Apply to campaigns to start earning</p>
+            </div>
+          ) : (
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={earningsChart} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="creatorGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#EC4899" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#EC4899" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `$${v >= 1000 ? (v/1000).toFixed(0)+'k' : v}`} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="earnings" stroke="#EC4899" strokeWidth={2.5} fill="url(#creatorGrad)" dot={{ r: 3, fill: '#EC4899', strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-4 mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
             <div className="text-center">
-              <p className="font-heading font-bold text-lg text-gray-900 dark:text-white">$8,320</p>
+              <p className="font-heading font-bold text-lg text-gray-900 dark:text-white">{formatCurrency(thisMonthEarn)}</p>
               <p className="text-xs text-gray-500">This month</p>
             </div>
             <div className="text-center">
-              <p className="font-heading font-bold text-lg text-gray-900 dark:text-white">$47,200</p>
-              <p className="text-xs text-gray-500">This year</p>
+              <p className="font-heading font-bold text-lg text-gray-900 dark:text-white">{formatCurrency(totalEarnings)}</p>
+              <p className="text-xs text-gray-500">All time</p>
             </div>
             <div className="text-center">
-              <p className="font-heading font-bold text-lg text-green-600">+14%</p>
-              <p className="text-xs text-gray-500">vs last month</p>
+              <p className="font-heading font-bold text-lg text-gray-900 dark:text-white">{orders.filter(o => o.status === 'completed').length}</p>
+              <p className="text-xs text-gray-500">Completed</p>
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="card p-6">
-          <h2 className="section-title">Quick Actions</h2>
-          <div className="space-y-2">
+          <h2 className="font-heading font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+          <div className="space-y-1.5">
             {[
-              { to: '/creator/post/new', icon: Plus, label: 'Upload new content', desc: 'Photos, videos, reels', color: 'creator' },
-              { to: '/creator/campaigns', icon: Zap, label: 'Browse campaigns', desc: '8 matching your profile', color: 'primary' },
-              { to: '/creator/pitch', icon: MessageSquare, label: 'Pitch a brand', desc: 'Reach out directly', color: 'brand' },
-              { to: '/creator/analytics', icon: BarChart3, label: 'View analytics', desc: 'Performance stats', color: 'wallet' },
-              { to: '/creator/withdraw', icon: DollarSign, label: 'Withdraw funds', desc: `$${user?.walletBalance?.toLocaleString() || '3,120'} available`, color: 'success' },
-            ].map((action, i) => (
-              <Link key={action.to} to={action.to}>
-                <motion.div
-                  whileHover={{ x: 4 }}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all cursor-pointer"
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${action.color === 'creator' ? 'bg-creator/10' : action.color === 'primary' ? 'bg-primary/10' : action.color === 'brand' ? 'bg-brand/10' : action.color === 'wallet' ? 'bg-wallet/10' : 'bg-green-100'}`}>
-                    <action.icon size={16} className={action.color === 'creator' ? 'text-creator' : action.color === 'primary' ? 'text-primary' : action.color === 'brand' ? 'text-brand' : action.color === 'wallet' ? 'text-wallet' : 'text-green-600'} />
+              { to: '/creator/post/new',  icon: Plus,         label: 'Upload Content',    desc: 'Photos, videos, reels',                color: 'creator' },
+              { to: '/creator/campaigns', icon: Zap,          label: 'Browse Campaigns',  desc: 'Find brand deals',                     color: 'primary' },
+              { to: '/creator/pitch',     icon: MessageSquare,label: 'Pitch a Brand',     desc: 'Reach out directly',                   color: 'brand'   },
+              { to: '/creator/analytics', icon: BarChart3,    label: 'View Analytics',    desc: 'Performance stats',                    color: 'wallet'  },
+              { to: '/creator/withdraw',  icon: DollarSign,   label: 'Withdraw Funds',    desc: `${formatCurrency(walletBalance)} available`, color: 'success' },
+            ].map(a => (
+              <Link key={a.to} to={a.to}>
+                <motion.div whileHover={{ x: 3 }} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-all">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    a.color === 'creator' ? 'bg-creator/10' : a.color === 'primary' ? 'bg-primary/10' :
+                    a.color === 'brand' ? 'bg-brand/10' : a.color === 'wallet' ? 'bg-wallet/10' : 'bg-green-100 dark:bg-green-900/20'
+                  }`}>
+                    <a.icon size={15} className={
+                      a.color === 'creator' ? 'text-creator' : a.color === 'primary' ? 'text-primary' :
+                      a.color === 'brand' ? 'text-brand' : a.color === 'wallet' ? 'text-wallet' : 'text-green-600'
+                    } />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{action.label}</p>
-                    <p className="text-xs text-gray-500">{action.desc}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{a.label}</p>
+                    <p className="text-xs text-gray-400 truncate">{a.desc}</p>
                   </div>
-                  <ArrowRight size={14} className="ml-auto text-gray-400" />
+                  <ArrowRight size={13} className="text-gray-400 flex-shrink-0" />
                 </motion.div>
               </Link>
             ))}
@@ -135,50 +284,78 @@ export default function CreatorDashboard() {
 
         {/* Recent Orders */}
         <div className="lg:col-span-2 card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="section-title mb-0">Recent Orders</h2>
-            <Link to="/creator/orders" className="btn btn-ghost btn-sm text-primary">View all <ArrowRight size={14} /></Link>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-heading font-semibold text-gray-900 dark:text-white">Recent Orders</h2>
+            <Link to="/creator/orders" className="btn btn-ghost btn-sm text-creator gap-1">
+              View all <ArrowRight size={13} />
+            </Link>
           </div>
-          <div className="space-y-3">
-            {myOrders.length > 0 ? myOrders.map(order => (
-              <Link key={order.id} to={`/creator/orders/${order.id}`}>
-                <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
-                  <img src={order.brandLogo || `https://i.pravatar.cc/40?u=${order.id}`} alt="" className="w-10 h-10 rounded-xl object-cover" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{order.title}</p>
-                    <p className="text-xs text-gray-500">{order.brandName}</p>
+          {recentOrders.length === 0 ? (
+            <div className="text-center py-10">
+              <ShoppingBag size={32} className="text-gray-200 dark:text-gray-700 mx-auto mb-3" />
+              <p className="text-sm font-medium text-gray-500">No orders yet</p>
+              <p className="text-xs text-gray-400 mt-1">Apply to campaigns to start getting orders</p>
+              <Link to="/creator/campaigns" className="btn btn-creator btn-sm mt-4">Browse Campaigns</Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {recentOrders.map(order => (
+                <Link key={order.id} to={`/creator/orders/${order.id}`}>
+                  <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-all">
+                    {order.brandLogo ? (
+                      <img src={order.brandLogo} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-gradient-brand flex items-center justify-center text-white font-bold flex-shrink-0">
+                        {order.brandName?.charAt(0)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{order.title}</p>
+                      <p className="text-xs text-gray-400">{order.brandName}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-sm font-bold text-wallet">{formatCurrency(order.creator_earnings || order.amount)}</p>
+                      <StatusBadge status={order.status} />
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-wallet">{formatCurrency(order.creator_earnings)}</p>
-                    <StatusBadge status={order.status} />
-                  </div>
-                </div>
-              </Link>
-            )) : (
-              <p className="text-center text-gray-400 py-8 text-sm">No orders yet. Start applying to campaigns!</p>
-            )}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Recent Content */}
         <div className="card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="section-title mb-0">Recent Content</h2>
-            <Link to="/creator/feed" className="btn btn-ghost btn-sm text-primary">View all <ArrowRight size={14} /></Link>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-heading font-semibold text-gray-900 dark:text-white">Recent Content</h2>
+            <Link to="/creator/feed" className="btn btn-ghost btn-sm text-creator gap-1">
+              View all <ArrowRight size={13} />
+            </Link>
           </div>
-          <div className="space-y-3">
-            {recentContent.length > 0 ? recentContent.map(post => (
-              <div key={post.id} className="flex items-center gap-3">
-                <img src={post.thumbnail_url || post.media_url || `https://picsum.photos/48?u=${post.id}`} alt="" className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 line-clamp-2">{post.caption}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">❤ {formatNumber(post.likes_count || 0)} · 🔖 {formatNumber(post.saves_count || 0)}</p>
+          {recentContent.length === 0 ? (
+            <div className="text-center py-6">
+              <Image size={28} className="text-gray-200 dark:text-gray-700 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">No posts yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentContent.map(post => (
+                <div key={post.id} className="flex items-center gap-3">
+                  <img
+                    src={post.thumbnail_url || post.media_url || `https://picsum.photos/48?random=${post.id}`}
+                    alt=""
+                    className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 line-clamp-2">{post.caption || 'No caption'}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      ❤ {formatNumber(post.likes || 0)} · 💬 {formatNumber(post.comments || 0)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            )) : (
-              <p className="text-xs text-gray-400 text-center py-4">No posts yet.</p>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
           <Link to="/creator/post/new" className="btn btn-creator btn-sm w-full mt-4">
             <Plus size={13} /> Upload New
           </Link>
