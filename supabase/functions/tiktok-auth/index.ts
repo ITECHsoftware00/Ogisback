@@ -12,22 +12,25 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    const { code, redirectUri } = await req.json();
+    const { code, redirectUri, codeVerifier } = await req.json();
     if (!code || !redirectUri) {
       return new Response(JSON.stringify({ error: 'Missing code or redirectUri' }), { status: 400, headers: CORS });
     }
 
-    // 1. Exchange code for access token
+    // 1. Exchange code for access token (PKCE)
+    const tokenBody: Record<string, string> = {
+      client_key:    CLIENT_KEY,
+      client_secret: CLIENT_SECRET,
+      code,
+      grant_type:    'authorization_code',
+      redirect_uri:  redirectUri,
+    };
+    if (codeVerifier) tokenBody.code_verifier = codeVerifier;
+
     const tokenRes = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_key:    CLIENT_KEY,
-        client_secret: CLIENT_SECRET,
-        code,
-        grant_type:    'authorization_code',
-        redirect_uri:  redirectUri,
-      }),
+      body: new URLSearchParams(tokenBody),
     });
     const tokenData = await tokenRes.json();
     if (!tokenData.access_token) {

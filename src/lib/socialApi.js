@@ -2,24 +2,39 @@ const YT_KEY         = import.meta.env.VITE_YOUTUBE_API_KEY;
 const TT_CLIENT_KEY  = import.meta.env.VITE_TIKTOK_CLIENT_KEY;
 const SUPABASE_URL   = import.meta.env.VITE_SUPABASE_URL;
 
-export function getTikTokAuthUrl(redirectUri) {
+async function generatePKCE() {
+  const verifier = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
+  const encoder  = new TextEncoder();
+  const data     = encoder.encode(verifier);
+  const digest   = await crypto.subtle.digest('SHA-256', data);
+  const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return { verifier, challenge };
+}
+
+export async function getTikTokAuthUrl(redirectUri) {
   const state = crypto.randomUUID();
-  sessionStorage.setItem('tt_oauth_state', state);
+  const { verifier, challenge } = await generatePKCE();
+  sessionStorage.setItem('tt_oauth_state',    state);
+  sessionStorage.setItem('tt_code_verifier',  verifier);
   const params = new URLSearchParams({
-    client_key:    TT_CLIENT_KEY,
-    response_type: 'code',
-    scope:         'user.info.basic,user.info.profile',
-    redirect_uri:  redirectUri,
+    client_key:            TT_CLIENT_KEY,
+    response_type:         'code',
+    scope:                 'user.info.basic,user.info.profile',
+    redirect_uri:          redirectUri,
     state,
+    code_challenge:        challenge,
+    code_challenge_method: 'S256',
   });
   return `https://www.tiktok.com/v2/auth/authorize?${params}`;
 }
 
 export async function exchangeTikTokCode(code, redirectUri) {
+  const codeVerifier = sessionStorage.getItem('tt_code_verifier') || '';
   const res = await fetch(`${SUPABASE_URL}/functions/v1/tiktok-auth`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code, redirectUri }),
+    body: JSON.stringify({ code, redirectUri, codeVerifier }),
   });
   if (!res.ok) return null;
   return await res.json();

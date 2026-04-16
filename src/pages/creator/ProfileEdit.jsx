@@ -708,9 +708,9 @@ export default function CreatorProfileEdit() {
                     {p.key === 'tiktok' && (
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           const redirectUri = `${window.location.origin}/auth/tiktok`;
-                          window.location.href = getTikTokAuthUrl(redirectUri);
+                          window.location.href = await getTikTokAuthUrl(redirectUri);
                         }}
                         className="mt-1.5 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                       >
