@@ -6,6 +6,7 @@ import {
   ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, Plus, X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { fetchYouTubeStats } from '../../lib/socialApi';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -166,6 +167,20 @@ export default function CreatorProfileEdit() {
   const [saving, setSaving] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [syncingYT, setSyncingYT] = useState(false);
+
+  const syncYouTube = async () => {
+    if (!form.youtube) { toast.error('Enter your YouTube handle first'); return; }
+    setSyncingYT(true);
+    const stats = await fetchYouTubeStats(form.youtube);
+    if (!stats) {
+      toast.error('Could not fetch YouTube stats. Check the handle or API key.');
+    } else {
+      update('youtubeFollowers', stats.subscribers);
+      toast.success(`Synced: ${stats.subscribers.toLocaleString()} subscribers`);
+    }
+    setSyncingYT(false);
+  };
 
   // Pre-populate form from existing creator_profiles row
   useEffect(() => {
@@ -678,6 +693,16 @@ export default function CreatorProfileEdit() {
                       min="0"
                       className="input text-sm"
                     />
+                    {p.key === 'youtube' && (
+                      <button
+                        type="button"
+                        onClick={syncYouTube}
+                        disabled={syncingYT || !form.youtube}
+                        className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {syncingYT ? 'Syncing…' : '↻ Sync from YouTube'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

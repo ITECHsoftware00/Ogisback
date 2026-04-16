@@ -99,11 +99,21 @@ function AdminRoute({ children }) {
   return children;
 }
 
+function HomeRoute() {
+  const { isLoggedIn, activeRole, loading, settling } = useAuth();
+  if (loading || settling) return null;
+  if (!isLoggedIn) return <Landing />;
+  if (activeRole === 'creator') return <Navigate to="/creator/dashboard" replace />;
+  if (activeRole === 'brand')   return <Navigate to="/brand/discover" replace />;
+  if (activeRole === 'admin')   return <Navigate to="/admin" replace />;
+  return <Landing />;
+}
+
 function AppRoutes() {
   return (
     <Routes>
       {/* Public */}
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={<HomeRoute />} />
       <Route path="/explore" element={<Explore />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/forum" element={<Forum />} />

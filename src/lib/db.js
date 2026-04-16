@@ -25,6 +25,30 @@ export async function getCreators({ niche, platform, search, gender, minAge, max
   return data || [];
 }
 
+export async function getAggregateStats() {
+  const { data, error } = await supabase
+    .from('creator_profiles')
+    .select('instagram_followers, tiktok_followers, youtube_followers, audience_locations');
+  if (error) return null;
+  const rows = data || [];
+  const totalCreators  = rows.length;
+  const totalInstagram = rows.reduce((s, r) => s + (r.instagram_followers || 0), 0);
+  const totalTikTok    = rows.reduce((s, r) => s + (r.tiktok_followers    || 0), 0);
+  const totalYouTube   = rows.reduce((s, r) => s + (r.youtube_followers   || 0), 0);
+  const countryMap = {};
+  rows.forEach(r => {
+    (r.audience_locations || []).forEach(loc => {
+      if (!loc.country) return;
+      countryMap[loc.country] = (countryMap[loc.country] || 0) + (loc.percent || 0);
+    });
+  });
+  const topCountries = Object.entries(countryMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([country, score]) => ({ country, score }));
+  return { totalCreators, totalInstagram, totalTikTok, totalYouTube, topCountries };
+}
+
 export async function getCreatorByUsername(username) {
   const { data, error } = await supabase
     .from('creator_profiles')

@@ -1,11 +1,12 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import SEO, { websiteSchema, orgSchema } from '../components/SEO';
 import { motion, useInView } from 'framer-motion';
 import {
   ArrowRight, Play, Star, Shield, Zap, TrendingUp, Users,
-  DollarSign, Camera, Globe, CheckCircle, ChevronRight
+  DollarSign, Camera, Globe, CheckCircle, ChevronRight, MapPin
 } from 'lucide-react';
+import { getAggregateStats } from '../lib/db';
 
 const InstagramIcon = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -24,12 +25,7 @@ const features = [
   { icon: DollarSign, title: 'Earn 80%', desc: 'OgisBack takes just 20%. You keep 80% of every deal, paid directly to your wallet.', color: 'wallet' },
 ];
 
-const stats = [
-  { num: '6,000+', label: 'Active Creators', icon: Users },
-  { num: '$2.4M+', label: 'Paid to Creators', icon: DollarSign },
-  { num: '1,200+', label: 'Live Campaigns', icon: TrendingUp },
-  { num: '98%', label: 'Satisfaction Rate', icon: Star },
-];
+// stats is now computed dynamically inside the component
 
 const howItWorks = [
   { step: '01', title: 'Creator posts content', desc: 'Upload your best content to OgisBack. Every post is watermarked and visible to thousands of brands.', role: 'creator' },
@@ -55,6 +51,17 @@ function FadeIn({ children, delay = 0 }) {
 
 export default function Landing() {
   const navigate = useNavigate();
+  const [platformStats, setPlatformStats] = useState(null);
+  useEffect(() => {
+    getAggregateStats().then(setPlatformStats).catch(() => {});
+  }, []);
+
+  const displayStats = [
+    { num: platformStats ? `${platformStats.totalCreators.toLocaleString()}+` : '6,000+', label: 'Active Creators', icon: Users },
+    { num: platformStats ? formatNumber(platformStats.totalInstagram + platformStats.totalTikTok + platformStats.totalYouTube) : '50M+', label: 'Total Followers Reached', icon: TrendingUp },
+    { num: '1,200+', label: 'Live Campaigns', icon: Zap },
+    { num: '98%',    label: 'Satisfaction Rate', icon: Star },
+  ];
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] dark:bg-[#0A0A0F]">
@@ -147,10 +154,76 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Location-Based Advertising ── */}
+      <section className="relative py-24 px-4 overflow-hidden bg-white dark:bg-[#111118]">
+        {/* Mild blobs */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-10 left-[10%] w-64 h-64 rounded-full bg-primary/5 blur-3xl" />
+          <div className="absolute bottom-10 right-[10%] w-80 h-80 rounded-full bg-creator/5 blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] rounded-full bg-brand/5 blur-3xl" />
+        </div>
+        <div className="max-w-6xl mx-auto relative">
+          <FadeIn>
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 bg-brand/10 text-brand px-4 py-2 rounded-full text-sm font-semibold mb-6">
+                <MapPin size={14} /> Location-Based Advertising
+              </div>
+              <h2 className="text-5xl sm:text-6xl lg:text-7xl font-heading font-extrabold text-gray-900 dark:text-white leading-[1.05] mb-6 text-balance">
+                Reach the right audience,<br />
+                <span className="bg-gradient-to-r from-brand to-creator bg-clip-text text-transparent">in the right place</span>
+              </h2>
+              <p className="text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto text-balance">
+                Connect with creators whose audiences are exactly where your brand needs to be.
+                Every creator on OgisBack maps their audience by country — so you target smarter.
+              </p>
+            </div>
+          </FadeIn>
+
+          {/* Platform follower totals */}
+          <FadeIn delay={0.1}>
+            <div className="grid grid-cols-3 gap-4 mb-12 max-w-2xl mx-auto">
+              {[
+                { label: 'Instagram', dot: 'bg-pink-500',  followers: platformStats?.totalInstagram },
+                { label: 'TikTok',    dot: 'bg-gray-800 dark:bg-white', followers: platformStats?.totalTikTok },
+                { label: 'YouTube',   dot: 'bg-red-500',   followers: platformStats?.totalYouTube },
+              ].map(p => (
+                <div key={p.label} className="card p-5 text-center">
+                  <div className={`w-3 h-3 rounded-full ${p.dot} mx-auto mb-2`} />
+                  <p className="text-2xl font-heading font-bold text-gray-900 dark:text-white">
+                    {p.followers != null ? formatNumber(p.followers) : '—'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">{p.label} followers</p>
+                </div>
+              ))}
+            </div>
+          </FadeIn>
+
+          {/* Top audience countries */}
+          {platformStats?.topCountries?.length > 0 && (
+            <FadeIn delay={0.2}>
+              <div className="flex flex-wrap justify-center gap-3">
+                {platformStats.topCountries.map((loc, i) => (
+                  <motion.div
+                    key={loc.country}
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 + i * 0.06, duration: 0.35 }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-gray-200 dark:border-gray-700 bg-white/80 dark:bg-[#111118]/80 backdrop-blur-sm shadow-sm"
+                  >
+                    <MapPin size={11} className="text-brand flex-shrink-0" />
+                    <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">{loc.country}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </FadeIn>
+          )}
+        </div>
+      </section>
+
       {/* Stats */}
       <section className="py-16 px-4 border-t border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-[#111118]">
         <div className="max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8">
-          {stats.map((s, i) => (
+          {displayStats.map((s, i) => (
             <FadeIn key={s.label} delay={i * 0.1}>
               <div className="text-center">
                 <p className="text-4xl font-heading font-extrabold text-gray-900 dark:text-white mb-1">{s.num}</p>
