@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient';
 
 /* ─────────────────────── CREATORS ─────────────────────── */
 
-export async function getCreators({ niche, platform, search, limit = 20, offset = 0 } = {}) {
+export async function getCreators({ niche, platform, search, gender, minAge, maxAge, limit = 20, offset = 0 } = {}) {
   let query = supabase
     .from('creator_profiles')
     .select('*, profiles!inner(plan, profile_complete)')
@@ -14,8 +14,11 @@ export async function getCreators({ niche, platform, search, limit = 20, offset 
     .order('rating', { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (niche) query = query.contains('niche', [niche]);
-  if (search) query = query.ilike('name', `%${search}%`);
+  if (niche)   query = query.contains('niche', [niche]);
+  if (search)  query = query.ilike('name', `%${search}%`);
+  if (gender)  query = query.eq('gender', gender);
+  if (minAge)  query = query.gte('age', minAge);
+  if (maxAge)  query = query.lte('age', maxAge);
 
   const { data, error } = await query;
   if (error) throw error;

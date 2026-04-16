@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   LayoutDashboard, Image, Upload, Megaphone, ShoppingBag,
   MessageSquare, Wallet, ArrowDownToLine, BarChart3, UserCircle,
-  Settings, Search, Star, CreditCard, BookMarked, Zap
+  Settings, Search, Star, CreditCard, BookMarked, Zap, Hash
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useMessageNotifications } from '../../context/MessageNotificationContext';
@@ -19,6 +19,7 @@ const creatorLinks = [
   { to: '/creator/earnings', icon: Wallet, label: 'Earnings' },
   { to: '/creator/withdraw', icon: ArrowDownToLine, label: 'Withdraw' },
   { to: '/creator/analytics', icon: BarChart3, label: 'Analytics' },
+  { to: '/forum', icon: Hash, label: 'Community' },
   { to: '/creator/profile/edit', icon: UserCircle, label: 'My Profile' },
   { to: '/creator/settings', icon: Settings, label: 'Settings' },
 ];
@@ -32,6 +33,7 @@ const brandLinks = [
   { to: '/brand/messages', icon: MessageSquare, label: 'Messages' },
   { to: '/brand/payments', icon: CreditCard, label: 'Payments' },
   { to: '/brand/saved', icon: BookMarked, label: 'Saved Creators' },
+  { to: '/forum', icon: Hash, label: 'Community' },
   { to: '/brand/settings', icon: Settings, label: 'Settings' },
 ];
 

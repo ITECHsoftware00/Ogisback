@@ -5,6 +5,7 @@ import {
   User, MapPin, Save, CheckCircle, Camera, Info,
   ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, Plus, X,
 } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -114,6 +115,11 @@ function FieldHint({ children }) {
   );
 }
 
+function LocationPicker({ onPick }) {
+  useMapEvents({ click(e) { onPick(e.latlng.lat, e.latlng.lng); } });
+  return null;
+}
+
 export default function CreatorProfileEdit() {
   const { user, completeProfile } = useAuth();
   const navigate = useNavigate();
@@ -152,9 +158,14 @@ export default function CreatorProfileEdit() {
     rateVideo: '',
     niche: [],
     audienceLocations: [{ country: '', percent: '' }],
+    age: '',
+    gender: '',
+    lat: null,
+    lng: null,
   });
   const [saving, setSaving] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   // Pre-populate form from existing creator_profiles row
   useEffect(() => {
@@ -192,6 +203,10 @@ export default function CreatorProfileEdit() {
           audienceLocations: profile.audience_locations?.length
             ? profile.audience_locations.map(l => ({ country: l.country, percent: String(l.percent) }))
             : [{ country: '', percent: '' }],
+          age: profile.age ?? '',
+          gender: profile.gender ?? '',
+          lat: profile.latitude ?? null,
+          lng: profile.longitude ?? null,
         });
       })
       .catch(err => console.error('[ProfileEdit] load error:', err))
@@ -294,6 +309,10 @@ export default function CreatorProfileEdit() {
         rate_story: parseFloat(form.rateStory) || null,
         rate_video: parseFloat(form.rateVideo) || null,
         audience_locations: validLocations.map(l => ({ country: l.country, percent: parseFloat(l.percent) })),
+        age: form.age ? parseInt(form.age) : null,
+        gender: form.gender || null,
+        latitude: form.lat,
+        longitude: form.lng,
       });
       await completeProfile();
       toast.success(isSetup ? 'Profile complete! Welcome to OgisBack.' : 'Profile updated successfully.');
@@ -486,8 +505,15 @@ export default function CreatorProfileEdit() {
                   value={form.location}
                   onChange={e => update('location', e.target.value)}
                   placeholder="City, Country"
-                  className="input pl-9"
+                  className="input pl-9 pr-28"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowMapPicker(true)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 transition-all"
+                >
+                  <MapPin size={11} /> Pick on map
+                </button>
               </div>
               <FieldHint>Brands often look for local creators for events and geo-targeted campaigns.</FieldHint>
             </div>
@@ -504,7 +530,72 @@ export default function CreatorProfileEdit() {
               </div>
               <FieldHint>Optional — link to your media kit or portfolio.</FieldHint>
             </div>
+            <div className="form-group">
+              <label className="label">Age</label>
+              <input
+                type="number"
+                min={13}
+                max={100}
+                value={form.age}
+                onChange={e => update('age', e.target.value)}
+                placeholder="e.g. 24"
+                className="input"
+              />
+              <FieldHint>Used to match you with age-targeted brand campaigns.</FieldHint>
+            </div>
+            <div className="form-group">
+              <label className="label">Gender</label>
+              <select
+                value={form.gender}
+                onChange={e => update('gender', e.target.value)}
+                className="input"
+              >
+                <option value="">Prefer not to say</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="non_binary">Non-binary</option>
+                <option value="prefer_not_to_say">Prefer not to say</option>
+              </select>
+              <FieldHint>Brands may filter creators by gender for specific campaigns.</FieldHint>
+            </div>
           </div>
+
+          {/* Map Location Picker Modal */}
+          {showMapPicker && (
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden w-full max-w-lg shadow-2xl">
+                <div className="p-4 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
+                  <p className="font-semibold text-sm text-gray-900 dark:text-white">Click your location on the map</p>
+                  <button onClick={() => setShowMapPicker(false)} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div style={{ height: 360 }}>
+                  <MapContainer
+                    center={form.lat && form.lng ? [form.lat, form.lng] : [20, 0]}
+                    zoom={form.lat ? 10 : 2}
+                    style={{ height: '100%', width: '100%' }}
+                  >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="© OpenStreetMap contributors" />
+                    <LocationPicker onPick={async (lat, lng) => {
+                      try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+                        const data = await res.json();
+                        const city = data.address?.city || data.address?.town || data.address?.village || '';
+                        const country = data.address?.country || '';
+                        update('location', [city, country].filter(Boolean).join(', '));
+                      } catch {
+                        // silent — user can still type location manually
+                      }
+                      setForm(f => ({ ...f, lat, lng }));
+                      setShowMapPicker(false);
+                    }} />
+                    {form.lat && form.lng && <Marker position={[form.lat, form.lng]} />}
+                  </MapContainer>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Niches ── */}

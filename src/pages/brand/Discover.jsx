@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Compass, Images, Star, ChevronDown } from 'lucide-react';
+import { Search, Compass, Images, Star, ChevronDown, MapPin } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import CreatorCard from '../../components/CreatorCard';
@@ -144,6 +145,9 @@ export default function BrandDiscover() {
   const [budgetFilter,  setBudgetFilter]  = useState('Any');
   const [ratingFilter,  setRatingFilter]  = useState('Any');
   const [sortBy,        setSortBy]        = useState('relevance');
+  const [gender,        setGender]        = useState('');
+  const [ageRange,      setAgeRange]      = useState([13, 60]);
+  const [mapView,       setMapView]       = useState(false);
 
   // Data
   const [creators,    setCreators]    = useState([]);
@@ -191,7 +195,9 @@ export default function BrandDiscover() {
         (budgetFilter === '200-500'  && minRate >= 200 && minRate <= 500)  ||
         (budgetFilter === '500plus'  && minRate > 500);
       const matchRating = ratingFilter === 'Any' || (c.rating || 0) >= parseFloat(ratingFilter);
-      return matchNiche && matchSearch && matchPlatform && matchBudget && matchRating;
+      const matchGender = !gender || c.gender === gender;
+      const matchAge    = (!c.age) || (c.age >= ageRange[0] && c.age <= ageRange[1]);
+      return matchNiche && matchSearch && matchPlatform && matchBudget && matchRating && matchGender && matchAge;
     });
 
     if (sortBy === 'rating')     list = [...list].sort((a, b) => (b.rating || 0) - (a.rating || 0));
@@ -209,12 +215,13 @@ export default function BrandDiscover() {
     [creators]
   );
 
-  const hasActiveFilters = activeNiche !== 'All' || activePlatform !== 'All' || budgetFilter !== 'Any' || ratingFilter !== 'Any' || !!search;
+  const hasActiveFilters = activeNiche !== 'All' || activePlatform !== 'All' || budgetFilter !== 'Any' || ratingFilter !== 'Any' || !!search || !!gender || ageRange[0] !== 13 || ageRange[1] !== 60;
 
   const clearFilters = () => {
     setActiveNiche('All'); setActivePlatform('All');
     setBudgetFilter('Any'); setRatingFilter('Any');
     setSearch(''); setSearchInput('');
+    setGender(''); setAgeRange([13, 60]);
   };
 
   /* ── Hire ── */
@@ -364,6 +371,49 @@ export default function BrandDiscover() {
             </button>
           )}
 
+          {/* Gender pills */}
+          <div className="flex gap-1.5 flex-wrap">
+            {[['', 'Any gender'], ['male', 'Male'], ['female', 'Female'], ['non_binary', 'Non-binary']].map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setGender(val)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  gender === val
+                    ? 'bg-brand text-white border-brand'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-brand/40 hover:text-brand bg-white dark:bg-[#111118]'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Age range */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-500 flex-shrink-0">Age:</span>
+            <input
+              type="number" min={13} max={99} value={ageRange[0]}
+              onChange={e => setAgeRange(r => [Math.min(+e.target.value, r[1] - 1), r[1]])}
+              className="w-14 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 dark:bg-[#111118] dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand/20"
+            />
+            <span className="text-xs text-gray-400">–</span>
+            <input
+              type="number" min={14} max={100} value={ageRange[1]}
+              onChange={e => setAgeRange(r => [r[0], Math.max(+e.target.value, r[0] + 1)])}
+              className="w-14 text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 dark:bg-[#111118] dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand/20"
+            />
+          </div>
+
+          {/* Map view toggle */}
+          <button
+            onClick={() => setMapView(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+              mapView ? 'bg-brand text-white border-brand' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-brand/40 hover:text-brand bg-white dark:bg-[#111118]'
+            }`}
+          >
+            <MapPin size={12} /> {mapView ? 'List View' : 'Map View'}
+          </button>
+
           {/* Results count + sort — pushed to the right */}
           <div className="ml-auto flex items-center gap-3">
             {!loading && (
@@ -417,10 +467,34 @@ export default function BrandDiscover() {
             </div>
           )}
 
-          {/* Creator grid */}
+          {/* Creator grid or map */}
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {Array.from({ length: 8 }).map((_, i) => <CreatorSkeleton key={i} />)}
+            </div>
+          ) : mapView ? (
+            <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700" style={{ height: 520 }}>
+              <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }} attributionControl={false}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                {filteredCreators.filter(c => c.latitude && c.longitude).map(c => (
+                  <Marker key={c.id} position={[c.latitude, c.longitude]}>
+                    <Popup>
+                      <div className="flex items-center gap-2 min-w-[140px]">
+                        <img
+                          src={c.avatar}
+                          alt={c.name}
+                          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                          onError={e => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(c.name || 'C')}&background=7C3AED&color=fff&size=32`; }}
+                        />
+                        <div>
+                          <p className="font-semibold text-xs leading-tight">{c.name}</p>
+                          <a href={`/brand/discover/${c.username}`} className="text-[11px] text-blue-600 hover:underline">View profile →</a>
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
             </div>
           ) : filteredCreators.length === 0 ? (
             <EmptyState

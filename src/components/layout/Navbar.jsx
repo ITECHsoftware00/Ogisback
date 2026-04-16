@@ -93,13 +93,13 @@ export default function Navbar() {
                 <Link to="/creator/dashboard" className="text-sm font-medium px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all">Dashboard</Link>
                 <Link to="/creator/feed" className="text-sm font-medium px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all">My Content</Link>
                 <Link to="/creator/campaigns" className="text-sm font-medium px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all">Campaigns</Link>
-                <Link to="/creator/earnings" className="text-sm font-medium px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all">Earnings</Link>
+                <Link to="/forum" className="text-sm font-medium px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all">Community</Link>
               </>
             ) : (
               <>
                 <Link to="/brand/discover" className="text-sm font-medium px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all">Discover</Link>
                 <Link to="/brand/campaigns" className="text-sm font-medium px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all">Campaigns</Link>
-                <Link to="/brand/orders" className="text-sm font-medium px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all">Orders</Link>
+                <Link to="/forum" className="text-sm font-medium px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all">Community</Link>
               </>
             )}
           </div>

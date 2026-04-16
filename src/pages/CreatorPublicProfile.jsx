@@ -22,6 +22,7 @@ const YoutubeIcon = ({ size = 14, className = '' }) => (
 );
 
 import toast from 'react-hot-toast';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import Navbar from '../components/layout/Navbar';
 import ContentCard from '../components/ContentCard';
 import FollowButton from '../components/FollowButton';
@@ -178,6 +179,12 @@ export default function CreatorPublicProfile() {
                 <p className="text-gray-500 text-sm">@{creator.username}</p>
                 <div className="flex items-center gap-3 mt-2 flex-wrap">
                   {creator.location && <span className="flex items-center gap-1 text-sm text-gray-500"><MapPin size={13} />{creator.location}</span>}
+                  {creator.age && <span className="text-sm text-gray-500">{creator.age} yrs</span>}
+                  {creator.gender && creator.gender !== 'prefer_not_to_say' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 capitalize">
+                      {creator.gender.replace('_', ' ')}
+                    </span>
+                  )}
                   <span className="flex items-center gap-1 text-sm text-gray-500"><Clock size={13} />Replies in {creator.responseTime}</span>
                   {creator.isOnline && (
                     <span className="flex items-center gap-1 text-sm text-green-600 font-medium">
@@ -220,6 +227,27 @@ export default function CreatorPublicProfile() {
                 {creator.niche.map(n => <NicheBadge key={n} niche={n} />)}
               </div>
             </div>
+
+            {/* Mini Map */}
+            {creator.latitude && creator.longitude && (
+              <div className="card overflow-hidden">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-4 pt-3 pb-2 uppercase tracking-wide">Location</p>
+                <div style={{ height: 160 }}>
+                  <MapContainer
+                    center={[creator.latitude, creator.longitude]}
+                    zoom={10}
+                    scrollWheelZoom={false}
+                    style={{ height: '100%', width: '100%' }}
+                    zoomControl={false}
+                    dragging={false}
+                    attributionControl={false}
+                  >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <Marker position={[creator.latitude, creator.longitude]} />
+                  </MapContainer>
+                </div>
+              </div>
+            )}
 
             {/* Stats */}
             <div className="card p-5">
