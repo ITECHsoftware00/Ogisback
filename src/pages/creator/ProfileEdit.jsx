@@ -6,7 +6,7 @@ import {
   ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, Plus, X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { fetchYouTubeStats } from '../../lib/socialApi';
+import { fetchYouTubeStats, getTikTokAuthUrl } from '../../lib/socialApi';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -169,10 +169,11 @@ export default function CreatorProfileEdit() {
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [syncingYT, setSyncingYT] = useState(false);
 
-  const syncYouTube = async () => {
-    if (!form.youtube) { toast.error('Enter your YouTube handle first'); return; }
+  const syncYouTube = async (e) => {
+    const handle = (e?.target?.value ?? form.youtube)?.trim();
+    if (!handle) return;
     setSyncingYT(true);
-    const stats = await fetchYouTubeStats(form.youtube);
+    const stats = await fetchYouTubeStats(handle);
     if (!stats) {
       toast.error('Could not fetch YouTube stats. Check the handle or API key.');
     } else {
@@ -678,6 +679,7 @@ export default function CreatorProfileEdit() {
                       <input
                         value={form[p.key]}
                         onChange={e => update(p.key, e.target.value)}
+                        onBlur={p.key === 'youtube' ? syncYouTube : undefined}
                         placeholder={p.placeholder}
                         className="input pl-8 text-sm"
                       />
@@ -701,6 +703,18 @@ export default function CreatorProfileEdit() {
                         className="mt-1.5 flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
                         {syncingYT ? 'Syncing…' : '↻ Sync from YouTube'}
+                      </button>
+                    )}
+                    {p.key === 'tiktok' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const redirectUri = `${window.location.origin}/auth/tiktok`;
+                          window.location.href = getTikTokAuthUrl(redirectUri);
+                        }}
+                        className="mt-1.5 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                      >
+                        ↻ Connect TikTok to sync
                       </button>
                     )}
                   </div>

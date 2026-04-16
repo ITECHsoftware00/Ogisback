@@ -189,7 +189,13 @@ export default function NewPost() {
       toast.success(asDraft ? 'Draft saved!' : 'Posted! 🎉');
       navigate('/creator/feed');
     } catch (err) {
-      toast.error(err.message || 'Upload failed');
+      const msg = err.message || '';
+      if (msg.includes('foreign key') || msg.includes('creator_id_fkey')) {
+        toast.error('Your creator profile is not set up yet. Please complete your profile first.', { duration: 5000 });
+        navigate('/creator/settings?setup=true');
+      } else {
+        toast.error(msg || 'Upload failed');
+      }
       setUploading(false);
       setUploadProgress(0);
     }
