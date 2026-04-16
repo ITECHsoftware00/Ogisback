@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   MapPin, Star, CheckCircle, Clock, MessageCircle, Zap,
-  Heart, Share2, ArrowLeft, Users, TrendingUp
+  Heart, Share2, ArrowLeft, Users, TrendingUp, UserPlus
 } from 'lucide-react';
 
 const InstagramIcon = ({ size = 14, className = '' }) => (
@@ -24,9 +24,10 @@ const YoutubeIcon = ({ size = 14, className = '' }) => (
 import toast from 'react-hot-toast';
 import Navbar from '../components/layout/Navbar';
 import ContentCard from '../components/ContentCard';
+import FollowButton from '../components/FollowButton';
 import { NicheBadge } from '../components/ui/Badge';
 import { formatNumber } from '../lib/normalize';
-import { getCreatorByUsername, getCreatorReviews } from '../lib/db';
+import { getCreatorByUsername, getCreatorReviews, getFollowerCount } from '../lib/db';
 import { useAuth } from '../context/AuthContext';
 import SEO, { creatorProfileSchema } from '../components/SEO';
 
@@ -75,12 +76,19 @@ export default function CreatorPublicProfile() {
   const [notFound, setNotFound] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
 
   useEffect(() => {
     setLoading(true);
     setNotFound(false);
     getCreatorByUsername(username)
-      .then(data => setCreator(adaptCreator(data)))
+      .then(data => {
+        const adapted = adaptCreator(data);
+        setCreator(adapted);
+        if (adapted?.id) {
+          getFollowerCount(adapted.id).then(setFollowerCount).catch(() => {});
+        }
+      })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
   }, [username]);
@@ -178,18 +186,25 @@ export default function CreatorPublicProfile() {
                   )}
                 </div>
               </div>
-              {isBrand && (
-                <div className="flex gap-2">
-                  <button onClick={handleMessage} className="btn btn-outline btn-md"><MessageCircle size={16} /> Message</button>
-                  <button onClick={handleHire} className="btn btn-brand btn-md"><Zap size={16} /> Hire Creator</button>
-                </div>
-              )}
-              {!isLoggedIn && (
-                <div className="flex gap-2">
-                  <button onClick={handleMessage} className="btn btn-outline btn-md"><MessageCircle size={16} /> Message</button>
-                  <button onClick={handleHire} className="btn btn-creator btn-md"><Zap size={16} /> Hire</button>
-                </div>
-              )}
+              <div className="flex gap-2 flex-wrap">
+                <FollowButton
+                  creatorId={creator.id}
+                  creatorName={creator.name}
+                  onCountChange={d => setFollowerCount(c => Math.max(0, c + d))}
+                />
+                {isBrand && (
+                  <>
+                    <button onClick={handleMessage} className="btn btn-outline btn-md"><MessageCircle size={16} /> Message</button>
+                    <button onClick={handleHire} className="btn btn-brand btn-md"><Zap size={16} /> Hire Creator</button>
+                  </>
+                )}
+                {!isLoggedIn && (
+                  <>
+                    <button onClick={handleMessage} className="btn btn-outline btn-md"><MessageCircle size={16} /> Message</button>
+                    <button onClick={handleHire} className="btn btn-creator btn-md"><Zap size={16} /> Hire</button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -211,8 +226,12 @@ export default function CreatorPublicProfile() {
               <h3 className="font-heading font-semibold text-gray-900 dark:text-white mb-4">Stats</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 flex items-center gap-2"><Users size={14} />Total Followers</span>
+                  <span className="text-sm text-gray-500 flex items-center gap-2"><Users size={14} />Social Followers</span>
                   <span className="font-bold text-sm text-gray-900 dark:text-white">{formatNumber(creator.totalFollowers)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-500 flex items-center gap-2"><UserPlus size={14} />OgisBack Followers</span>
+                  <span className="font-bold text-sm text-brand">{formatNumber(followerCount)}</span>
                 </div>
                 {creator.engagementRate != null && (
                   <div className="flex justify-between items-center">

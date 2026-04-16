@@ -12,7 +12,7 @@ export function normalizeCreator(row) {
   return {
     ...row,
     avatar: row.avatar_url || `https://i.pravatar.cc/150?u=${row.id}`,
-    cover: row.cover_url || null,
+    cover: row.cover_url || '',
     followers: { instagram: ig, tiktok: tt, youtube: yt },
     totalFollowers: ig + tt + yt,
     engagementRate: row.instagram_engagement || row.tiktok_engagement || row.youtube_engagement || 0,
@@ -41,9 +41,10 @@ export function normalizePost(row) {
     username: row.creator_profiles?.username || 'creator',
     avatar: row.creator_profiles?.avatar_url || `https://i.pravatar.cc/40?u=${row.creator_id}`,
     postedDate: row.created_at,
-    likes: row.likes || row.like_count || 0,
-    views: row.views || row.view_count || 0,
-    saves: row.saves || row.save_count || 0,
+    likes:    row.likes    || row.like_count    || 0,
+    comments: row.comments || row.comment_count || 0,
+    views:    row.views    || row.view_count    || 0,
+    saves:    row.saves    || row.save_count    || 0,
   };
 }
 

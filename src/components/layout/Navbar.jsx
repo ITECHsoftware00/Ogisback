@@ -10,6 +10,26 @@ import { useMessageNotifications } from '../../context/MessageNotificationContex
 import { getNotifications } from '../../lib/db';
 import Logo from '../Logo';
 
+function UserAvatar({ user }) {
+  const [imgError, setImgError] = useState(false);
+  const src = user?.avatar || user?.logo;
+  if (src && !imgError) {
+    return (
+      <img
+        src={src}
+        alt={user?.name || ''}
+        className="w-8 h-8 rounded-full object-cover"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+  return (
+    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C3AED] to-[#0D9488] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+      {user?.name?.charAt(0)?.toUpperCase() || '?'}
+    </div>
+  );
+}
+
 export default function Navbar() {
   const { user, activeRole, darkMode, toggleDark, logout, switchRole, isLoggedIn } = useAuth();
   const { unreadCount: unreadMessages } = useMessageNotifications();
@@ -122,11 +142,7 @@ export default function Navbar() {
                   onClick={() => setUserMenuOpen(o => !o)}
                   className="flex items-center gap-2 p-1 pr-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
                 >
-                  <img
-                    src={user?.avatar || user?.logo}
-                    alt={user?.name}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
+                  <UserAvatar user={user} />
                   <ChevronDown size={14} className="text-gray-500 hidden sm:block" />
                 </button>
 

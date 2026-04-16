@@ -11,14 +11,121 @@ const QUICK_REPLIES = [
   'What is the AI bargain agent?',
 ];
 
-const BOT_RESPONSES = {
-  'How does escrow work?': 'Escrow protects both sides: the brand pays into a secure hold before work starts. Once you deliver and they approve, the funds release automatically to your wallet. If there\'s a dispute, our team mediates.',
-  'When do I get paid?': 'Payment is released to your OgisBack wallet as soon as the brand approves your delivery. You can then withdraw anytime via bank transfer, PayPal, Payoneer, or Flutterwave.',
-  'How to set my rates?': 'Go to Edit Profile → Rates. Set your base price per content type. Mini & Max plan members also get dynamic pricing suggestions based on your niche and follower data.',
-  'What is the AI bargain agent?': 'The AI bargain agent (Mini & Max plans) analyzes market rates, your profile value, and deal history to negotiate on your behalf — or suggest counter-offers you can accept in one click.',
-};
+/* ── Knowledge base: keywords → response ── */
+const KNOWLEDGE_BASE = [
+  {
+    keywords: ['escrow', 'secure hold', 'payment hold', 'fund hold', 'protected'],
+    response: 'Escrow protects both sides 🔒 The brand pays into a secure hold before work starts. Once you deliver and they approve, funds release automatically to your wallet. If there\'s a dispute, our team mediates within 48 hours.',
+  },
+  {
+    keywords: ['paid', 'payout', 'get paid', 'payment release', 'receive money', 'earn', 'earnings', 'when do i'],
+    response: 'Payment releases to your OgisBack wallet as soon as the brand approves your delivery 💸 You can withdraw anytime via bank transfer, PayPal, Payoneer, or Flutterwave — usually processed within 1–3 business days.',
+  },
+  {
+    keywords: ['rate', 'price', 'pricing', 'how much', 'set rate', 'charge', 'fee'],
+    response: 'To set your rates, go to Edit Profile → Rates 💰 Set your base price per content type (photo, video, reel, story). Mini & Max plan members also get dynamic pricing suggestions based on your niche and follower data.',
+  },
+  {
+    keywords: ['ai bargain', 'bargain agent', 'negotiate', 'negotiat', 'counter offer', 'ai agent'],
+    response: 'The AI Bargain Agent (Mini & Max plans) 🤖 analyzes market rates, your profile value, and deal history to negotiate on your behalf — or suggest counter-offers you can accept in one click. It saves you hours of back-and-forth!',
+  },
+  {
+    keywords: ['withdraw', 'withdrawal', 'cash out', 'bank', 'paypal', 'payoneer', 'flutterwave', 'transfer money'],
+    response: 'To withdraw your earnings, go to Wallet → Withdraw 💳 We support bank transfer, PayPal, Payoneer, and Flutterwave. Minimum withdrawal is $10. Funds typically arrive within 1–3 business days depending on your method.',
+  },
+  {
+    keywords: ['campaign', 'apply', 'application', 'brand deal', 'collab', 'collaboration', 'job', 'gig'],
+    response: 'To find brand campaigns, go to Campaigns in your sidebar 🎯 Browse by niche, budget, and platform. Click a campaign to read the brief, then hit Apply — submit your pitch and proposed rate. Brands usually respond within 48 hours.',
+  },
+  {
+    keywords: ['order', 'delivery', 'deliver', 'submit', 'revision', 'revise'],
+    response: 'To submit your order delivery, go to Orders → select the order → click Deliver 📦 Upload your content files and add a delivery note. The brand then has 5 days to approve or request a revision. You get up to 3 free revisions per order.',
+  },
+  {
+    keywords: ['subscription', 'plan', 'upgrade', 'mini', 'max', 'free plan', 'pricing'],
+    response: 'OgisBack has 3 plans 📋\n• Free — 20% platform fee, 5 posts/mo\n• Mini ($49/mo) — 18% fee, 50 posts, live chat support\n• Max ($149/mo) — 15% fee, unlimited posts, dedicated account manager + AI bargain agent\n\nAll paid plans start with a 7-day free trial!',
+  },
+  {
+    keywords: ['profile', 'edit profile', 'bio', 'avatar', 'photo', 'setup', 'complete', 'verify', 'verified'],
+    response: 'To complete your profile, go to My Profile in the sidebar ✏️ Add your bio, niche, social handles, follower counts, and rates. A complete profile gets 3x more brand views and unlocks the "Verified Creator" badge once our team reviews it.',
+  },
+  {
+    keywords: ['message', 'chat', 'contact brand', 'dm', 'inbox', 'conversation'],
+    response: 'You can message brands directly from the Messages section in your sidebar 💬 Or from any campaign or creator profile page. Brands can also initiate a conversation with you. You\'ll get a notification bell alert for new messages.',
+  },
+  {
+    keywords: ['pitch', 'pitch brand', 'reach out', 'cold outreach', 'propos'],
+    response: 'Use Pitch Brands (⚡ in the sidebar) to reach out directly to brands without waiting for a campaign 🚀 Write a custom pitch, attach your media kit, and propose your rate. It\'s a great way to land deals proactively!',
+  },
+  {
+    keywords: ['review', 'rating', 'star', 'feedback', 'reputation'],
+    response: 'Your creator rating (1–5 stars) is the average of all brand reviews after completed orders ⭐ A higher rating boosts your visibility in brand searches. You can see all your reviews on your public profile page.',
+  },
+  {
+    keywords: ['refund', 'cancel', 'dispute', 'problem', 'issue', 'complaint', 'wrong'],
+    response: 'If there\'s an issue with an order, go to the order page and click Report Issue 🚨 Our team will review the dispute within 24–48 hours. If a refund is warranted, escrow funds are returned to the brand\'s wallet automatically. We always aim for a fair resolution.',
+  },
+  {
+    keywords: ['follower', 'follow', 'audience', 'subscriber'],
+    response: 'Your follower count on OgisBack combines your linked social platform followers (Instagram, TikTok, YouTube) 📊 Keep these up to date in Edit Profile so brands see your real reach. Users can also follow your OgisBack profile to see your new posts in their feed.',
+  },
+  {
+    keywords: ['post', 'content', 'upload', 'photo', 'video', 'reel', 'story'],
+    response: 'To upload content, go to New Post (or click Upload Content) 📸 You can post photos, videos, reels, or carousels. Add a caption, tags, and platform label. Posts are public on your profile and appear in the Explore feed for brands to discover you.',
+  },
+  {
+    keywords: ['login', 'sign in', 'sign up', 'register', 'account', 'password', 'forgot', 'google', 'oauth'],
+    response: 'OgisBack supports Google OAuth and Facebook/Instagram login — just click the button on the login page 🔐 If you forgot your password, hit "Forgot password" on the login screen and we\'ll email you a reset link within a few minutes.',
+  },
+  {
+    keywords: ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'howdy', 'sup'],
+    response: 'Hey there! 👋 I\'m the OgisBack support bot. Ask me anything about escrow, payments, campaigns, orders, subscriptions, or your creator profile — I\'ve got you covered!',
+  },
+  {
+    keywords: ['thank', 'thanks', 'appreciate', 'helpful', 'great'],
+    response: 'Happy to help! 😊 If you have more questions, I\'m right here. Good luck with your creator journey on OgisBack! 🚀',
+  },
+  {
+    keywords: ['bye', 'goodbye', 'see you', 'later'],
+    response: 'Goodbye! 👋 Feel free to come back anytime you have questions. Best of luck!',
+  },
+];
 
-const DEFAULT_RESPONSE = 'Great question! For detailed help, our support team is standing by. Max plan members get dedicated 1-on-1 support with a real account manager. Free users can browse our community forum for peer advice.';
+const DEFAULT_RESPONSES = [
+  'I\'m not sure about that specific question, but I can help with escrow, payments, campaigns, orders, withdrawals, and subscriptions. Try rephrasing or pick a quick reply below 👇',
+  'Hmm, I didn\'t catch that. Try asking about escrow, payments, rates, campaigns, or your profile — those are my specialties! 🤖',
+  'That\'s a bit outside my knowledge base. For detailed help, Max plan members have a dedicated account manager, and all users can visit our community Forum for peer advice.',
+];
+
+let defaultIndex = 0;
+
+function findResponse(text) {
+  const lower = text.toLowerCase().trim();
+
+  // Exact match first (for quick replies)
+  const exactKey = Object.keys(
+    Object.fromEntries(KNOWLEDGE_BASE.map(k => [k.keywords[0], k.response]))
+  ).find(k => lower === k.toLowerCase());
+  if (exactKey) return KNOWLEDGE_BASE.find(k => k.keywords[0] === exactKey)?.response;
+
+  // Score each entry by how many keywords match
+  let best = null;
+  let bestScore = 0;
+  for (const entry of KNOWLEDGE_BASE) {
+    const score = entry.keywords.filter(kw => lower.includes(kw.toLowerCase())).length;
+    if (score > bestScore) {
+      bestScore = score;
+      best = entry;
+    }
+  }
+
+  if (best && bestScore > 0) return best.response;
+
+  // Rotate through default responses so repeated unknowns feel natural
+  const reply = DEFAULT_RESPONSES[defaultIndex % DEFAULT_RESPONSES.length];
+  defaultIndex++;
+  return reply;
+}
 
 export default function LiveSupport() {
   const { isLoggedIn, plan, user } = useAuth();
@@ -49,10 +156,10 @@ export default function LiveSupport() {
     setMessages(prev => [...prev, userMsg]);
     setTyping(true);
     setTimeout(() => {
-      const reply = BOT_RESPONSES[msg] || DEFAULT_RESPONSE;
+      const reply = findResponse(msg);
       setMessages(prev => [...prev, { id: Date.now() + 1, from: 'bot', text: reply, time: new Date() }]);
       setTyping(false);
-    }, 1000 + Math.random() * 600);
+    }, 800 + Math.random() * 500);
   };
 
   const supportLabel = plan === 'max' ? 'Dedicated Support' : plan === 'mini' ? 'Live Chat' : 'Support';

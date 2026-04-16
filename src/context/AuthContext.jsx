@@ -229,13 +229,14 @@ export function AuthProvider({ children }) {
     if (error) throw error;
   };
 
-  const signInWithInstagram = async (role = 'creator') => {
+  const signInWithFacebook = async (role = 'creator') => {
     localStorage.setItem('ogisback_pending_role', role);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'facebook',
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
-        scopes: 'public_profile,email',
+        // email must be listed first; public_profile is always granted
+        scopes: 'email,public_profile',
       },
     });
     if (error) throw error;
@@ -313,7 +314,8 @@ export function AuthProvider({ children }) {
     settling,
     logout,
     signInWithGoogle,
-    signInWithInstagram,
+    signInWithFacebook,
+    signInWithInstagram: signInWithFacebook, // backwards-compat alias
     signInWithEmail,
     signUpWithEmail,
     resendConfirmation,

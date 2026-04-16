@@ -11,7 +11,7 @@ import { StatusBadge } from '../../components/ui/Badge';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
 import { supabase } from '../../supabaseClient';
-import { getCreatorPosts } from '../../lib/db';
+import { getCreatorPosts, getRecentFollowerProfiles, getFollowerCount } from '../../lib/db';
 import { formatCurrency, formatNumber, normalizeOrder } from '../../lib/normalize';
 
 /* ── time-of-day greeting ── */
@@ -57,6 +57,8 @@ export default function CreatorDashboard() {
   const [recentContent, setRecentContent] = useState([]);
   const [transactions,  setTransactions]  = useState([]);
   const [profile,       setProfile]       = useState(null);
+  const [followers,     setFollowers]     = useState([]);
+  const [followerCount, setFollowerCount] = useState(0);
   const [loading,       setLoading]       = useState(true);
 
   /* ── initial load ── */
@@ -87,9 +89,17 @@ export default function CreatorDashboard() {
       setTransactions(txRes.data || []);
       setProfile(profRes.data || null);
 
-      // posts separately (can fail silently)
+      // posts + followers separately (can fail silently)
       getCreatorPosts(user.id)
         .then(posts => setRecentContent(posts.slice(0, 3)))
+        .catch(() => {});
+
+      getRecentFollowerProfiles(user.id, 8)
+        .then(setFollowers)
+        .catch(() => {});
+
+      getFollowerCount(user.id)
+        .then(setFollowerCount)
         .catch(() => {});
 
       setLoading(false);
@@ -119,6 +129,12 @@ export default function CreatorDashboard() {
         supabase.from('creator_profiles').select('wallet_balance, pending_balance').eq('id', user.id).single()
           .then(({ data }) => { if (data) setProfile(prev => ({ ...prev, ...data })); });
       })
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'follows', filter: `creator_id=eq.${user.id}`,
+      }, () => {
+        setFollowerCount(c => c + 1);
+        getRecentFollowerProfiles(user.id, 8).then(setFollowers).catch(() => {});
+      })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -143,7 +159,7 @@ export default function CreatorDashboard() {
     { title: 'Wallet Balance',   value: formatCurrency(walletBalance),  icon: DollarSign, color: 'from-wallet/20 to-wallet/5',     iconColor: 'text-wallet',   border: 'border-wallet/20' },
     { title: 'Pending Earnings', value: formatCurrency(pendingBalance), icon: Clock,      color: 'from-primary/20 to-primary/5',   iconColor: 'text-primary',  border: 'border-primary/20' },
     { title: 'Active Orders',    value: activeOrders,                   icon: ShoppingBag,color: 'from-creator/20 to-creator/5',   iconColor: 'text-creator',  border: 'border-creator/20' },
-    { title: 'Total Followers',  value: formatNumber(totalFollowers),   icon: Users,      color: 'from-brand/20 to-brand/5',       iconColor: 'text-brand',    border: 'border-brand/20' },
+    { title: 'Total Followers',  value: formatNumber(followerCount),    icon: Users,      color: 'from-brand/20 to-brand/5',       iconColor: 'text-brand',    border: 'border-brand/20' },
   ];
 
   if (loading) {
@@ -360,6 +376,53 @@ export default function CreatorDashboard() {
             <Plus size={13} /> Upload New
           </Link>
         </div>
+      </div>
+
+      {/* Recent Followers */}
+      <div className="card p-6 mt-6">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <h2 className="font-heading font-semibold text-gray-900 dark:text-white">Recent Followers</h2>
+            <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-creator/10 text-creator">
+              <span className="w-1.5 h-1.5 rounded-full bg-creator animate-pulse inline-block" />
+              Live
+            </span>
+          </div>
+          <p className="text-xs text-gray-400">{formatNumber(followerCount)} total</p>
+        </div>
+
+        {followers.length === 0 ? (
+          <div className="text-center py-8">
+            <Users size={30} className="text-gray-200 dark:text-gray-700 mx-auto mb-2" />
+            <p className="text-sm font-medium text-gray-500">No followers yet</p>
+            <p className="text-xs text-gray-400 mt-1">Share your profile to grow your audience</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+            {followers.map(f => (
+              <motion.div
+                key={f.follower_id}
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center gap-1.5 text-center group"
+              >
+                {f.avatar ? (
+                  <img
+                    src={f.avatar}
+                    alt={f.name}
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-creator/20 group-hover:ring-creator/50 transition-all"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-creator/30 to-brand/30 flex items-center justify-center text-white font-bold text-sm ring-2 ring-creator/20 group-hover:ring-creator/50 transition-all">
+                    {f.name?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <p className="text-[11px] font-medium text-gray-700 dark:text-gray-300 leading-tight line-clamp-1 w-full">{f.name}</p>
+                <p className="text-[10px] text-gray-400 capitalize">{f.role}</p>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

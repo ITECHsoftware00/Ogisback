@@ -588,3 +588,252 @@ export async function unsaveCreator(brandId, creatorId) {
     .eq('creator_id', creatorId);
   if (error) throw error;
 }
+
+/* ─────────────────────── SAVED POSTS ─────────────────────── */
+
+export async function savePost(userId, postId) {
+  const { error } = await supabase
+    .from('saved_posts')
+    .upsert({ user_id: userId, post_id: postId });
+  if (error) throw error;
+}
+
+export async function unsavePost(userId, postId) {
+  const { error } = await supabase
+    .from('saved_posts')
+    .delete()
+    .eq('user_id', userId)
+    .eq('post_id', postId);
+  if (error) throw error;
+}
+
+export async function checkPostSaved(userId, postId) {
+  const { data } = await supabase
+    .from('saved_posts')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('post_id', postId)
+    .maybeSingle();
+  return !!data;
+}
+
+export async function getSavedPosts(userId) {
+  const { data, error } = await supabase
+    .from('saved_posts')
+    .select('post_id, created_at, content_posts(*, creator_profiles(username, name, avatar_url))')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(r => r.content_posts).filter(Boolean);
+}
+
+/* ─────────────────────── FORUM ─────────────────────── */
+
+export async function getForumPosts({ category, search, sort = 'trending', limit = 30, offset = 0 } = {}) {
+  let query = supabase
+    .from('forum_posts')
+    .select('*')
+    .range(offset, offset + limit - 1);
+
+  if (category && category !== 'all') query = query.eq('category', category);
+  if (search) query = query.or(`title.ilike.%${search}%,body.ilike.%${search}%`);
+
+  if (sort === 'new') {
+    query = query.order('created_at', { ascending: false });
+  } else if (sort === 'active') {
+    query = query.order('reply_count', { ascending: false });
+  } else {
+    // trending: pinned first, then by likes
+    query = query.order('pinned', { ascending: false }).order('likes', { ascending: false });
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createForumPost({ userId, userRole, authorName, authorAvatar, plan, title, body, category, tags }) {
+  const { data, error } = await supabase
+    .from('forum_posts')
+    .insert({
+      user_id: userId,
+      user_role: userRole,
+      author_name: authorName,
+      author_avatar: authorAvatar || null,
+      plan: plan || 'free',
+      title,
+      body,
+      category,
+      tags: tags || [],
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteForumPost(postId) {
+  const { error } = await supabase.from('forum_posts').delete().eq('id', postId);
+  if (error) throw error;
+}
+
+export async function getForumReplies(postId) {
+  const { data, error } = await supabase
+    .from('forum_replies')
+    .select('*')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addForumReply({ postId, userId, userRole, authorName, authorAvatar, plan, body }) {
+  const { data, error } = await supabase
+    .from('forum_replies')
+    .insert({
+      post_id: postId,
+      user_id: userId,
+      user_role: userRole,
+      author_name: authorName,
+      author_avatar: authorAvatar || null,
+      plan: plan || 'free',
+      body,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteForumReply(replyId) {
+  const { error } = await supabase.from('forum_replies').delete().eq('id', replyId);
+  if (error) throw error;
+}
+
+export async function toggleForumPostLike(postId, userId) {
+  const { data, error } = await supabase.rpc('toggle_forum_like', {
+    p_post_id: postId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  return data; // true = now liked, false = now unliked
+}
+
+export async function checkForumPostLiked(postId, userId) {
+  const { data } = await supabase
+    .from('forum_post_likes')
+    .select('id')
+    .eq('post_id', postId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return !!data;
+}
+
+export async function incrementForumPostViews(postId) {
+  await supabase.rpc('increment_forum_post_views', { p_post_id: postId });
+}
+
+/* ─────────────────────── FOLLOWS ─────────────────────── */
+
+export async function followCreator(followerId, creatorId) {
+  const { error } = await supabase
+    .from('follows')
+    .upsert({ follower_id: followerId, creator_id: creatorId });
+  if (error) throw error;
+}
+
+export async function unfollowCreator(followerId, creatorId) {
+  const { error } = await supabase
+    .from('follows')
+    .delete()
+    .eq('follower_id', followerId)
+    .eq('creator_id', creatorId);
+  if (error) throw error;
+}
+
+export async function checkFollowing(followerId, creatorId) {
+  const { data } = await supabase
+    .from('follows')
+    .select('id')
+    .eq('follower_id', followerId)
+    .eq('creator_id', creatorId)
+    .maybeSingle();
+  return !!data;
+}
+
+/** Creators the given user is following */
+export async function getFollowing(userId) {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('creator_id, created_at, creator_profiles(*, profiles(plan))')
+    .eq('follower_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(r => r.creator_profiles).filter(Boolean);
+}
+
+/** Users who follow the given creator */
+export async function getFollowers(creatorId) {
+  const { data, error } = await supabase
+    .from('follows')
+    .select('follower_id, created_at')
+    .eq('creator_id', creatorId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+/** Count of followers for a creator */
+export async function getFollowerCount(creatorId) {
+  const { count, error } = await supabase
+    .from('follows')
+    .select('*', { count: 'exact', head: true })
+    .eq('creator_id', creatorId);
+  if (error) throw error;
+  return count || 0;
+}
+
+/**
+ * Recent followers with profile info.
+ * Returns an array of { follower_id, created_at, name, username, avatar_url }
+ */
+export async function getRecentFollowerProfiles(creatorId, limit = 8) {
+  // Step 1: get recent follower_ids
+  const { data: follows, error } = await supabase
+    .from('follows')
+    .select('follower_id, created_at')
+    .eq('creator_id', creatorId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  if (!follows?.length) return [];
+
+  const ids = follows.map(f => f.follower_id);
+
+  // Step 2: batch-lookup creator_profiles (followers who are creators)
+  const { data: creatorProfiles } = await supabase
+    .from('creator_profiles')
+    .select('id, name, username, avatar_url')
+    .in('id', ids);
+
+  // Step 3: batch-lookup brand_profiles (followers who are brands)
+  const { data: brandProfiles } = await supabase
+    .from('brand_profiles')
+    .select('id, name, slug, logo_url')
+    .in('id', ids);
+
+  const cpMap = Object.fromEntries((creatorProfiles || []).map(p => [p.id, { ...p, role: 'creator', avatar: p.avatar_url }]));
+  const bpMap = Object.fromEntries((brandProfiles   || []).map(p => [p.id, { ...p, role: 'brand',   avatar: p.logo_url, username: p.slug }]));
+
+  return follows.map(f => {
+    const profile = cpMap[f.follower_id] || bpMap[f.follower_id] || null;
+    return {
+      follower_id: f.follower_id,
+      created_at:  f.created_at,
+      name:        profile?.name     || 'OgisBack User',
+      username:    profile?.username || null,
+      avatar:      profile?.avatar   || null,
+      role:        profile?.role     || 'creator',
+    };
+  });
+}

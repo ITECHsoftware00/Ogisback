@@ -18,6 +18,7 @@ import ResetPassword from './pages/ResetPassword';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
 import Notifications from './pages/Notifications';
+import Following from './pages/Following';
 import LiveSupport from './components/LiveSupport';
 
 // Creator pages
@@ -160,6 +161,7 @@ function AppRoutes() {
 
       {/* Shared (any authenticated role) */}
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+      <Route path="/following" element={<ProtectedRoute><Following /></ProtectedRoute>} />
       <Route path="/404" element={<NotFound />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
