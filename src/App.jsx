@@ -15,6 +15,7 @@ import CampaignPublicDetail from './pages/CampaignPublicDetail';
 import NotFound from './pages/NotFound';
 import AuthCallback from './pages/AuthCallback';
 import TikTokCallback from './pages/TikTokCallback';
+import FacebookCallback from './pages/FacebookCallback';
 import ResetPassword from './pages/ResetPassword';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
@@ -125,6 +126,7 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/auth/tiktok" element={<TikTokCallback />} />
+      <Route path="/auth/facebook" element={<FacebookCallback />} />
       <Route path="/auth/reset-password" element={<ResetPassword />} />
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route path="/payment/cancel" element={<PaymentCancel />} />

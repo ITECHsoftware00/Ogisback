@@ -1,5 +1,6 @@
 const YT_KEY         = import.meta.env.VITE_YOUTUBE_API_KEY;
 const TT_CLIENT_KEY  = import.meta.env.VITE_TIKTOK_CLIENT_KEY;
+const FB_APP_ID      = import.meta.env.VITE_FACEBOOK_APP_ID;
 const SUPABASE_URL   = import.meta.env.VITE_SUPABASE_URL;
 
 async function generatePKCE() {
@@ -95,4 +96,27 @@ export async function fetchYouTubeStats(handle) {
     console.error('[YouTube API] fetch failed:', err);
     return null;
   }
+}
+
+export function getFacebookAuthUrl(redirectUri) {
+  const state = crypto.randomUUID();
+  sessionStorage.setItem('fb_oauth_state', state);
+  const params = new URLSearchParams({
+    client_id:     FB_APP_ID,
+    redirect_uri:  redirectUri,
+    scope:         'pages_show_list,pages_read_engagement,instagram_basic',
+    state,
+    response_type: 'code',
+  });
+  return `https://www.facebook.com/v19.0/dialog/oauth?${params}`;
+}
+
+export async function exchangeFacebookCode(code, redirectUri) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/facebook-auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, redirectUri }),
+  });
+  if (!res.ok) return null;
+  return await res.json();
 }

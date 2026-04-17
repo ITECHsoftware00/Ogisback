@@ -6,7 +6,7 @@ import {
   ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, Plus, X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { fetchYouTubeStats, getTikTokAuthUrl } from '../../lib/socialApi';
+import { fetchYouTubeStats, getTikTokAuthUrl, getFacebookAuthUrl } from '../../lib/socialApi';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -63,6 +63,20 @@ const platforms = [
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
         <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.95C18.88 4 12 4 12 4s-6.88 0-8.59.47A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58a2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
         <polygon points="9.75,15.02 15.5,12 9.75,8.98" fill="white" />
+      </svg>
+    ),
+  },
+  {
+    key: 'facebook',
+    followerKey: 'facebookFollowers',
+    label: 'Facebook',
+    placeholder: 'Page name',
+    hint: 'Facebook Page reach for your brand deals.',
+    color: 'text-blue-600',
+    bg: 'bg-blue-50 dark:bg-blue-900/10',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
       </svg>
     ),
   },
@@ -141,9 +155,11 @@ export default function CreatorProfileEdit() {
     instagram: '',
     tiktok: '',
     youtube: '',
+    facebook: '',
     instagramFollowers: '',
     tiktokFollowers: '',
     youtubeFollowers: '',
+    facebookFollowers: '',
     instagramEngagement: '',
     tiktokEngagement: '',
     youtubeEngagement: '',
@@ -202,6 +218,8 @@ export default function CreatorProfileEdit() {
           instagramFollowers: profile.instagram_followers || '',
           tiktokFollowers: profile.tiktok_followers || '',
           youtubeFollowers: profile.youtube_followers || '',
+          facebookFollowers: profile.facebook_followers || '',
+          facebook: profile.facebook_page || '',
           instagramEngagement: profile.instagram_engagement || '',
           tiktokEngagement: profile.tiktok_engagement || '',
           youtubeEngagement: profile.youtube_engagement || '',
@@ -311,6 +329,8 @@ export default function CreatorProfileEdit() {
         instagram_followers: parseInt(form.instagramFollowers) || 0,
         tiktok_followers: parseInt(form.tiktokFollowers) || 0,
         youtube_followers: parseInt(form.youtubeFollowers) || 0,
+        facebook_page:      form.facebook || null,
+        facebook_followers: parseInt(form.facebookFollowers) || 0,
         instagram_engagement: parseFloat(form.instagramEngagement) || 0,
         tiktok_engagement: parseFloat(form.tiktokEngagement) || 0,
         youtube_engagement: parseFloat(form.youtubeEngagement) || 0,
@@ -715,6 +735,18 @@ export default function CreatorProfileEdit() {
                         className="mt-1.5 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                       >
                         ↻ Connect TikTok to sync
+                      </button>
+                    )}
+                    {(p.key === 'instagram' || p.key === 'facebook') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const redirectUri = `${window.location.origin}/auth/facebook`;
+                          window.location.href = getFacebookAuthUrl(redirectUri);
+                        }}
+                        className="mt-1.5 flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        ↻ Connect Facebook/Instagram to sync
                       </button>
                     )}
                   </div>
