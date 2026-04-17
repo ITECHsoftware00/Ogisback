@@ -66,20 +66,6 @@ const platforms = [
       </svg>
     ),
   },
-  {
-    key: 'facebook',
-    followerKey: 'facebookFollowers',
-    label: 'Facebook',
-    placeholder: 'Page name',
-    hint: 'Facebook Page reach for your brand deals.',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50 dark:bg-blue-900/10',
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-      </svg>
-    ),
-  },
 ];
 
 const rateFields = [
@@ -155,11 +141,9 @@ export default function CreatorProfileEdit() {
     instagram: '',
     tiktok: '',
     youtube: '',
-    facebook: '',
     instagramFollowers: '',
     tiktokFollowers: '',
     youtubeFollowers: '',
-    facebookFollowers: '',
     instagramEngagement: '',
     tiktokEngagement: '',
     youtubeEngagement: '',
@@ -228,8 +212,6 @@ export default function CreatorProfileEdit() {
           instagramFollowers: profile.instagram_followers || '',
           tiktokFollowers: profile.tiktok_followers || '',
           youtubeFollowers: profile.youtube_followers || '',
-          facebookFollowers: profile.facebook_followers || '',
-          facebook: profile.facebook_page || '',
           instagramEngagement: profile.instagram_engagement || '',
           tiktokEngagement: profile.tiktok_engagement || '',
           youtubeEngagement: profile.youtube_engagement || '',
@@ -339,8 +321,6 @@ export default function CreatorProfileEdit() {
         instagram_followers: parseInt(form.instagramFollowers) || 0,
         tiktok_followers: parseInt(form.tiktokFollowers) || 0,
         youtube_followers: parseInt(form.youtubeFollowers) || 0,
-        facebook_page:      form.facebook || null,
-        facebook_followers: parseInt(form.facebookFollowers) || 0,
         instagram_engagement: parseFloat(form.instagramEngagement) || 0,
         tiktok_engagement: parseFloat(form.tiktokEngagement) || 0,
         youtube_engagement: parseFloat(form.youtubeEngagement) || 0,

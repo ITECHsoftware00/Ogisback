@@ -80,7 +80,7 @@ export default function CreatorDashboard() {
           .limit(200),
         supabase
           .from('creator_profiles')
-          .select('wallet_balance, pending_balance, instagram_followers, tiktok_followers, youtube_followers, facebook_followers, facebook_page, name, avatar_url')
+          .select('wallet_balance, pending_balance, instagram_followers, tiktok_followers, youtube_followers, name, avatar_url')
           .eq('id', user.id)
           .single(),
       ]);
@@ -144,7 +144,7 @@ export default function CreatorDashboard() {
   const walletBalance   = profile?.wallet_balance  ?? user?.walletBalance  ?? 0;
   const pendingBalance  = profile?.pending_balance ?? user?.pendingBalance ?? 0;
   const activeOrders    = orders.filter(o => ['active', 'in_review', 'delivered'].includes(o.status)).length;
-  const totalFollowers  = (profile?.instagram_followers || 0) + (profile?.tiktok_followers || 0) + (profile?.youtube_followers || 0) + (profile?.facebook_followers || 0);
+  const totalFollowers  = (profile?.instagram_followers || 0) + (profile?.tiktok_followers || 0) + (profile?.youtube_followers || 0);
   const earningsChart   = buildEarningsChart(transactions);
   const recentOrders    = orders.slice(0, 5).map(normalizeOrder);
 
@@ -253,17 +253,6 @@ export default function CreatorDashboard() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.95C18.88 4 12 4 12 4s-6.88 0-8.59.47A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58a2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
                   <polygon points="9.75,15.02 15.5,12 9.75,8.98" fill="white" />
-                </svg>
-              ),
-            },
-            {
-              label: 'Facebook',
-              count: profile?.facebook_followers || 0,
-              color: 'text-blue-600',
-              bg: 'bg-blue-50 dark:bg-blue-900/10',
-              icon: (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                 </svg>
               ),
             },
