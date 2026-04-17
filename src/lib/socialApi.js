@@ -42,60 +42,60 @@ export async function exchangeTikTokCode(code, redirectUri) {
 }
 
 async function ytFetch(url) {
-  const res = await fetch(url);
+  const res  = await fetch(url);
   const json = await res.json();
   if (!res.ok) {
-    console.error('[YouTube API] error:', json?.error?.message || res.status);
+    const reason = json?.error?.errors?.[0]?.reason || '';
+    const msg    = json?.error?.message || String(res.status);
+    console.error('[YouTube API] error:', msg, reason);
+    // Surface quota/key errors so callers can show the right message
+    if (reason === 'quotaExceeded' || reason === 'dailyLimitExceeded') throw new Error('quota');
+    if (reason === 'keyInvalid' || res.status === 400) throw new Error('keyInvalid');
     return null;
   }
   return json;
 }
 
 export async function fetchYouTubeStats(handle) {
-  if (!YT_KEY || !handle) return null;
-  const raw = handle.trim();
+  if (!YT_KEY) throw new Error('noKey');
+  if (!handle) return null;
+  const raw       = handle.trim();
   const withAt    = raw.startsWith('@') ? raw : `@${raw}`;
   const withoutAt = raw.replace(/^@/, '');
 
-  try {
-    // 1. Try forHandle with @ prefix (current YouTube API standard)
-    let json = await ytFetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=statistics&forHandle=${encodeURIComponent(withAt)}&key=${YT_KEY}`
-    );
-    let stats = json?.items?.[0]?.statistics;
+  // 1. Try forHandle with @ prefix (current YouTube API standard)
+  let json  = await ytFetch(
+    `https://www.googleapis.com/youtube/v3/channels?part=statistics&forHandle=${encodeURIComponent(withAt)}&key=${YT_KEY}`
+  );
+  let stats = json?.items?.[0]?.statistics;
 
-    // 2. Fallback: forUsername (legacy channels without handles)
-    if (!stats) {
-      json = await ytFetch(
-        `https://www.googleapis.com/youtube/v3/channels?part=statistics&forUsername=${encodeURIComponent(withoutAt)}&key=${YT_KEY}`
+  // 2. Fallback: forUsername (legacy channels without handles)
+  if (!stats) {
+    json  = await ytFetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=statistics&forUsername=${encodeURIComponent(withoutAt)}&key=${YT_KEY}`
+    );
+    stats = json?.items?.[0]?.statistics;
+  }
+
+  // 3. Fallback: search by name and grab first channel result
+  if (!stats) {
+    const searchJson = await ytFetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(withoutAt)}&maxResults=1&key=${YT_KEY}`
+    );
+    const channelId = searchJson?.items?.[0]?.snippet?.channelId;
+    if (channelId) {
+      json  = await ytFetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${YT_KEY}`
       );
       stats = json?.items?.[0]?.statistics;
     }
-
-    // 3. Fallback: search by name and grab first channel result
-    if (!stats) {
-      const searchJson = await ytFetch(
-        `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(withoutAt)}&maxResults=1&key=${YT_KEY}`
-      );
-      const channelId = searchJson?.items?.[0]?.snippet?.channelId;
-      if (channelId) {
-        json = await ytFetch(
-          `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${YT_KEY}`
-        );
-        stats = json?.items?.[0]?.statistics;
-      }
-    }
-
-    if (!stats) return null;
-    return {
-      subscribers: parseInt(stats.subscriberCount) || 0,
-      views:       parseInt(stats.viewCount)        || 0,
-      videoCount:  parseInt(stats.videoCount)       || 0,
-    };
-  } catch (err) {
-    console.error('[YouTube API] fetch failed:', err);
-    return null;
   }
+
+  return stats ? {
+    subscribers: parseInt(stats.subscriberCount) || 0,
+    views:       parseInt(stats.viewCount)        || 0,
+    videoCount:  parseInt(stats.videoCount)       || 0,
+  } : null;
 }
 
 export function getFacebookAuthUrl(redirectUri) {

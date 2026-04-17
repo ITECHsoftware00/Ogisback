@@ -189,12 +189,22 @@ export default function CreatorProfileEdit() {
     const handle = (e?.target?.value ?? form.youtube)?.trim();
     if (!handle) return;
     setSyncingYT(true);
-    const stats = await fetchYouTubeStats(handle);
-    if (!stats) {
-      toast.error('Could not fetch YouTube stats. Check the handle or API key.');
-    } else {
-      update('youtubeFollowers', stats.subscribers);
-      toast.success(`Synced: ${stats.subscribers.toLocaleString()} subscribers`);
+    try {
+      const stats = await fetchYouTubeStats(handle);
+      if (!stats) {
+        toast.error('Channel not found. Check the handle and try again.');
+      } else {
+        update('youtubeFollowers', stats.subscribers);
+        toast.success(`Synced: ${stats.subscribers.toLocaleString()} subscribers`);
+      }
+    } catch (err) {
+      if (err.message === 'quota') {
+        toast.error('YouTube API quota exceeded for today. Try again tomorrow.');
+      } else if (err.message === 'keyInvalid' || err.message === 'noKey') {
+        toast.error('YouTube API key is missing or invalid. Check your .env file.');
+      } else {
+        toast.error('Could not reach YouTube. Check your connection and try again.');
+      }
     }
     setSyncingYT(false);
   };
