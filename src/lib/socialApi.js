@@ -159,3 +159,27 @@ export async function exchangeFacebookCode(code, redirectUri) {
   if (!res.ok) return null;
   return await res.json();
 }
+
+export async function fetchInstagramStats(username) {
+  if (!username) return null;
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/instagram-stats`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  const json = await res.json();
+  if (!res.ok || json?.error) throw new Error(json?.error || 'failed');
+  return json;
+}
+
+export async function fetchTikTokStats(username) {
+  if (!username) return null;
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/tiktok-stats`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  const json = await res.json();
+  if (!res.ok || json?.error) throw new Error(json?.error || 'failed');
+  return json;
+}

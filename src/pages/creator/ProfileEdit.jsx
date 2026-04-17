@@ -6,7 +6,7 @@ import {
   ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, Plus, X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { fetchYouTubeStats, getTikTokAuthUrl } from '../../lib/socialApi';
+import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchTikTokStats } from '../../lib/socialApi';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -168,6 +168,8 @@ export default function CreatorProfileEdit() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [syncingYT, setSyncingYT] = useState(false);
+  const [syncingIG, setSyncingIG] = useState(false);
+  const [syncingTT, setSyncingTT] = useState(false);
 
   const syncYouTube = async (e) => {
     const handle = (e?.target?.value ?? form.youtube)?.trim();
@@ -194,6 +196,36 @@ export default function CreatorProfileEdit() {
       }
     }
     setSyncingYT(false);
+  };
+
+  const syncInstagram = async () => {
+    const handle = form.instagram?.trim();
+    if (!handle) { toast.error('Enter your Instagram handle first'); return; }
+    setSyncingIG(true);
+    try {
+      const data = await fetchInstagramStats(handle);
+      update('instagramFollowers', data.followers);
+      toast.success(`Synced: ${data.followers.toLocaleString()} followers`);
+    } catch (err) {
+      if (err.message === 'noKey') toast.error('Instagram API key not configured.');
+      else toast.error('Could not fetch Instagram stats. Check the handle.');
+    }
+    setSyncingIG(false);
+  };
+
+  const syncTikTok = async () => {
+    const handle = form.tiktok?.trim();
+    if (!handle) { toast.error('Enter your TikTok handle first'); return; }
+    setSyncingTT(true);
+    try {
+      const data = await fetchTikTokStats(handle);
+      update('tiktokFollowers', data.followers);
+      toast.success(`Synced: ${data.followers.toLocaleString()} followers`);
+    } catch (err) {
+      if (err.message === 'noKey') toast.error('TikTok API key not configured.');
+      else toast.error('Could not fetch TikTok stats. Check the handle.');
+    }
+    setSyncingTT(false);
   };
 
   // Pre-populate form from existing creator_profiles row
@@ -718,16 +750,24 @@ export default function CreatorProfileEdit() {
                         {syncingYT ? 'Syncing…' : '↻ Sync from YouTube'}
                       </button>
                     )}
+                    {p.key === 'instagram' && (
+                      <button
+                        type="button"
+                        onClick={syncInstagram}
+                        disabled={syncingIG || !form.instagram}
+                        className="mt-1.5 flex items-center gap-1 text-xs font-medium text-pink-500 hover:text-pink-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {syncingIG ? 'Syncing…' : '↻ Sync from Instagram'}
+                      </button>
+                    )}
                     {p.key === 'tiktok' && (
                       <button
                         type="button"
-                        onClick={async () => {
-                          const redirectUri = `${window.location.origin}/auth/tiktok`;
-                          window.location.href = await getTikTokAuthUrl(redirectUri);
-                        }}
-                        className="mt-1.5 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+                        onClick={syncTikTok}
+                        disabled={syncingTT || !form.tiktok}
+                        className="mt-1.5 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                       >
-                        ↻ Connect TikTok to sync
+                        {syncingTT ? 'Syncing…' : '↻ Sync from TikTok'}
                       </button>
                     )}
                   </div>
