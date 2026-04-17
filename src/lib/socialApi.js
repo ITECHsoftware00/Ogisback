@@ -2,6 +2,7 @@ const YT_KEY         = import.meta.env.VITE_YOUTUBE_API_KEY;
 const TT_CLIENT_KEY  = import.meta.env.VITE_TIKTOK_CLIENT_KEY;
 const FB_APP_ID      = import.meta.env.VITE_FACEBOOK_APP_ID;
 const SUPABASE_URL   = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON  = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 async function generatePKCE() {
   const verifier = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
@@ -164,7 +165,10 @@ export async function fetchInstagramStats(username) {
   if (!username) return null;
   const res = await fetch(`${SUPABASE_URL}/functions/v1/instagram-stats`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON}`,
+    },
     body: JSON.stringify({ username }),
   });
   const json = await res.json();
@@ -176,7 +180,10 @@ export async function fetchTikTokStats(username) {
   if (!username) return null;
   const res = await fetch(`${SUPABASE_URL}/functions/v1/tiktok-stats`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON}`,
+    },
     body: JSON.stringify({ username }),
   });
   const json = await res.json();
