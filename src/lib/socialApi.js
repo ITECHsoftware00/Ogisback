@@ -65,37 +65,76 @@ export async function fetchYouTubeStats(handle) {
 
   // 1. Try forHandle with @ prefix (current YouTube API standard)
   let json  = await ytFetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=statistics&forHandle=${encodeURIComponent(withAt)}&key=${YT_KEY}`
+    `https://www.googleapis.com/youtube/v3/channels?part=statistics,contentDetails&forHandle=${encodeURIComponent(withAt)}&key=${YT_KEY}`
   );
-  let stats = json?.items?.[0]?.statistics;
+  let channel = json?.items?.[0];
 
   // 2. Fallback: forUsername (legacy channels without handles)
-  if (!stats) {
-    json  = await ytFetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=statistics&forUsername=${encodeURIComponent(withoutAt)}&key=${YT_KEY}`
+  if (!channel) {
+    json    = await ytFetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=statistics,contentDetails&forUsername=${encodeURIComponent(withoutAt)}&key=${YT_KEY}`
     );
-    stats = json?.items?.[0]?.statistics;
+    channel = json?.items?.[0];
   }
 
   // 3. Fallback: search by name and grab first channel result
-  if (!stats) {
+  if (!channel) {
     const searchJson = await ytFetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(withoutAt)}&maxResults=1&key=${YT_KEY}`
     );
     const channelId = searchJson?.items?.[0]?.snippet?.channelId;
     if (channelId) {
-      json  = await ytFetch(
-        `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${YT_KEY}`
+      json    = await ytFetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=statistics,contentDetails&id=${channelId}&key=${YT_KEY}`
       );
-      stats = json?.items?.[0]?.statistics;
+      channel = json?.items?.[0];
     }
   }
 
-  return stats ? {
-    subscribers: parseInt(stats.subscriberCount) || 0,
-    views:       parseInt(stats.viewCount)        || 0,
-    videoCount:  parseInt(stats.videoCount)       || 0,
-  } : null;
+  if (!channel) return null;
+
+  const stats       = channel.statistics;
+  const uploadsId   = channel.contentDetails?.relatedPlaylists?.uploads;
+  const subscribers = parseInt(stats.subscriberCount) || 0;
+
+  let avgLikes    = 0;
+  let avgComments = 0;
+  let engRate     = 0;
+
+  // Fetch last 10 videos and calculate averages
+  if (uploadsId) {
+    const playlistJson = await ytFetch(
+      `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsId}&maxResults=10&key=${YT_KEY}`
+    ).catch(() => null);
+
+    const videoIds = (playlistJson?.items || [])
+      .map(i => i.contentDetails?.videoId)
+      .filter(Boolean);
+
+    if (videoIds.length > 0) {
+      const videoJson = await ytFetch(
+        `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoIds.join(',')}&key=${YT_KEY}`
+      ).catch(() => null);
+
+      const videoStats = (videoJson?.items || []).map(v => v.statistics);
+      if (videoStats.length > 0) {
+        avgLikes    = Math.round(videoStats.reduce((s, v) => s + (parseInt(v.likeCount)    || 0), 0) / videoStats.length);
+        avgComments = Math.round(videoStats.reduce((s, v) => s + (parseInt(v.commentCount) || 0), 0) / videoStats.length);
+        engRate     = subscribers > 0
+          ? parseFloat(((avgLikes + avgComments) / subscribers * 100).toFixed(2))
+          : 0;
+      }
+    }
+  }
+
+  return {
+    subscribers,
+    views:       parseInt(stats.viewCount)   || 0,
+    videoCount:  parseInt(stats.videoCount)  || 0,
+    avgLikes,
+    avgComments,
+    engRate,
+  };
 }
 
 export function getFacebookAuthUrl(redirectUri) {

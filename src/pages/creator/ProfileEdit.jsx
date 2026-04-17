@@ -178,8 +178,11 @@ export default function CreatorProfileEdit() {
       if (!stats) {
         toast.error('Channel not found. Check the handle and try again.');
       } else {
-        update('youtubeFollowers', stats.subscribers);
-        toast.success(`Synced: ${stats.subscribers.toLocaleString()} subscribers`);
+        update('youtubeFollowers',   stats.subscribers);
+        if (stats.engRate)     update('youtubeEngagement',  stats.engRate);
+        if (stats.avgLikes)    update('youtubeAvgLikes',    stats.avgLikes);
+        if (stats.avgComments) update('youtubeAvgComments', stats.avgComments);
+        toast.success(`Synced: ${stats.subscribers.toLocaleString()} subscribers · ${stats.engRate}% engagement`);
       }
     } catch (err) {
       if (err.message === 'quota') {
