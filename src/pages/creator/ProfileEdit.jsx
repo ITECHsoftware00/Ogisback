@@ -6,7 +6,7 @@ import {
   ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, Plus, X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { fetchYouTubeStats, getTikTokAuthUrl, getFacebookAuthUrl } from '../../lib/socialApi';
+import { fetchYouTubeStats, getTikTokAuthUrl } from '../../lib/socialApi';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -745,18 +745,6 @@ export default function CreatorProfileEdit() {
                         className="mt-1.5 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
                       >
                         ↻ Connect TikTok to sync
-                      </button>
-                    )}
-                    {(p.key === 'instagram' || p.key === 'facebook') && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const redirectUri = `${window.location.origin}/auth/facebook`;
-                          window.location.href = getFacebookAuthUrl(redirectUri);
-                        }}
-                        className="mt-1.5 flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                      >
-                        ↻ Connect Facebook/Instagram to sync
                       </button>
                     )}
                   </div>
