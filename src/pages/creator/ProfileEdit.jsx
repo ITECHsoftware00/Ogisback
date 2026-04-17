@@ -208,7 +208,7 @@ export default function CreatorProfileEdit() {
       toast.success(`Synced: ${data.followers.toLocaleString()} followers`);
     } catch (err) {
       if (err.message === 'noKey') toast.error('Instagram API key not configured.');
-      else toast.error('Could not fetch Instagram stats. Check the handle.');
+      else toast.error(`Instagram error: ${err.message}`);
     }
     setSyncingIG(false);
   };
