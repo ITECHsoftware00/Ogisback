@@ -22,10 +22,11 @@ serve(async (req) => {
     const clean = username.replace(/^@/, '');
 
     const res = await fetch(
-      `https://instagram-scraper-api2.p.rapidapi.com/v1/info?username_or_id_or_url=${encodeURIComponent(clean)}`,
+      'https://instagram-scraper-stable-api.p.rapidapi.com/v1/info?' +
+      `username_or_id_or_url=${encodeURIComponent(clean)}`,
       {
         headers: {
-          'x-rapidapi-host': 'instagram-scraper-api2.p.rapidapi.com',
+          'x-rapidapi-host': 'instagram-scraper-stable-api.p.rapidapi.com',
           'x-rapidapi-key':  RAPIDAPI_KEY,
         },
       }
@@ -36,15 +37,15 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: json?.message || 'API error', status: res.status }), { status: 400, headers: CORS });
     }
 
-    const user = json?.data;
+    const user = json?.data?.user ?? json?.data;
     if (!user) {
       return new Response(JSON.stringify({ error: 'User not found' }), { status: 404, headers: CORS });
     }
 
     return new Response(JSON.stringify({
       username:      user.username        || clean,
-      followers:     user.follower_count  || 0,
-      following:     user.following_count || 0,
+      followers:     user.follower_count  || user.edge_followed_by?.count || 0,
+      following:     user.following_count || user.edge_follow?.count       || 0,
       posts:         user.media_count     || 0,
     }), { headers: { ...CORS, 'Content-Type': 'application/json' } });
 
