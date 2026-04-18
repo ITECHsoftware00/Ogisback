@@ -14,14 +14,6 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const InstagramIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-  </svg>
-);
-
 const stats = [
   { num: '6,000+',  label: 'Creators' },
   { num: '$2.4M+',  label: 'Paid Out' },
@@ -30,7 +22,7 @@ const stats = [
 ];
 
 export default function Login() {
-  const { signInWithGoogle, signInWithInstagram, signInWithEmail, resetPassword, resendConfirmation, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
+  const { signInWithGoogle, signInWithEmail, resetPassword, resendConfirmation, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(null);
   const [showEmail, setShowEmail] = useState(false);
@@ -52,12 +44,6 @@ export default function Login() {
     setLoading('google');
     try { await signInWithGoogle(); }
     catch (err) { toast.error(err.message || 'Google sign-in failed.'); setLoading(null); }
-  };
-
-  const handleInstagram = async () => {
-    setLoading('instagram');
-    try { await signInWithInstagram(); }
-    catch (err) { toast.error(err.message || 'Instagram sign-in failed.'); setLoading(null); }
   };
 
   const handleEmail = async (e) => {
@@ -213,18 +199,6 @@ export default function Login() {
                 {loading === 'google'
                   ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto" />
                   : <><GoogleIcon /><span>Continue with Google</span></>
-                }
-              </motion.button>
-
-              <motion.button
-                whileTap={{ scale: 0.985 }}
-                onClick={handleInstagram}
-                disabled={busy}
-                className="w-full flex items-center gap-3 h-11 px-4 rounded-xl bg-white dark:bg-white/[0.06] border border-gray-200 dark:border-white/[0.1] text-gray-800 dark:text-gray-200 text-sm font-medium shadow-sm hover:bg-gray-50 dark:hover:bg-white/[0.1] disabled:opacity-50 transition-all"
-              >
-                {loading === 'instagram'
-                  ? <span className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin mx-auto" />
-                  : <><InstagramIcon /><span>Continue with Instagram</span></>
                 }
               </motion.button>
 
