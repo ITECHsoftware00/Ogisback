@@ -177,15 +177,6 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* ── Beta badge ── */}
-      <div className="px-3 mt-5">
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-gray-200 dark:border-white/[0.08] bg-gray-50/50 dark:bg-white/[0.02]">
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 tracking-wider">
-            BETA
-          </span>
-          <p className="text-[11px] text-gray-400 dark:text-gray-600 leading-tight">Early access — features shipping daily</p>
-        </div>
-      </div>
     </aside>
   );
 }

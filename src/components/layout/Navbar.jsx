@@ -71,12 +71,9 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 glass border-b border-white/20 dark:border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        {/* Logo + Beta */}
-        <Link to="/" className="flex-shrink-0 flex items-center gap-2">
+        {/* Logo */}
+        <Link to="/" className="flex-shrink-0">
           <Logo size="md" />
-          <span className="hidden sm:inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-violet-100 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 tracking-wider">
-            BETA
-          </span>
         </Link>
 
         {/* Center nav (desktop) */}
