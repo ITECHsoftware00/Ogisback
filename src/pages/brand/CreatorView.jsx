@@ -3,8 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Star, MapPin, CheckCircle, MessageCircle, Zap,
-  Clock, Users, TrendingUp, Heart, Eye, Grid3x3, Instagram,
-  Youtube, Video, BookOpen, BarChart3,
+  Clock, Users, TrendingUp, Heart, Eye, Grid3x3,
+  Camera, PlayCircle, Video, BarChart3,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -164,9 +164,9 @@ export default function BrandCreatorView() {
 
   const totalFollowers = (creator.followers?.instagram || 0) + (creator.followers?.tiktok || 0) + (creator.followers?.youtube || 0);
   const platforms = [
-    { icon: Instagram, label: 'Instagram', value: creator.followers?.instagram, color: 'text-pink-500' },
-    { icon: Video,     label: 'TikTok',    value: creator.followers?.tiktok,    color: 'text-gray-800 dark:text-white' },
-    { icon: Youtube,   label: 'YouTube',   value: creator.followers?.youtube,   color: 'text-red-500' },
+    { icon: Camera,      label: 'Instagram', value: creator.followers?.instagram, color: 'text-pink-500' },
+    { icon: Video,       label: 'TikTok',    value: creator.followers?.tiktok,    color: 'text-gray-700 dark:text-gray-300' },
+    { icon: PlayCircle,  label: 'YouTube',   value: creator.followers?.youtube,   color: 'text-red-500' },
   ].filter(p => p.value);
 
   return (
