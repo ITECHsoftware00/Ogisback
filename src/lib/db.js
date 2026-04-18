@@ -54,8 +54,9 @@ export async function getCreatorByUsername(username) {
     .from('creator_profiles')
     .select('*, profiles(plan)')
     .eq('username', username)
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('Creator not found');
   return data;
 }
 
@@ -77,7 +78,7 @@ export async function getCreatorProfile(id) {
     .from('creator_profiles')
     .select('*')
     .eq('id', id)
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -89,7 +90,7 @@ export async function getBrandProfile(id) {
     .from('brand_profiles')
     .select('*')
     .eq('id', id)
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -99,8 +100,9 @@ export async function getBrandBySlug(slug) {
     .from('brand_profiles')
     .select('*, profiles(plan)')
     .eq('slug', slug)
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('Brand not found');
   return data;
 }
 
@@ -138,8 +140,9 @@ export async function getCampaignById(id) {
     .from('campaigns')
     .select('*, brand_profiles(name, logo_url, slug, industry, website)')
     .eq('id', id)
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('Campaign not found');
   return data;
 }
 
@@ -297,7 +300,7 @@ export async function getOrCreateConversation(creatorId, brandId) {
     .select('*')
     .eq('creator_id', creatorId)
     .eq('brand_id', brandId)
-    .single();
+    .maybeSingle();
 
   if (existing) return existing;
 
@@ -448,7 +451,7 @@ export async function getCreatorAnalytics(creatorId) {
       rating, review_count, completed_orders
     `)
     .eq('id', creatorId)
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -589,8 +592,9 @@ export async function getConversationById(id) {
       brand_profiles(id, name, logo_url, slug)
     `)
     .eq('id', id)
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error('Conversation not found');
   return data;
 }
 
