@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast as hotToast } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Public pages
@@ -189,12 +189,49 @@ export default function App() {
         <AppRoutes />
         <LiveSupport />
         <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: { fontFamily: 'Inter, sans-serif', fontSize: '14px', borderRadius: '12px' },
-            success: { iconTheme: { primary: '#10B981', secondary: '#fff' } },
-            error:   { iconTheme: { primary: '#EF4444', secondary: '#fff' } },
+          position="top-center"
+          gutter={10}
+          toastOptions={{ duration: 4000 }}
+          containerStyle={{ top: 20 }}
+          children={(t) => {
+            const isError   = t.type === 'error';
+            const isSuccess = t.type === 'success';
+            return (
+              <div
+                style={{
+                  opacity:    t.visible ? 1 : 0,
+                  transform:  t.visible ? 'translateY(0) scale(1)' : 'translateY(-8px) scale(0.97)',
+                  transition: 'opacity 200ms ease, transform 200ms ease',
+                  display:    'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '11px 16px',
+                  borderRadius: '14px',
+                  background: isError ? '#1a0a0a' : isSuccess ? '#071a10' : '#111118',
+                  border: `1px solid ${isError ? '#7f1d1d55' : isSuccess ? '#14532d55' : '#ffffff15'}`,
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '13.5px',
+                  fontWeight: 500,
+                  color: '#f9fafb',
+                  maxWidth: 380,
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                }}
+              >
+                {/* Icon dot */}
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                  background: isError ? '#ef4444' : isSuccess ? '#22c55e' : '#6366f1',
+                  boxShadow: `0 0 8px ${isError ? '#ef444488' : isSuccess ? '#22c55e88' : '#6366f188'}`,
+                }} />
+                <span style={{ lineHeight: 1.45 }}>{t.message}</span>
+                <button
+                  onClick={() => hotToast.dismiss(t.id)}
+                  style={{ marginLeft: 4, color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', borderRadius: 6, fontSize: 16, lineHeight: 1 }}
+                >×</button>
+              </div>
+            );
           }}
         />
       </AuthProvider>

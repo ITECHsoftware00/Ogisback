@@ -322,6 +322,11 @@ export async function getMessages(conversationId, limit = 50) {
   return data || [];
 }
 
+export async function deleteMessage(messageId) {
+  const { error } = await supabase.from('messages').delete().eq('id', messageId);
+  if (error) throw error;
+}
+
 export async function sendMessage(conversationId, senderId, senderRole, body) {
   const { data, error } = await supabase
     .from('messages')
@@ -448,19 +453,20 @@ export async function getCreatorAnalytics(creatorId) {
   return data;
 }
 
-export async function createContentPost({ creatorId, type, mediaUrl, mediaUrls = [], thumbnailUrl, caption, tags = [], platform }) {
+export async function createContentPost({ creatorId, type, mediaUrl, mediaUrls = [], thumbnailUrl, caption, tags = [], platform, location, status = 'published' }) {
   const { data, error } = await supabase
     .from('content_posts')
     .insert({
-      creator_id: creatorId,
+      creator_id:    creatorId,
       type,
-      media_url: mediaUrl,
-      media_urls: mediaUrls,
-      thumbnail_url: thumbnailUrl,
+      media_url:     mediaUrl     || null,
+      media_urls:    mediaUrls,
+      thumbnail_url: thumbnailUrl || null,
       caption,
       tags,
       platform,
-      status: 'published',
+      location:      location     || null,
+      status,
     })
     .select()
     .single();

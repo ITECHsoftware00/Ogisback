@@ -18,10 +18,10 @@ function getPublicUrl(bucket, path) {
  * Upload a file to a Supabase Storage bucket.
  * Returns the public URL.
  */
-async function uploadFile(bucket, path, file) {
+async function uploadFile(bucket, path, file, contentType) {
   const { error } = await supabase.storage
     .from(bucket)
-    .upload(path, file, { upsert: true, cacheControl: '3600' });
+    .upload(path, file, { upsert: true, cacheControl: '3600', contentType: contentType ?? file.type });
   if (error) throw error;
   return getPublicUrl(bucket, path);
 }
@@ -70,13 +70,50 @@ export async function uploadContent(userId, orderId, file) {
 }
 
 /**
+ * Compress an image File to JPEG at max 1920px, 85% quality.
+ * Videos and GIFs are returned as-is. Always resolves — never hangs.
+ */
+export async function compressImage(file, maxPx = 1920, quality = 0.85) {
+  if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
+  return new Promise((resolve) => {
+    // Fallback: if canvas/img operations stall for any reason, use original
+    const giveUp = setTimeout(() => resolve(file), 10_000);
+
+    const done = (result) => { clearTimeout(giveUp); resolve(result); };
+
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      try {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(blob => {
+          if (!blob) { done(file); return; }
+          done(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        }, 'image/jpeg', quality);
+      } catch {
+        done(file);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); done(file); };
+    img.src = url;
+  });
+}
+
+/**
  * Upload a feed content file (image or video) — no orderId needed.
  * Used by the NewPost page.
  */
 export async function uploadContentFile(userId, file) {
-  const ext = file.name.split('.').pop();
+  const compressed = await compressImage(file);
+  const ext = compressed.name.split('.').pop();
   const path = `${userId}/feed/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  return uploadFile(BUCKET_CONTENT, path, file);
+  return uploadFile(BUCKET_CONTENT, path, compressed, compressed.type);
 }
 
 /**

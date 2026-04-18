@@ -404,15 +404,6 @@ export default function BrandDiscover() {
             />
           </div>
 
-          {/* Map view toggle */}
-          <button
-            onClick={() => setMapView(v => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
-              mapView ? 'bg-brand text-white border-brand' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-brand/40 hover:text-brand bg-white dark:bg-[#111118]'
-            }`}
-          >
-            <MapPin size={12} /> {mapView ? 'List View' : 'Map View'}
-          </button>
 
           {/* Results count + sort — pushed to the right */}
           <div className="ml-auto flex items-center gap-3">

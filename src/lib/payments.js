@@ -27,17 +27,20 @@ export const STRIPE_PRICES = {
 export async function startSubscriptionCheckout({ userId, userEmail, role, planId, billingCycle }) {
   if (planId === 'free') throw new Error('Cannot checkout for free plan');
 
-  const priceId = STRIPE_PRICES[role]?.[planId]?.[billingCycle];
+  // Try DB price first, fall back to hardcoded map
+  let priceId = await getPriceId(role, planId, billingCycle);
+  if (!priceId) priceId = STRIPE_PRICES[role]?.[planId]?.[billingCycle];
   if (!priceId) throw new Error(`Unknown plan: ${role} ${planId} ${billingCycle}`);
 
   const { data, error } = await supabase.functions.invoke('create-checkout-session', {
     body: { priceId, userId, userEmail, planId, billingCycle, role },
   });
 
-  if (error) throw new Error(error.message ?? 'Checkout session creation failed');
+  // Surface the real Stripe/server error from the response body
+  const msg = data?.error || error?.message || 'Checkout session creation failed';
+  if (error || data?.error) throw new Error(msg);
   if (!data?.url) throw new Error('No checkout URL returned');
 
-  // Redirect to Stripe Checkout
   window.location.href = data.url;
 }
 
@@ -48,7 +51,8 @@ export async function openCustomerPortal(userId) {
   const { data, error } = await supabase.functions.invoke('create-portal-session', {
     body: { userId },
   });
-  if (error) throw new Error(error.message);
+  const msg = data?.error || error?.message || 'Failed to open portal';
+  if (error || data?.error) throw new Error(msg);
   if (data?.url) window.location.href = data.url;
 }
 
@@ -241,7 +245,8 @@ export async function startWalletTopUp({ userId, userEmail, amount }) {
     body: { userId, userEmail, amount: parseFloat(amount) },
   });
 
-  if (error) throw new Error(error.message ?? 'Failed to create top-up session');
+  const msg = data?.error || error?.message || 'Failed to create top-up session';
+  if (error || data?.error) throw new Error(msg);
   if (!data?.url) throw new Error('No checkout URL returned');
 
   window.location.href = data.url;

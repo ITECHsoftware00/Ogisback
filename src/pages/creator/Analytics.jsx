@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Eye, Heart, MessageCircle, Users, BarChart3, MapPin } from 'lucide-react';
@@ -238,39 +239,81 @@ export default function CreatorAnalytics() {
 
       {/* ── Top performing posts ── */}
       <div className="card p-6">
-        <h2 className="section-title">Top Performing Posts</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="section-title mb-0">Top Performing Posts</h2>
+          <Link to="/creator/feed" className="text-xs text-creator font-medium hover:underline">View all</Link>
+        </div>
         {myPosts.length > 0 ? (
-          <div className="space-y-3">
-            {myPosts
-              .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+          <div className="space-y-2">
+            {[...myPosts]
+              .sort((a, b) => (b.likes || 0) + (b.views || 0) - (a.likes || 0) - (a.views || 0))
               .slice(0, 5)
-              .map((post, i) => (
-                <div key={post.id} className="flex items-center gap-3">
-                  <span className="text-2xl font-heading font-extrabold text-gray-200 dark:text-gray-700 w-8">#{i + 1}</span>
-                  <img
-                    src={post.thumbnail_url || post.media_url || `https://picsum.photos/48?u=${post.id}`}
-                    alt=""
-                    className="w-12 h-12 rounded-xl object-cover"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 line-clamp-1">{post.caption || 'No caption'}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      ❤ {formatNumber(post.likes || 0)} · 💬 {formatNumber(post.comments || 0)} · 👁 {formatNumber(post.views || 0)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {post.platform && (
-                      <span className="text-[10px] text-gray-400">{post.platform}</span>
-                    )}
-                    <span className={`badge ${post.type === 'reel' ? 'badge-creator' : post.type === 'video' ? 'badge-primary' : 'badge-gray'} text-[10px]`}>
-                      {post.type}
+              .map((post, i) => {
+                const hasSrc = post.thumbnail_url || post.media_url;
+                const typeColor = post.type === 'reel' ? 'bg-creator/10 text-creator' : post.type === 'video' ? 'bg-primary/10 text-primary' : 'bg-gray-100 dark:bg-white/[0.07] text-gray-500 dark:text-gray-400';
+                return (
+                  <div key={post.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors group">
+                    {/* Rank */}
+                    <span className="text-sm font-heading font-extrabold text-gray-200 dark:text-gray-700 w-6 text-center flex-shrink-0">
+                      {i + 1}
+                    </span>
+
+                    {/* Thumbnail */}
+                    <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-primary/20 via-creator/15 to-brand/20">
+                      {hasSrc ? (
+                        <img
+                          src={hasSrc}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={e => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="text-lg font-bold text-white/40 select-none">
+                            {(post.caption || 'P').charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Caption + stats */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 line-clamp-1 mb-0.5">
+                        {post.caption || 'No caption'}
+                      </p>
+                      <div className="flex items-center gap-2.5 text-[11px] text-gray-400">
+                        <span className="flex items-center gap-0.5">
+                          <Heart size={10} className="text-pink-400" />
+                          {formatNumber(post.likes || 0)}
+                        </span>
+                        <span className="flex items-center gap-0.5">
+                          <MessageCircle size={10} />
+                          {formatNumber(post.comments || 0)}
+                        </span>
+                        <span className="flex items-center gap-0.5">
+                          <Eye size={10} />
+                          {formatNumber(post.views || 0)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Type badge */}
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${typeColor}`}>
+                      {post.type || 'post'}
                     </span>
                   </div>
-                </div>
-              ))}
+                );
+              })}
           </div>
         ) : (
-          <p className="text-sm text-gray-400 text-center py-8">No posts yet. Add your content to see performance data.</p>
+          <div className="text-center py-10">
+            <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-white/[0.05] flex items-center justify-center mx-auto mb-3">
+              <BarChart3 size={20} className="text-gray-400" />
+            </div>
+            <p className="text-sm font-medium text-gray-500">No posts yet</p>
+            <p className="text-xs text-gray-400 mt-0.5">Create content to see performance data here.</p>
+            <Link to="/creator/new-post" className="btn btn-creator btn-sm mt-4">Create Post</Link>
+          </div>
         )}
       </div>
     </DashboardLayout>

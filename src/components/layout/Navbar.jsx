@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bell, Moon, Sun, Menu, X, ChevronDown,
+  Bell, BellRing, Moon, Sun, Menu, X, ChevronDown,
   User, LogOut, Settings, Repeat2, Wallet
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -117,16 +117,29 @@ export default function Navbar() {
               {/* Notifications */}
               <Link
                 to="/notifications"
-                className="relative p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all"
+                className="relative p-2 rounded-xl transition-all group"
               >
-                <Bell
-                  size={18}
-                  className={bellShake ? 'animate-[wiggle_0.4s_ease-in-out]' : ''}
-                />
+                {/* Glow ring when there are notifications */}
                 {totalUnread > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center">
+                  <span className="absolute inset-0 rounded-xl bg-amber-400/10 dark:bg-amber-400/15 ring-1 ring-amber-400/30 animate-pulse pointer-events-none" />
+                )}
+                <motion.div
+                  animate={bellShake ? { rotate: [0, -18, 16, -12, 10, -6, 4, 0] } : { rotate: 0 }}
+                  transition={{ duration: 0.55, ease: 'easeInOut' }}
+                >
+                  {totalUnread > 0
+                    ? <BellRing size={18} className="text-amber-500 dark:text-amber-400" />
+                    : <Bell size={18} className="text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors" />
+                  }
+                </motion.div>
+                {totalUnread > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-amber-500 rounded-full text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-sm"
+                  >
                     {totalUnread > 9 ? '9+' : totalUnread}
-                  </span>
+                  </motion.span>
                 )}
               </Link>
 
