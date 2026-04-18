@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Star, MapPin, CheckCircle, MessageCircle, Zap,
   Clock, Users, TrendingUp, Heart, Eye, Grid3x3,
-  Camera, PlayCircle, Video, BarChart3,
+  Camera, PlayCircle, Video, BarChart3, Quote,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -20,12 +20,14 @@ import { createEscrow, getFeeRate } from '../../lib/payments';
 import { normalizeCreator, formatNumber, formatCurrency } from '../../lib/normalize';
 import { timeAgo } from '../../lib/normalize';
 
-function StarRow({ rating }) {
+/* ─── sub-components ─────────────────────────────────────── */
+
+function StarRow({ rating, size = 13 }) {
   return (
     <div className="flex gap-0.5">
       {[1,2,3,4,5].map(i => (
-        <Star key={i} size={12}
-          className={i <= Math.round(rating) ? 'text-amber-400 fill-amber-400' : 'text-gray-300'} />
+        <Star key={i} size={size}
+          className={i <= Math.round(rating) ? 'text-amber-400 fill-amber-400' : 'text-gray-200 dark:text-gray-700 fill-gray-200 dark:fill-gray-700'} />
       ))}
     </div>
   );
@@ -38,7 +40,7 @@ function PostCard({ post }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.97 }}
+      initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       className="group relative rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 aspect-square cursor-pointer"
     >
@@ -46,45 +48,45 @@ function PostCard({ post }) {
         isVideo ? (
           <video src={thumb} className="w-full h-full object-cover" muted preload="metadata" />
         ) : (
-          <img src={thumb} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          <img src={thumb} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             onError={() => setImgError(true)} />
         )
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800">
-          <Grid3x3 size={28} className="text-gray-400" />
+          <Grid3x3 size={26} className="text-gray-400" />
         </div>
       )}
 
-      {/* Type badge */}
       {isVideo && (
-        <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+        <div className="absolute top-2.5 right-2.5 bg-black/70 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-semibold tracking-wide">
           VIDEO
         </div>
       )}
 
-      {/* Hover overlay */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100">
-        <span className="flex items-center gap-1 text-white text-sm font-semibold">
-          <Heart size={14} className="fill-white" /> {formatNumber(post.likes || 0)}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-between p-3">
+        <span className="flex items-center gap-1 text-white text-xs font-semibold">
+          <Heart size={12} className="fill-white" /> {formatNumber(post.likes || 0)}
         </span>
-        <span className="flex items-center gap-1 text-white text-sm font-semibold">
-          <Eye size={14} /> {formatNumber(post.views || 0)}
+        <span className="flex items-center gap-1 text-white text-xs font-semibold">
+          <Eye size={12} /> {formatNumber(post.views || 0)}
         </span>
       </div>
     </motion.div>
   );
 }
 
+/* ─── main component ──────────────────────────────────────── */
+
 export default function BrandCreatorView() {
   const { username } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [creator,  setCreator]  = useState(null);
-  const [posts,    setPosts]    = useState([]);
-  const [reviews,  setReviews]  = useState([]);
-  const [loading,  setLoading]  = useState(true);
-  const [tab,      setTab]      = useState('content');
+  const [creator,   setCreator]   = useState(null);
+  const [posts,     setPosts]     = useState([]);
+  const [reviews,   setReviews]   = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [tab,       setTab]       = useState('content');
 
   const [hireModal, setHireModal] = useState(false);
   const [budget,    setBudget]    = useState('');
@@ -102,7 +104,6 @@ export default function BrandCreatorView() {
           getCreatorPosts(data.id).catch(() => []),
           getCreatorReviews(data.id).catch(() => []),
         ]);
-        // Only show published posts to brands
         setPosts(p.filter(post => post.status === 'published'));
         setReviews(r);
       })
@@ -141,7 +142,8 @@ export default function BrandCreatorView() {
     <DashboardLayout>
       <div className="max-w-5xl mx-auto animate-pulse space-y-4">
         <div className="h-4 w-32 bg-gray-100 dark:bg-gray-800 rounded-full" />
-        <div className="h-44 rounded-3xl bg-gray-100 dark:bg-gray-800" />
+        <div className="h-56 rounded-3xl bg-gray-100 dark:bg-gray-800" />
+        <div className="h-24 rounded-2xl bg-gray-100 dark:bg-gray-800" />
         <div className="grid lg:grid-cols-3 gap-6 mt-4">
           <div className="space-y-4">
             <div className="h-48 rounded-2xl bg-gray-100 dark:bg-gray-800" />
@@ -164,56 +166,123 @@ export default function BrandCreatorView() {
 
   const totalFollowers = (creator.followers?.instagram || 0) + (creator.followers?.tiktok || 0) + (creator.followers?.youtube || 0);
   const platforms = [
-    { icon: Camera,      label: 'Instagram', value: creator.followers?.instagram, color: 'text-pink-500' },
-    { icon: Video,       label: 'TikTok',    value: creator.followers?.tiktok,    color: 'text-gray-700 dark:text-gray-300' },
-    { icon: PlayCircle,  label: 'YouTube',   value: creator.followers?.youtube,   color: 'text-red-500' },
+    { icon: Camera,     label: 'Instagram', value: creator.followers?.instagram, color: 'bg-pink-500',  text: 'text-pink-500'  },
+    { icon: Video,      label: 'TikTok',    value: creator.followers?.tiktok,    color: 'bg-gray-800 dark:bg-white',  text: 'text-gray-700 dark:text-gray-300' },
+    { icon: PlayCircle, label: 'YouTube',   value: creator.followers?.youtube,   color: 'bg-red-500',   text: 'text-red-500'   },
   ].filter(p => p.value);
+
+  const avgRating = reviews.length
+    ? (reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length).toFixed(1)
+    : creator.rating;
+
+  const heroStats = [
+    { label: 'Total Reach',  value: formatNumber(totalFollowers), icon: Users,       color: 'text-brand' },
+    { label: 'Engagement',   value: creator.engagement_rate ? `${creator.engagement_rate}%` : '—', icon: TrendingUp, color: 'text-green-500' },
+    { label: 'Rating',       value: avgRating ? `${avgRating} ★` : '—', icon: Star, color: 'text-amber-400' },
+    { label: 'Campaigns',    value: creator.completed_orders ?? '—', icon: Zap,       color: 'text-primary' },
+  ];
+
+  const hasRates = creator.rate_post || creator.rate_reel || creator.rate_story || creator.rate_video;
 
   return (
     <DashboardLayout>
       <SEO title={`${creator.name} — Creator Profile`} noindex />
 
       <div className="max-w-5xl mx-auto">
+        {/* Back link */}
         <Link to="/brand/discover"
           className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-brand transition-colors mb-5">
-          <ArrowLeft size={15} /> Back to Discover
+          <ArrowLeft size={15} /> Back to explore
         </Link>
 
-        {/* Cover */}
-        <div className="relative h-44 rounded-3xl overflow-hidden mb-4 bg-gradient-to-r from-brand/30 to-primary/30">
+        {/* ── Hero cover ── */}
+        <div className="relative h-52 sm:h-64 rounded-3xl overflow-hidden bg-gradient-to-br from-brand/40 via-primary/30 to-creator/40">
           {creator.cover_url && (
             <img src={creator.cover_url} alt="" className="w-full h-full object-cover" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+          {/* gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+
+          {/* Name + handle overlay at bottom-left of cover */}
+          <div className="absolute bottom-4 left-[104px] sm:left-[120px] right-4 flex items-end justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="font-heading font-extrabold text-xl sm:text-2xl text-white leading-tight drop-shadow">
+                  {creator.name}
+                </h1>
+                {creator.isVerified && (
+                  <span className="flex items-center gap-1 bg-white/20 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/30">
+                    <CheckCircle size={10} /> Verified
+                  </span>
+                )}
+              </div>
+              <p className="text-white/70 text-sm mt-0.5">@{creator.username}</p>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button onClick={handleMessage}
+                className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white text-sm font-semibold px-4 py-2 rounded-xl border border-white/30 transition-all">
+                <MessageCircle size={14} /> Message
+              </button>
+              <button onClick={() => setHireModal(true)}
+                className="flex items-center gap-1.5 bg-brand hover:bg-brand/90 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-lg transition-all">
+                <Zap size={14} /> Hire Creator
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Avatar + name row */}
-        <div className="flex items-end gap-4 -mt-10 mb-6 px-2">
+        {/* ── Avatar overlapping cover ── */}
+        <div className="flex items-end gap-4 -mt-12 mb-5 px-4">
           <div className="relative flex-shrink-0">
-            <img src={creator.avatar} alt=""
-              className="w-20 h-20 rounded-2xl border-4 border-white dark:border-[#0A0A0F] object-cover shadow-lg" />
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-4 border-white dark:border-[#0A0A0F] shadow-xl overflow-hidden bg-gray-100 dark:bg-gray-800">
+              {creator.avatar
+                ? <img src={creator.avatar} alt="" className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center font-heading font-bold text-2xl text-gray-400">
+                    {creator.name?.[0]?.toUpperCase()}
+                  </div>
+              }
+            </div>
             {creator.isVerified && (
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow">
-                <CheckCircle size={12} className="text-white" />
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-brand rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-[#0A0A0F]">
+                <CheckCircle size={13} className="text-white" />
               </div>
             )}
           </div>
-          <div className="flex-1 pb-1">
-            <h1 className="font-heading font-bold text-xl text-gray-900 dark:text-white leading-tight">
-              {creator.name}
-            </h1>
-            <p className="text-sm text-gray-500">@{creator.username}</p>
-          </div>
-          <div className="flex gap-2 pb-1">
-            <button onClick={handleMessage} className="btn btn-outline btn-sm gap-1.5">
-              <MessageCircle size={14} /> Message
-            </button>
-            <button onClick={() => setHireModal(true)} className="btn btn-brand btn-sm gap-1.5">
-              <Zap size={14} /> Hire
-            </button>
+
+          {/* Meta chips */}
+          <div className="flex flex-wrap items-center gap-2 pb-1">
+            {creator.location && (
+              <span className="flex items-center gap-1 text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-full">
+                <MapPin size={11} /> {creator.location}
+              </span>
+            )}
+            {creator.response_time && (
+              <span className="flex items-center gap-1 text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-full">
+                <Clock size={11} /> Replies in {creator.response_time}
+              </span>
+            )}
+            {(creator.niche || []).map(n => <NicheBadge key={n} niche={n} />)}
           </div>
         </div>
 
+        {/* ── Hero stats strip ── */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-7">
+          {heroStats.map(s => (
+            <div key={s.label} className="card p-4 flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-gray-800 flex-shrink-0 ${s.color}`}>
+                <s.icon size={16} />
+              </div>
+              <div className="min-w-0">
+                <p className="font-heading font-bold text-gray-900 dark:text-white text-base leading-tight">{s.value}</p>
+                <p className="text-[11px] text-gray-400 truncate">{s.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Body: sidebar + main ── */}
         <div className="grid lg:grid-cols-3 gap-6">
 
           {/* ── Left sidebar ── */}
@@ -221,7 +290,7 @@ export default function BrandCreatorView() {
 
             {/* About */}
             <div className="card p-5">
-              <h3 className="font-heading font-semibold text-gray-900 dark:text-white mb-3">About</h3>
+              <h3 className="font-heading font-semibold text-sm text-gray-900 dark:text-white mb-3 uppercase tracking-wide">About</h3>
               {creator.bio ? (
                 <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-line">
                   {creator.bio}
@@ -229,75 +298,47 @@ export default function BrandCreatorView() {
               ) : (
                 <p className="text-sm text-gray-400 italic">No bio added yet.</p>
               )}
-              {(creator.location || creator.response_time) && (
-                <div className="mt-3 space-y-1.5">
-                  {creator.location && (
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <MapPin size={12} /> {creator.location}
-                    </div>
-                  )}
-                  {creator.response_time && (
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <Clock size={12} /> Replies in {creator.response_time}
-                    </div>
-                  )}
-                </div>
-              )}
-              {(creator.niche || []).length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {(creator.niche || []).map(n => <NicheBadge key={n} niche={n} />)}
-                </div>
-              )}
             </div>
 
-            {/* Stats */}
-            <div className="card p-5">
-              <h3 className="font-heading font-semibold text-gray-900 dark:text-white mb-4">Stats</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 flex items-center gap-2"><Users size={13} />Total Reach</span>
-                  <span className="font-bold text-sm text-gray-900 dark:text-white">{formatNumber(totalFollowers)}</span>
+            {/* Platform reach */}
+            {platforms.length > 0 && (
+              <div className="card p-5">
+                <h3 className="font-heading font-semibold text-sm text-gray-900 dark:text-white mb-4 uppercase tracking-wide">Platform Reach</h3>
+                <div className="space-y-3.5">
+                  {platforms.map(p => {
+                    const pct = totalFollowers > 0 ? Math.round((p.value / totalFollowers) * 100) : 0;
+                    return (
+                      <div key={p.label}>
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className={`flex items-center gap-1.5 text-xs font-semibold ${p.text}`}>
+                            <p.icon size={12} /> {p.label}
+                          </span>
+                          <span className="text-xs font-bold text-gray-900 dark:text-white">{formatNumber(p.value)}</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.8, ease: 'easeOut' }}
+                            className={`h-full rounded-full ${p.color}`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                {platforms.map(p => (
-                  <div key={p.label} className="flex justify-between items-center">
-                    <span className={`text-sm flex items-center gap-2 ${p.color}`}>
-                      <p.icon size={13} /> {p.label}
-                    </span>
-                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{formatNumber(p.value)}</span>
-                  </div>
-                ))}
-                {creator.engagement_rate != null && (
-                  <div className="flex justify-between items-center pt-2 border-t border-gray-100 dark:border-gray-800">
-                    <span className="text-sm text-gray-500 flex items-center gap-2"><TrendingUp size={13} />Engagement</span>
-                    <span className="font-bold text-sm text-green-600">{creator.engagement_rate}%</span>
-                  </div>
-                )}
-                {creator.rating != null && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 flex items-center gap-2"><Star size={13} />Rating</span>
-                    <span className="font-bold text-sm text-amber-500">
-                      {creator.rating} <span className="text-gray-400 font-normal">({creator.review_count || 0})</span>
-                    </span>
-                  </div>
-                )}
-                {creator.completed_orders != null && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Orders done</span>
-                    <span className="font-bold text-sm text-gray-900 dark:text-white">{creator.completed_orders}</span>
-                  </div>
-                )}
               </div>
-            </div>
+            )}
 
             {/* Rates */}
-            {(creator.rate_post || creator.rate_reel || creator.rate_story || creator.rate_video) && (
+            {hasRates && (
               <div className="card p-5">
-                <h3 className="font-heading font-semibold text-gray-900 dark:text-white mb-3">Rates (USD)</h3>
+                <h3 className="font-heading font-semibold text-sm text-gray-900 dark:text-white mb-3 uppercase tracking-wide">Rates (USD)</h3>
                 <div className="space-y-0">
                   {[['Post', creator.rate_post], ['Reel', creator.rate_reel], ['Story', creator.rate_story], ['Video', creator.rate_video]]
                     .filter(([, v]) => v)
                     .map(([t, v]) => (
-                      <div key={t} className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-800 last:border-0 text-sm">
+                      <div key={t} className="flex justify-between py-2.5 border-b border-gray-50 dark:border-gray-800/80 last:border-0 text-sm">
                         <span className="text-gray-500">{t}</span>
                         <span className="font-bold text-gray-900 dark:text-white">${Number(v).toLocaleString()}</span>
                       </div>
@@ -306,36 +347,40 @@ export default function BrandCreatorView() {
               </div>
             )}
 
-            <button onClick={() => setHireModal(true)} className="btn btn-brand btn-lg w-full gap-2">
-              <Zap size={16} /> Hire {creator.name.split(' ')[0]}
+            {/* Hire CTA */}
+            <button onClick={() => setHireModal(true)}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-brand to-primary text-white font-semibold text-sm shadow-lg hover:shadow-brand/30 hover:opacity-95 transition-all flex items-center justify-center gap-2">
+              <Zap size={15} /> Hire {creator.name.split(' ')[0]}
             </button>
           </div>
 
-          {/* ── Main content area ── */}
+          {/* ── Main content ── */}
           <div className="lg:col-span-2">
 
-            {/* Tabs */}
-            <div className="flex gap-1 bg-gray-100 dark:bg-gray-800/60 rounded-2xl p-1 mb-5">
+            {/* Tab bar */}
+            <div className="flex gap-1 border-b border-gray-100 dark:border-gray-800 mb-5">
               {[
-                { id: 'content', label: `Content`, count: posts.length },
+                { id: 'content', label: 'Content', count: posts.length },
                 { id: 'reviews', label: 'Reviews', count: reviews.length },
               ].map(t => (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    tab === t.id
-                      ? 'bg-brand text-white shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  className={`relative flex items-center gap-2 px-5 py-3 text-sm font-semibold transition-all ${
+                    tab === t.id ? 'text-brand' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
                 >
                   {t.label}
                   {t.count > 0 && (
-                    <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
-                      tab === t.id ? 'bg-white/20 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                    <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${
+                      tab === t.id ? 'bg-brand/10 text-brand' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
                     }`}>
                       {t.count}
                     </span>
+                  )}
+                  {tab === t.id && (
+                    <motion.div layoutId="tab-indicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-brand" />
                   )}
                 </button>
               ))}
@@ -345,24 +390,22 @@ export default function BrandCreatorView() {
 
               {/* Content tab */}
               {tab === 'content' && (
-                <motion.div
-                  key="content"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                >
+                <motion.div key="content"
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                   {posts.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {posts.map(p => <PostCard key={p.id} post={p} />)}
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                      <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                    <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+                      <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                         <BarChart3 size={24} className="text-gray-400" />
                       </div>
-                      <p className="font-semibold text-gray-700 dark:text-gray-300 mb-1">No content posted yet.</p>
-                      <p className="text-sm text-gray-400">This creator hasn't published any content on OgisBack.</p>
+                      <div>
+                        <p className="font-semibold text-gray-700 dark:text-gray-300">No content posted yet</p>
+                        <p className="text-sm text-gray-400 mt-1">This creator hasn't published any content yet.</p>
+                      </div>
                     </div>
                   )}
                 </motion.div>
@@ -370,19 +413,18 @@ export default function BrandCreatorView() {
 
               {/* Reviews tab */}
               {tab === 'reviews' && (
-                <motion.div
-                  key="reviews"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
-                >
+                <motion.div key="reviews"
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
                   {reviews.length > 0 ? (
                     <div className="space-y-3">
                       {reviews.map(r => (
-                        <div key={r.id} className="card p-4">
-                          <div className="flex items-start gap-3">
-                            <div className="w-9 h-9 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+                        <div key={r.id} className="card p-5 relative overflow-hidden">
+                          {/* Background quote decoration */}
+                          <Quote size={48} className="absolute top-3 right-4 text-gray-100 dark:text-gray-800 rotate-180" />
+
+                          <div className="flex items-start gap-3 relative">
+                            <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 flex-shrink-0 shadow-sm">
                               {r.brand_profiles?.logo_url
                                 ? <img src={r.brand_profiles.logo_url} alt="" className="w-full h-full object-cover" />
                                 : <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-400">
@@ -391,12 +433,15 @@ export default function BrandCreatorView() {
                               }
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="flex items-center justify-between gap-2 mb-2">
                                 <p className="font-semibold text-sm text-gray-900 dark:text-white truncate">
                                   {r.brand_profiles?.name || 'Brand'}
                                 </p>
                                 <div className="flex items-center gap-2 flex-shrink-0">
-                                  <StarRow rating={r.rating} />
+                                  <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
+                                    <Star size={10} className="text-amber-400 fill-amber-400" />
+                                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{r.rating}</span>
+                                  </div>
                                   <span className="text-xs text-gray-400">{timeAgo(r.created_at)}</span>
                                 </div>
                               </div>
@@ -409,22 +454,25 @@ export default function BrandCreatorView() {
                       ))}
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                      <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                    <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+                      <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                         <Star size={24} className="text-gray-400" />
                       </div>
-                      <p className="font-semibold text-gray-700 dark:text-gray-300 mb-1">No reviews yet.</p>
-                      <p className="text-sm text-gray-400">Be the first to work with {creator.name.split(' ')[0]}!</p>
+                      <div>
+                        <p className="font-semibold text-gray-700 dark:text-gray-300">No reviews yet</p>
+                        <p className="text-sm text-gray-400 mt-1">Be the first to work with {creator.name.split(' ')[0]}!</p>
+                      </div>
                     </div>
                   )}
                 </motion.div>
               )}
+
             </AnimatePresence>
           </div>
         </div>
       </div>
 
-      {/* Hire modal */}
+      {/* ── Hire modal ── */}
       <Modal isOpen={hireModal} onClose={() => setHireModal(false)} title={`Hire ${creator.name}`}>
         <div className="space-y-4">
           <div className="p-3 bg-brand/5 border border-brand/20 rounded-xl text-xs text-gray-600 dark:text-gray-400">
