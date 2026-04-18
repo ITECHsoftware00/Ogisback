@@ -150,7 +150,23 @@ export default function NewPost() {
 
   /* ── file handling ── */
   const handleFiles = useCallback((incoming) => {
-    const valid = Array.from(incoming).filter(f =>
+    const MAX_IMAGE = 20 * 1024 * 1024;   // 20 MB — compressed before upload
+    const MAX_VIDEO = 200 * 1024 * 1024;  // 200 MB
+
+    const all = Array.from(incoming);
+    const oversized = all.filter(f => {
+      if (f.type.startsWith('video/')) return f.size > MAX_VIDEO;
+      return f.size > MAX_IMAGE;
+    });
+    if (oversized.length) {
+      oversized.forEach(f => {
+        const limit = f.type.startsWith('video/') ? '200 MB' : '20 MB';
+        toast.error(`"${f.name}" is too large (max ${limit})`, { duration: 5000 });
+      });
+      return;
+    }
+
+    const valid = all.filter(f =>
       f.type.startsWith('image/') || f.type.startsWith('video/')
     );
     if (!valid.length) { toast.error('Please select image or video files'); return; }
@@ -298,6 +314,8 @@ export default function NewPost() {
       if (msg.includes('foreign key') || msg.includes('creator_id_fkey')) {
         toast.error('Complete your creator profile first.', { duration: 5000 });
         navigate('/creator/settings?setup=true');
+      } else if (msg.toLowerCase().includes('exceeded') || msg.toLowerCase().includes('too large') || msg.toLowerCase().includes('size')) {
+        toast.error('File is too large. Max 20 MB for images, 200 MB for videos.', { duration: 6000 });
       } else {
         toast.error(msg || 'Upload failed — please try again');
       }
