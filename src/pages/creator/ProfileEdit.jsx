@@ -6,12 +6,12 @@ import {
   ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, Plus, X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchTikTokStats } from '../../lib/socialApi';
+import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchTikTokStats, fetchTikTokFollowers } from '../../lib/socialApi';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
-import { updateCreatorProfile, getCreatorProfile } from '../../lib/db';
+import { updateCreatorProfile, getCreatorProfile, getCreatorPosts } from '../../lib/db';
 import { uploadAvatar, uploadCover } from '../../lib/storage';
 
 const niches = [
@@ -218,12 +218,50 @@ export default function CreatorProfileEdit() {
     if (!handle) { toast.error('Enter your TikTok handle first'); return; }
     setSyncingTT(true);
     try {
-      const data = await fetchTikTokStats(handle);
-      update('tiktokFollowers', data.followers);
-      toast.success(`Synced: ${data.followers.toLocaleString()} followers`);
+      const data = await fetchTikTokFollowers({ handle });
+      const total = data?.total ?? 0;
+
+      // Aggregate regions from the follower sample into audience_locations
+      const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
+      const toCountry = (code) => { try { return regionNames.of(code) || code; } catch { return code; } };
+      const regionMap = {};
+      (data?.followers ?? []).forEach(f => {
+        if (f.region) regionMap[f.region] = (regionMap[f.region] || 0) + 1;
+      });
+      const sampleSize = (data?.followers ?? []).length;
+      const topLocations = Object.entries(regionMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([code, count]) => ({
+          country: toCountry(code),
+          percent: String(Math.round((count / sampleSize) * 100)),
+        }));
+
+      // Compute engagement from creator's Ogisback posts
+      let avgLikes = 0, avgComments = 0, engRate = 0;
+      try {
+        const posts = await getCreatorPosts(user.id);
+        if (posts.length > 0) {
+          avgLikes    = Math.round(posts.reduce((s, p) => s + (p.likes    || 0), 0) / posts.length);
+          avgComments = Math.round(posts.reduce((s, p) => s + (p.comments || 0), 0) / posts.length);
+          engRate     = total > 0
+            ? parseFloat(((avgLikes + avgComments) / total * 100).toFixed(2))
+            : 0;
+        }
+      } catch { /* non-fatal */ }
+
+      setForm(f => ({
+        ...f,
+        tiktokFollowers:    total,
+        tiktokAvgLikes:     avgLikes    || f.tiktokAvgLikes,
+        tiktokAvgComments:  avgComments || f.tiktokAvgComments,
+        tiktokEngagement:   engRate     || f.tiktokEngagement,
+        audienceLocations:  topLocations.length > 0 ? topLocations : f.audienceLocations,
+      }));
+
+      toast.success(`Synced: ${total.toLocaleString()} followers · engagement auto-calculated`);
     } catch (err) {
-      if (err.message === 'noKey') toast.error('TikTok API key not configured.');
-      else toast.error('Could not fetch TikTok stats. Check the handle.');
+      toast.error('Could not fetch TikTok stats. Check the handle.');
     }
     setSyncingTT(false);
   };

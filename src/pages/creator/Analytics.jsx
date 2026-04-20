@@ -9,6 +9,7 @@ import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
 import { getCreatorAnalytics, getCreatorPosts } from '../../lib/db';
 import { formatNumber } from '../../lib/normalize';
+import { fetchTikTokFollowers } from '../../lib/socialApi';
 
 const PLATFORM_COLORS = { Instagram: '#E1306C', TikTok: '#010101', YouTube: '#FF0000' };
 const LOCATION_COLORS = ['#EC4899', '#7C3AED', '#0D9488', '#F59E0B', '#3B82F6'];
@@ -37,6 +38,9 @@ export default function CreatorAnalytics() {
   const [analytics, setAnalytics] = useState(null);
   const [myPosts, setMyPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [ttFollowers, setTtFollowers] = useState([]);
+  const [ttTotal, setTtTotal] = useState(0);
+  const [ttLoading, setTtLoading] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -49,12 +53,32 @@ export default function CreatorAnalytics() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!analytics?.tiktok) return;
+    setTtLoading(true);
+    fetchTikTokFollowers({ handle: analytics.tiktok })
+      .then(r => {
+        setTtFollowers(r?.followers ?? []);
+        setTtTotal(r?.total ?? 0);
+      })
+      .catch(() => {})
+      .finally(() => setTtLoading(false));
+  }, [analytics?.tiktok]);
+
   const totalFollowers = analytics
     ? (analytics.instagram_followers || 0) + (analytics.tiktok_followers || 0) + (analytics.youtube_followers || 0)
     : 0;
   const totalLikes = myPosts.reduce((s, p) => s + (p.likes || 0), 0);
   const totalComments = myPosts.reduce((s, p) => s + (p.comments || 0), 0);
   const totalViews = myPosts.reduce((s, p) => s + (p.views || 0), 0);
+
+  // Compute engagement from Ogisback post data when platform-specific values aren't stored
+  const postAvgLikes    = myPosts.length > 0 ? Math.round(totalLikes    / myPosts.length) : 0;
+  const postAvgComments = myPosts.length > 0 ? Math.round(totalComments / myPosts.length) : 0;
+  const computeEngRate  = (followers, avgL, avgC) =>
+    followers > 0 && (avgL + avgC) > 0
+      ? parseFloat(((avgL + avgC) / followers * 100).toFixed(2))
+      : 0;
 
   const platforms = analytics ? [
     {
@@ -72,9 +96,14 @@ export default function CreatorAnalytics() {
       icon: <TikTokIcon />,
       color: 'bg-gradient-to-br from-gray-900 to-gray-700',
       followers: analytics.tiktok_followers || 0,
-      engagement: analytics.tiktok_engagement || 0,
-      avgLikes: analytics.tiktok_avg_likes || 0,
-      avgComments: analytics.tiktok_avg_comments || 0,
+      avgLikes:    analytics.tiktok_avg_likes    || postAvgLikes,
+      avgComments: analytics.tiktok_avg_comments || postAvgComments,
+      engagement:  analytics.tiktok_engagement   ||
+        computeEngRate(
+          analytics.tiktok_followers || 0,
+          analytics.tiktok_avg_likes    || postAvgLikes,
+          analytics.tiktok_avg_comments || postAvgComments,
+        ),
       handle: analytics.tiktok,
     },
     {
@@ -94,6 +123,11 @@ export default function CreatorAnalytics() {
     .map(p => ({ platform: p.name, rate: p.engagement }));
 
   const locationData = analytics?.audience_locations || [];
+
+  const regionDisplay = new Intl.DisplayNames(['en'], { type: 'region' });
+  const toCountry = (code) => { try { return regionDisplay.of(code) || code; } catch { return code; } };
+  const ttRegionMap = ttFollowers.reduce((m, f) => { if (f.region) m[f.region] = (m[f.region] || 0) + 1; return m; }, {});
+  const ttTopRegions = Object.entries(ttRegionMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
 
   if (loading) {
     return (
@@ -162,6 +196,35 @@ export default function CreatorAnalytics() {
                 </p>
               </div>
             </div>
+
+            {/* Audience regions — TikTok uses live sample, IG/YT use stored locations */}
+            {(() => {
+              const rows = p.name === 'TikTok' && ttTopRegions.length > 0
+                ? ttTopRegions.slice(0, 3).map(([code, count]) => ({
+                    label: toCountry(code),
+                    pct: Math.round((count / ttFollowers.length) * 100),
+                  }))
+                : locationData.slice(0, 3).map(d => ({ label: d.country, pct: d.percent }));
+              if (!rows.length) return null;
+              return (
+                <div className="mt-4 pt-3 border-t border-white/20">
+                  <p className="text-white/60 text-[10px] uppercase tracking-wide mb-2">Audience</p>
+                  <div className="space-y-1.5">
+                    {rows.map(({ label, pct }) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <span className="text-white/80 text-xs flex-1 truncate">{label}</span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <div className="w-16 h-1 bg-white/20 rounded-full overflow-hidden">
+                            <div className="h-full bg-white/70 rounded-full" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-white/70 text-[10px] w-7 text-right">{pct}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </motion.div>
         ))}
       </div>
@@ -316,6 +379,77 @@ export default function CreatorAnalytics() {
           </div>
         )}
       </div>
+      {/* ── TikTok Live Audience ── */}
+      {analytics?.tiktok && (
+        <div className="card p-6 mt-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="section-title mb-0 flex items-center gap-2">
+              <TikTokIcon /> TikTok Audience
+            </h2>
+            {ttTotal > 0 && (
+              <span className="text-xs text-gray-400">{formatNumber(ttTotal)} total followers</span>
+            )}
+          </div>
+
+          {ttLoading ? (
+            <div className="flex items-center justify-center h-24">
+              <div className="w-6 h-6 border-2 border-gray-200 dark:border-gray-700 border-t-gray-500 rounded-full animate-spin" />
+            </div>
+          ) : ttFollowers.length > 0 ? (
+            <div className="space-y-6">
+              {/* Region breakdown */}
+              {ttTopRegions.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">Top regions (from latest sample)</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {ttTopRegions.map(([code, count]) => (
+                      <div key={code} className="flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.05]">
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{toCountry(code)}</span>
+                        <span className="text-xs font-bold text-creator ml-2 flex-shrink-0">
+                          {Math.round((count / ttFollowers.length) * 100)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Follower avatars */}
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">Recent followers</p>
+                <div className="flex flex-wrap gap-2">
+                  {ttFollowers.slice(0, 20).map(f => (
+                    <motion.div
+                      key={f.uid}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full border border-gray-100 dark:border-gray-800 bg-white dark:bg-white/[0.03] hover:border-creator/40 transition-colors"
+                    >
+                      <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-700">
+                        {f.avatar ? (
+                          <img src={f.avatar} alt="" className="w-full h-full object-cover"
+                            onError={e => { e.currentTarget.style.display = 'none'; }} />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-[9px] font-bold text-gray-400">
+                            {(f.nickname || f.handle || '?')[0].toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-medium text-gray-600 dark:text-gray-400 max-w-[72px] truncate">
+                        @{f.handle || f.nickname}
+                      </span>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400 text-sm">
+              <p>No follower data returned. Check your TikTok handle in Profile Edit.</p>
+            </div>
+          )}
+        </div>
+      )}
     </DashboardLayout>
   );
 }

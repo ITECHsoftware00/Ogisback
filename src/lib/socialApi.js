@@ -178,15 +178,45 @@ export async function fetchInstagramStats(username) {
 
 export async function fetchTikTokStats(username) {
   if (!username) return null;
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/tiktok-stats`, {
+  // Reuses the tiktok-followers function — `total` is the real follower count
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/tiktok-followers`, {
     method: 'POST',
     headers: {
       'Content-Type':  'application/json',
       'Authorization': `Bearer ${SUPABASE_ANON}`,
     },
-    body: JSON.stringify({ username }),
+    body: JSON.stringify({ handle: username }),
   });
   const json = await res.json();
   if (!res.ok || json?.error) throw new Error(json?.error || 'failed');
-  return json;
+  return {
+    username: String(username).replace(/^@/, ''),
+    followers: json.total ?? 0,
+    following: 0,
+    likes:     0,
+    videos:    0,
+  };
+}
+
+/**
+ * Fetch a paginated list of TikTok followers for a user.
+ * Proxied through the `tiktok-followers` Supabase Edge Function so the
+ * SCRAPECREATORS_API_KEY secret never reaches the browser.
+ *
+ * @param {{ handle?: string, userId?: string, minTime?: number, trim?: boolean }} opts
+ * @returns {Promise<{ followers: object[], has_more: boolean, min_time: number|null, max_time: number|null, total: number }>}
+ */
+export async function fetchTikTokFollowers({ handle, userId, minTime, trim = true } = {}) {
+  if (!handle && !userId) return null;
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/tiktok-followers`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON}`,
+    },
+    body: JSON.stringify({ handle, user_id: userId, min_time: minTime, trim }),
+  });
+  const json = await res.json();
+  if (!res.ok || json?.error) throw new Error(json?.error || 'Failed to fetch TikTok followers');
+  return json; // { followers, has_more, min_time, max_time, total }
 }

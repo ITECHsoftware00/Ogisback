@@ -16,6 +16,7 @@ import {
   getCreatorByUsername, getCreatorPosts, createOrder,
   getOrCreateConversation, getCreatorReviews,
 } from '../../lib/db';
+import { fetchTikTokFollowers } from '../../lib/socialApi';
 import { createEscrow, getFeeRate } from '../../lib/payments';
 import { normalizeCreator, formatNumber, formatCurrency } from '../../lib/normalize';
 import { timeAgo } from '../../lib/normalize';
@@ -92,6 +93,32 @@ export default function BrandCreatorView() {
   const [budget,    setBudget]    = useState('');
   const [brief,     setBrief]     = useState('');
   const [hiring,    setHiring]    = useState(false);
+
+  const [ttFollowers,  setTtFollowers]  = useState([]);
+  const [ttTotal,      setTtTotal]      = useState(0);
+  const [ttHasMore,    setTtHasMore]    = useState(false);
+  const [ttMinTime,    setTtMinTime]    = useState(null);
+  const [ttLoading,    setTtLoading]    = useState(false);
+  const [ttLoaded,     setTtLoaded]     = useState(false);
+
+  const regionDisplay = new Intl.DisplayNames(['en'], { type: 'region' });
+  const toCountry = (code) => { try { return regionDisplay.of(code) || code; } catch { return code; } };
+
+  const loadTTFollowers = (handle, minTime = null) => {
+    if (!handle || ttLoading) return;
+    setTtLoading(true);
+    fetchTikTokFollowers({ handle, minTime })
+      .then(r => {
+        const newFollowers = r?.followers ?? [];
+        setTtFollowers(prev => minTime ? [...prev, ...newFollowers] : newFollowers);
+        setTtTotal(r?.total ?? 0);
+        setTtHasMore(r?.has_more ?? false);
+        setTtMinTime(r?.min_time ?? null);
+        setTtLoaded(true);
+      })
+      .catch(() => { setTtLoaded(true); })
+      .finally(() => setTtLoading(false));
+  };
 
   useEffect(() => {
     if (!username) return;
@@ -360,12 +387,18 @@ export default function BrandCreatorView() {
             {/* Tab bar */}
             <div className="flex gap-1 border-b border-gray-100 dark:border-gray-800 mb-5">
               {[
-                { id: 'content', label: 'Content', count: posts.length },
-                { id: 'reviews', label: 'Reviews', count: reviews.length },
+                { id: 'content',   label: 'Content',   count: posts.length },
+                { id: 'reviews',   label: 'Reviews',   count: reviews.length },
+                ...(creator?.tiktok ? [{ id: 'followers', label: 'TikTok Followers', count: null }] : []),
               ].map(t => (
                 <button
                   key={t.id}
-                  onClick={() => setTab(t.id)}
+                  onClick={() => {
+                    setTab(t.id);
+                    if (t.id === 'followers' && !ttLoaded && creator?.tiktok) {
+                      loadTTFollowers(creator.tiktok);
+                    }
+                  }}
                   className={`relative flex items-center gap-2 px-5 py-3 text-sm font-semibold transition-all ${
                     tab === t.id ? 'text-brand' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                   }`}
@@ -375,7 +408,7 @@ export default function BrandCreatorView() {
                     <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${
                       tab === t.id ? 'bg-brand/10 text-brand' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
                     }`}>
-                      {t.count}
+                      {t.id === 'followers' ? formatNumber(t.count) : t.count}
                     </span>
                   )}
                   {tab === t.id && (
@@ -464,6 +497,74 @@ export default function BrandCreatorView() {
                       </div>
                     </div>
                   )}
+                </motion.div>
+              )}
+
+              {/* Followers tab */}
+              {tab === 'followers' && (
+                <motion.div key="followers"
+                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                  {ttLoading && ttFollowers.length === 0 ? (
+                    <div className="flex items-center justify-center py-20">
+                      <div className="w-7 h-7 border-2 border-gray-200 dark:border-gray-700 border-t-brand rounded-full animate-spin" />
+                    </div>
+                  ) : ttFollowers.length > 0 ? (
+                    <div className="space-y-4">
+                      <p className="text-xs text-gray-400">
+                        Showing {ttFollowers.length.toLocaleString()} of {formatNumber(ttTotal)} followers
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {ttFollowers.map(f => (
+                          <div key={f.uid}
+                            className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-white/[0.02] hover:border-brand/30 transition-colors">
+                            {/* Avatar */}
+                            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-gray-800">
+                              {f.avatar ? (
+                                <img src={f.avatar} alt="" className="w-full h-full object-cover"
+                                  onError={e => { e.currentTarget.style.display = 'none'; }} />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-400">
+                                  {(f.nickname || f.handle || '?')[0].toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white truncate leading-tight">
+                                {f.nickname || f.handle}
+                              </p>
+                              <p className="text-[11px] text-gray-400 truncate">@{f.handle}</p>
+                            </div>
+                            {/* Meta */}
+                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                              {f.region && (
+                                <span className="text-[10px] text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">
+                                  {toCountry(f.region)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {ttHasMore && (
+                        <button
+                          onClick={() => loadTTFollowers(creator.tiktok, ttMinTime)}
+                          disabled={ttLoading}
+                          className="w-full py-3 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:border-brand hover:text-brand transition-colors disabled:opacity-50"
+                        >
+                          {ttLoading ? 'Loading…' : 'Load more followers'}
+                        </button>
+                      )}
+                    </div>
+                  ) : ttLoaded ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+                      <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                        <Users size={24} className="text-gray-400" />
+                      </div>
+                      <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">No followers data available</p>
+                    </div>
+                  ) : null}
                 </motion.div>
               )}
 
