@@ -68,7 +68,7 @@ export async function updateCreatorProfile(id, updates) {
     .update(updates)
     .eq('id', id)
     .select()
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -112,7 +112,7 @@ export async function updateBrandProfile(id, updates) {
     .update(updates)
     .eq('id', id)
     .select()
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -162,7 +162,7 @@ export async function updateCampaign(id, updates) {
     .update(updates)
     .eq('id', id)
     .select()
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -217,7 +217,7 @@ export async function updateApplicationStatus(applicationId, status) {
     .update({ status })
     .eq('id', applicationId)
     .select()
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -248,7 +248,7 @@ export async function getOrderById(id) {
       brand_profiles(name, logo_url, slug)
     `)
     .eq('id', id)
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
@@ -271,7 +271,7 @@ export async function updateOrderStatus(id, status, deliveryNote = null) {
     .update(updates)
     .eq('id', id)
     .select()
-    .single();
+    .maybeSingle();
   if (error) throw error;
   return data;
 }
