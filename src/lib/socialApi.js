@@ -176,6 +176,28 @@ export async function fetchInstagramStats(username) {
   return json;
 }
 
+/**
+ * Fetch public Instagram profile + recent posts via ScrapeCreators API.
+ * Proxied through the `instagram-profile` Supabase Edge Function.
+ *
+ * @param {string} handle - Instagram handle (with or without @)
+ * @returns {Promise<{ profile: object, posts: object[] } | null>}
+ */
+export async function fetchInstagramProfile(handle) {
+  if (!handle) return null;
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/instagram-profile`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON}`,
+    },
+    body: JSON.stringify({ handle }),
+  });
+  const json = await res.json();
+  if (!res.ok || json?.error) throw new Error(json?.error || 'Failed to fetch Instagram profile');
+  return json; // { profile, posts }
+}
+
 export async function fetchTikTokStats(username) {
   if (!username) return null;
   // Reuses the tiktok-followers function — `total` is the real follower count

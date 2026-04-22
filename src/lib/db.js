@@ -448,6 +448,7 @@ export async function getCreatorAnalytics(creatorId) {
       tiktok_avg_likes, tiktok_avg_comments,
       youtube_avg_likes, youtube_avg_comments,
       audience_locations,
+      audience_age_gender,
       rating, review_count, completed_orders
     `)
     .eq('id', creatorId)

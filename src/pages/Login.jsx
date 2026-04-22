@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import SEO from '../components/SEO';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
@@ -22,14 +22,9 @@ const stats = [
 ];
 
 export default function Login() {
-  const { signInWithGoogle, signInWithEmail, resetPassword, resendConfirmation, loginAsCreator, loginAsBrand, isLoggedIn, activeRole } = useAuth();
+  const { signInWithGoogle, isLoggedIn, activeRole } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(null);
-  const [showEmail, setShowEmail] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showReset, setShowReset] = useState(false);
-  const [emailError, setEmailError] = useState(null); // 'unconfirmed' | null
 
   useEffect(() => {
     if (isLoggedIn) navigate(
@@ -45,55 +40,6 @@ export default function Login() {
     try { await signInWithGoogle(); }
     catch (err) { toast.error(err.message || 'Google sign-in failed.'); setLoading(null); }
   };
-
-  const handleEmail = async (e) => {
-    e.preventDefault();
-    if (!email || !password) return;
-    setLoading('email');
-    setEmailError(null);
-    try {
-      await signInWithEmail(email, password);
-      // success — onAuthStateChange fires and navigates
-    } catch (err) {
-      if (err.message?.toLowerCase().includes('invalid login credentials')) {
-        setEmailError('unconfirmed');
-      } else {
-        toast.error(err.message || 'Sign-in failed.');
-      }
-      setLoading(null);
-    }
-  };
-
-  const handleResend = async () => {
-    if (!email) { toast.error('Enter your email above first.'); return; }
-    setLoading('resend');
-    try {
-      await resendConfirmation(email);
-      toast.success('Confirmation email sent! Check your inbox.');
-      setEmailError(null);
-    } catch (err) {
-      toast.error(err.message || 'Failed to resend.');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleReset = async (e) => {
-    e.preventDefault();
-    if (!email) { toast.error('Enter your email first.'); return; }
-    setLoading('reset');
-    try {
-      await resetPassword(email);
-      toast.success('Password reset email sent!');
-      setShowReset(false);
-    } catch (err) {
-      toast.error(err.message || 'Failed to send reset email.');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const busy = !!loading;
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-[#09090F] flex flex-col items-center justify-center p-4">
@@ -189,11 +135,11 @@ export default function Login() {
             </p>
 
             {/* Auth buttons */}
-            <div className="space-y-3">
+            <div>
               <motion.button
                 whileTap={{ scale: 0.985 }}
                 onClick={handleGoogle}
-                disabled={busy}
+                disabled={loading === 'google'}
                 className="w-full flex items-center gap-3 h-11 px-4 rounded-xl bg-white dark:bg-white/[0.06] border border-gray-200 dark:border-white/[0.1] text-gray-800 dark:text-gray-200 text-sm font-medium shadow-sm hover:bg-gray-50 dark:hover:bg-white/[0.1] disabled:opacity-50 transition-all"
               >
                 {loading === 'google'
@@ -201,155 +147,6 @@ export default function Login() {
                   : <><GoogleIcon /><span>Continue with Google</span></>
                 }
               </motion.button>
-
-              {/* Email toggle button */}
-              <button
-                type="button"
-                onClick={() => { setShowEmail(v => !v); setShowReset(false); }}
-                disabled={busy}
-                className="w-full flex items-center gap-3 h-11 px-4 rounded-xl bg-white dark:bg-white/[0.06] border border-gray-200 dark:border-white/[0.1] text-gray-800 dark:text-gray-200 text-sm font-medium shadow-sm hover:bg-gray-50 dark:hover:bg-white/[0.1] disabled:opacity-50 transition-all"
-              >
-                <svg className="w-5 h-5 flex-shrink-0 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                <span>Continue with email</span>
-              </button>
-
-              {/* Expandable email form */}
-              <AnimatePresence>
-                {showEmail && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    {!showReset ? (
-                      <form onSubmit={handleEmail} className="space-y-2.5 pt-1">
-                        <input
-                          type="email"
-                          placeholder="Email address"
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          required
-                          className="w-full h-11 px-4 rounded-xl border border-gray-200 dark:border-white/[0.1] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                        />
-                        <input
-                          type="password"
-                          placeholder="Password"
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
-                          required
-                          className="w-full h-11 px-4 rounded-xl border border-gray-200 dark:border-white/[0.1] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                        />
-                        <div className="flex items-center justify-between">
-                          <button
-                            type="button"
-                            onClick={() => setShowReset(true)}
-                            className="text-xs text-violet-600 dark:text-violet-400 hover:underline"
-                          >
-                            Forgot password?
-                          </button>
-                        </div>
-                        <motion.button
-                          whileTap={{ scale: 0.985 }}
-                          type="submit"
-                          disabled={busy}
-                          className="w-full h-11 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
-                          style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #C026D3 100%)' }}
-                        >
-                          {loading === 'email'
-                            ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
-                            : 'Sign in'
-                          }
-                        </motion.button>
-
-                        {/* Unconfirmed email error */}
-                        <AnimatePresence>
-                          {emailError === 'unconfirmed' && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0 }}
-                              className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/20 p-3 space-y-2"
-                            >
-                              <p className="text-xs text-amber-700 dark:text-amber-400">
-                                Wrong password, or your email isn't confirmed yet.
-                              </p>
-                              <button
-                                type="button"
-                                onClick={handleResend}
-                                disabled={busy}
-                                className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline disabled:opacity-50"
-                              >
-                                {loading === 'resend'
-                                  ? 'Sending…'
-                                  : 'Resend confirmation email →'
-                                }
-                              </button>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </form>
-                    ) : (
-                      <form onSubmit={handleReset} className="space-y-2.5 pt-1">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Enter your email and we'll send a reset link.</p>
-                        <input
-                          type="email"
-                          placeholder="Email address"
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          required
-                          className="w-full h-11 px-4 rounded-xl border border-gray-200 dark:border-white/[0.1] bg-white dark:bg-white/[0.06] text-gray-900 dark:text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500/50 transition-all"
-                        />
-                        <div className="flex gap-2">
-                          <button type="button" onClick={() => setShowReset(false)} className="flex-1 h-11 rounded-xl border border-gray-200 dark:border-white/[0.1] text-sm text-gray-500 hover:bg-gray-50 dark:hover:bg-white/[0.05] transition-all">
-                            Back
-                          </button>
-                          <motion.button
-                            whileTap={{ scale: 0.985 }}
-                            type="submit"
-                            disabled={busy}
-                            className="flex-1 h-11 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
-                            style={{ background: 'linear-gradient(135deg, #7C3AED 0%, #C026D3 100%)' }}
-                          >
-                            {loading === 'reset' ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" /> : 'Send link'}
-                          </motion.button>
-                        </div>
-                      </form>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* OR divider */}
-              <div className="flex items-center gap-3 py-1">
-                <div className="h-px flex-1 bg-gray-100 dark:bg-white/[0.06]" />
-                <span className="text-[11px] text-gray-400 font-medium">OR</span>
-                <div className="h-px flex-1 bg-gray-100 dark:bg-white/[0.06]" />
-              </div>
-
-              {/* Demo accounts */}
-              <p className="text-[11px] text-gray-400 dark:text-gray-600 text-center">
-                Try without signing up
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => { loginAsCreator(); toast.success('Creator demo loaded'); }}
-                  disabled={busy}
-                  className="h-10 rounded-xl text-xs font-medium bg-gray-50 dark:bg-white/[0.04] hover:bg-gray-100 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/[0.08] text-gray-500 dark:text-gray-400 transition-all disabled:opacity-40"
-                >
-                  Creator Demo
-                </button>
-                <button
-                  onClick={() => { loginAsBrand(); toast.success('Brand demo loaded'); }}
-                  disabled={busy}
-                  className="h-10 rounded-xl text-xs font-medium bg-gray-50 dark:bg-white/[0.04] hover:bg-gray-100 dark:hover:bg-white/[0.08] border border-gray-200 dark:border-white/[0.08] text-gray-500 dark:text-gray-400 transition-all disabled:opacity-40"
-                >
-                  Brand Demo
-                </button>
-              </div>
             </div>
 
             <p className="text-center text-xs text-gray-400 dark:text-gray-600 mt-6">

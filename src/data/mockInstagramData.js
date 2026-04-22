@@ -46,14 +46,19 @@ export const mockInstagramData = {
       male:   36,
       other:  2,
     },
-    topCountries: [
-      { country: 'Nigeria',       percent: 34 },
-      { country: 'United States', percent: 22 },
-      { country: 'United Kingdom',percent: 12 },
-      { country: 'Ghana',         percent: 8  },
-      { country: 'Canada',        percent: 6  },
-      { country: 'South Africa',  percent: 5  },
-      { country: 'Other',         percent: 13 },
+    topCities: [
+      { city: 'Lagos, Nigeria',        percent: 28 },
+      { city: 'London, UK',            percent: 17 },
+      { city: 'New York, US',          percent: 14 },
+      { city: 'Dubai, UAE',            percent: 11 },
+      { city: 'Nairobi, Kenya',        percent:  9 },
+    ],
+    ageGender: [
+      { range: '13-17', female: 4,  male: 3  },
+      { range: '18-24', female: 22, male: 18 },
+      { range: '25-34', female: 19, male: 14 },
+      { range: '35-44', female: 10, male:  6 },
+      { range: '45-54', female:  3, male:  1 },
     ],
   },
 

@@ -22,16 +22,24 @@
  */
 
 /**
- * @typedef {Object} InstagramAudienceCountry
- * @property {string} country - Country name
+ * @typedef {Object} InstagramAudienceCity
+ * @property {string} city    - City name (e.g. "Lagos, Nigeria")
  * @property {number} percent - 0–100
  */
 
 /**
+ * @typedef {Object} InstagramAgeGenderBucket
+ * @property {string} range  - e.g. '18-24'
+ * @property {number} female - percent
+ * @property {number} male   - percent
+ */
+
+/**
  * @typedef {Object} InstagramAudienceDemographics
- * @property {InstagramAudienceAgeRange[]} ageRanges
- * @property {InstagramAudienceGender}     gender
- * @property {InstagramAudienceCountry[]}  topCountries
+ * @property {InstagramAudienceAgeRange[]}  ageRanges
+ * @property {InstagramAudienceGender}      gender
+ * @property {InstagramAudienceCity[]}      topCities
+ * @property {InstagramAgeGenderBucket[]}   ageGender
  */
 
 /**

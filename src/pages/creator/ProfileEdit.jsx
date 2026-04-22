@@ -3,10 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   User, MapPin, Save, CheckCircle, Camera, Info,
-  ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, Plus, X,
+  ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchTikTokStats, fetchTikTokFollowers } from '../../lib/socialApi';
+import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchInstagramProfile, fetchTikTokStats, fetchTikTokFollowers } from '../../lib/socialApi';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -158,7 +158,7 @@ export default function CreatorProfileEdit() {
     rateStory: '',
     rateVideo: '',
     niche: [],
-    audienceLocations: [{ country: '', percent: '' }],
+    audienceLocations: [],
     age: '',
     gender: '',
     lat: null,
@@ -203,12 +203,23 @@ export default function CreatorProfileEdit() {
     if (!handle) { toast.error('Enter your Instagram handle first'); return; }
     setSyncingIG(true);
     try {
-      const data = await fetchInstagramStats(handle);
-      update('instagramFollowers', data.followers);
-      toast.success(`Synced: ${data.followers.toLocaleString()} followers`);
+      const data = await fetchInstagramProfile(handle);
+      if (!data?.profile) throw new Error('Profile not found');
+      const { followerCount, engagementRate, avgLikes, avgComments } = data.profile;
+      setForm(f => ({
+        ...f,
+        instagramFollowers:    followerCount,
+        instagramEngagement:   engagementRate  || f.instagramEngagement,
+        instagramAvgLikes:     avgLikes        || f.instagramAvgLikes,
+        instagramAvgComments:  avgComments     || f.instagramAvgComments,
+      }));
+      toast.success(`Synced: ${followerCount.toLocaleString()} followers · ${engagementRate}% engagement`);
     } catch (err) {
-      if (err.message === 'noKey') toast.error('Instagram API key not configured.');
-      else toast.error(`Instagram error: ${err.message}`);
+      const isCredit = err.message?.includes('402') || err.message?.toLowerCase().includes('credit') || err.message?.toLowerCase().includes('payment');
+      toast.error(isCredit
+        ? 'Instagram API credits exhausted. Your saved data is still shown.'
+        : `Instagram sync failed: ${err.message}`
+      );
     }
     setSyncingIG(false);
   };
@@ -233,7 +244,7 @@ export default function CreatorProfileEdit() {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
         .map(([code, count]) => ({
-          country: toCountry(code),
+          city: toCountry(code),
           percent: String(Math.round((count / sampleSize) * 100)),
         }));
 
@@ -300,8 +311,8 @@ export default function CreatorProfileEdit() {
           rateVideo: profile.rate_video || '',
           niche: profile.niche || [],
           audienceLocations: profile.audience_locations?.length
-            ? profile.audience_locations.map(l => ({ country: l.country, percent: String(l.percent) }))
-            : [{ country: '', percent: '' }],
+            ? profile.audience_locations.map(l => ({ city: l.city || l.country, percent: String(l.percent) }))
+            : [],
           age: profile.age ?? '',
           gender: profile.gender ?? '',
           lat: profile.latitude ?? null,
@@ -313,19 +324,6 @@ export default function CreatorProfileEdit() {
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  const updateLocation = (i, field, val) => {
-    const updated = [...form.audienceLocations];
-    updated[i] = { ...updated[i], [field]: val };
-    setForm(f => ({ ...f, audienceLocations: updated }));
-  };
-  const addLocation = () => {
-    if (form.audienceLocations.length >= 5) return;
-    setForm(f => ({ ...f, audienceLocations: [...f.audienceLocations, { country: '', percent: '' }] }));
-  };
-  const removeLocation = (i) => {
-    setForm(f => ({ ...f, audienceLocations: f.audienceLocations.filter((_, idx) => idx !== i) }));
-  };
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -381,7 +379,7 @@ export default function CreatorProfileEdit() {
     if (form.niche.length === 0) { toast.error('Select at least one content niche'); return; }
     setSaving(true);
     try {
-      const validLocations = form.audienceLocations.filter(l => l.country && l.percent);
+      const validLocations = form.audienceLocations.filter(l => (l.city || l.country) && l.percent);
       await updateCreatorProfile(user.id, {
         name: form.name.trim(),
         bio: form.bio.trim(),
@@ -407,7 +405,7 @@ export default function CreatorProfileEdit() {
         rate_reel: parseFloat(form.rateReel) || null,
         rate_story: parseFloat(form.rateStory) || null,
         rate_video: parseFloat(form.rateVideo) || null,
-        audience_locations: validLocations.map(l => ({ country: l.country, percent: parseFloat(l.percent) })),
+        audience_locations: validLocations.map(l => ({ city: l.city || l.country, percent: parseFloat(l.percent) })),
         age: form.age ? parseInt(form.age) : null,
         gender: form.gender || null,
         latitude: form.lat,
@@ -872,51 +870,6 @@ export default function CreatorProfileEdit() {
               <p className="text-xs text-gray-400 text-center py-2">Add a platform handle above to unlock analytics fields.</p>
             )}
           </div>
-        </div>
-
-        {/* ── Audience Location ── */}
-        <div className="card p-6 mb-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-base font-heading font-semibold text-gray-900 dark:text-white">Audience Location</h2>
-              <p className="text-xs text-gray-400 mt-1">Where your audience is from — brands use this for geo-targeted campaigns.</p>
-            </div>
-            {form.audienceLocations.length < 5 && (
-              <button onClick={addLocation} className="btn btn-outline btn-sm text-xs flex items-center gap-1">
-                <Plus size={13} />Add
-              </button>
-            )}
-          </div>
-          <div className="space-y-3">
-            {form.audienceLocations.map((loc, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <input
-                  value={loc.country}
-                  onChange={e => updateLocation(i, 'country', e.target.value)}
-                  placeholder="Country (e.g. United States)"
-                  className="input text-sm flex-1"
-                />
-                <div className="relative w-24 flex-shrink-0">
-                  <input
-                    type="number"
-                    value={loc.percent}
-                    onChange={e => updateLocation(i, 'percent', e.target.value)}
-                    placeholder="%"
-                    min="0"
-                    max="100"
-                    className="input text-sm pr-6"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
-                </div>
-                {form.audienceLocations.length > 1 && (
-                  <button onClick={() => removeLocation(i)} className="text-gray-400 hover:text-red-400 transition-colors">
-                    <X size={16} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          <FieldHint>Percentages don't need to add up to 100 — just enter your top markets.</FieldHint>
         </div>
 
         {/* ── Rates ── */}

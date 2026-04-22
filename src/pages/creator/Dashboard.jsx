@@ -413,21 +413,41 @@ export default function CreatorDashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {recentContent.map(post => (
-                <div key={post.id} className="flex items-center gap-3">
-                  <img
-                    src={post.thumbnail_url || post.media_url || `https://picsum.photos/48?random=${post.id}`}
-                    alt=""
-                    className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 line-clamp-2">{post.caption || 'No caption'}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      ❤ {formatNumber(post.likes || 0)} · 💬 {formatNumber(post.comments || 0)}
-                    </p>
+              {recentContent.map(post => {
+                const thumb = post.thumbnail_url || post.media_url;
+                const mediaType = post.media_type || post.type || '';
+                const isVideo = mediaType === 'video' || mediaType === 'reel';
+                return (
+                  <div key={post.id} className="flex items-center gap-3">
+                    {thumb ? (
+                      <img
+                        src={thumb}
+                        alt=""
+                        className="w-12 h-12 rounded-xl object-cover flex-shrink-0 bg-gray-100 dark:bg-gray-800"
+                        onError={e => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className="w-12 h-12 rounded-xl flex-shrink-0 bg-gray-100 dark:bg-gray-800 items-center justify-center text-gray-400"
+                      style={{ display: thumb ? 'none' : 'flex' }}
+                    >
+                      {isVideo ? <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 line-clamp-2">
+                        {post.caption || post.title || <span className="italic text-gray-400">No caption</span>}
+                      </p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        ❤ {formatNumber(post.likes || post.like_count || 0)} · 💬 {formatNumber(post.comments || post.comment_count || 0)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
           <Link to="/creator/post/new" className="btn btn-creator btn-sm w-full mt-4">

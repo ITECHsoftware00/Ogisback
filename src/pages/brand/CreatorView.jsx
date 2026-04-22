@@ -357,6 +357,35 @@ export default function BrandCreatorView() {
               </div>
             )}
 
+            {/* Audience Cities */}
+            {creator.audience_locations?.length > 0 && (
+              <div className="card p-5">
+                <h3 className="font-heading font-semibold text-sm text-gray-900 dark:text-white mb-4 uppercase tracking-wide">Top Cities</h3>
+                <div className="space-y-2.5">
+                  {creator.audience_locations.slice(0, 5).map((loc, i) => {
+                    const label = loc.city || loc.country;
+                    const colors = ['bg-pink-500', 'bg-violet-500', 'bg-teal-500', 'bg-amber-500', 'bg-blue-500'];
+                    return (
+                      <div key={label || i}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-gray-600 dark:text-gray-400 truncate pr-2">{label}</span>
+                          <span className="font-semibold text-gray-900 dark:text-white flex-shrink-0">{loc.percent}%</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${loc.percent}%` }}
+                            transition={{ duration: 0.8, ease: 'easeOut', delay: i * 0.05 }}
+                            className={`h-full rounded-full ${colors[i % colors.length]}`}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Rates */}
             {hasRates && (
               <div className="card p-5">

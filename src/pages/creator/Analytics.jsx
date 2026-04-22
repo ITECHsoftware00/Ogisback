@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, Eye, Heart, MessageCircle, Users, BarChart3, MapPin } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import StatCard from '../../components/ui/StatCard';
@@ -9,7 +8,8 @@ import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
 import { getCreatorAnalytics, getCreatorPosts } from '../../lib/db';
 import { formatNumber } from '../../lib/normalize';
-import { fetchTikTokFollowers } from '../../lib/socialApi';
+import { fetchYouTubeStats } from '../../lib/socialApi';
+import { useInstagramData } from '../../hooks/useInstagramData';
 
 const PLATFORM_COLORS = { Instagram: '#E1306C', TikTok: '#010101', YouTube: '#FF0000' };
 const LOCATION_COLORS = ['#EC4899', '#7C3AED', '#0D9488', '#F59E0B', '#3B82F6'];
@@ -35,12 +35,12 @@ const YouTubeIcon = () => (
 
 export default function CreatorAnalytics() {
   const { user } = useAuth();
-  const [analytics, setAnalytics] = useState(null);
-  const [myPosts, setMyPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [ttFollowers, setTtFollowers] = useState([]);
-  const [ttTotal, setTtTotal] = useState(0);
-  const [ttLoading, setTtLoading] = useState(false);
+  const { data: igData } = useInstagramData(user?.id);
+  const [analytics, setAnalytics]   = useState(null);
+  const [myPosts, setMyPosts]       = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [ytStats, setYtStats]       = useState(null);
+  const [apiErrors, setApiErrors]   = useState({});
 
   useEffect(() => {
     if (!user?.id) return;
@@ -53,17 +53,13 @@ export default function CreatorAnalytics() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, [user?.id]);
 
+  // Fetch live YouTube stats (YouTube Data API — free, no ScrapeCreators)
   useEffect(() => {
-    if (!analytics?.tiktok) return;
-    setTtLoading(true);
-    fetchTikTokFollowers({ handle: analytics.tiktok })
-      .then(r => {
-        setTtFollowers(r?.followers ?? []);
-        setTtTotal(r?.total ?? 0);
-      })
-      .catch(() => {})
-      .finally(() => setTtLoading(false));
-  }, [analytics?.tiktok]);
+    if (!analytics?.youtube) return;
+    fetchYouTubeStats(analytics.youtube)
+      .then(s => { if (s) setYtStats(s); })
+      .catch(err => setApiErrors(p => ({ ...p, youtube: err.message })));
+  }, [analytics?.youtube]);
 
   const totalFollowers = analytics
     ? (analytics.instagram_followers || 0) + (analytics.tiktok_followers || 0) + (analytics.youtube_followers || 0)
@@ -85,10 +81,10 @@ export default function CreatorAnalytics() {
       name: 'Instagram',
       icon: <InstagramIcon />,
       color: 'bg-gradient-to-br from-pink-500 to-purple-600',
-      followers: analytics.instagram_followers || 0,
-      engagement: analytics.instagram_engagement || 0,
-      avgLikes: analytics.instagram_avg_likes || 0,
-      avgComments: analytics.instagram_avg_comments || 0,
+      followers: igData?.profile?.followerCount || analytics.instagram_followers || 0,
+      engagement: igData?.profile?.engagementRate ?? analytics.instagram_engagement ?? 0,
+      avgLikes: igData?.profile?.avgLikes || analytics.instagram_avg_likes || 0,
+      avgComments: igData?.profile?.avgComments || analytics.instagram_avg_comments || 0,
       handle: analytics.instagram,
     },
     {
@@ -110,11 +106,12 @@ export default function CreatorAnalytics() {
       name: 'YouTube',
       icon: <YouTubeIcon />,
       color: 'bg-gradient-to-br from-red-500 to-red-700',
-      followers: analytics.youtube_followers || 0,
-      engagement: analytics.youtube_engagement || 0,
-      avgLikes: analytics.youtube_avg_likes || 0,
-      avgComments: analytics.youtube_avg_comments || 0,
+      followers:   ytStats?.subscribers        || analytics.youtube_followers    || 0,
+      engagement:  ytStats?.engRate            || analytics.youtube_engagement   || 0,
+      avgLikes:    ytStats?.avgLikes           || analytics.youtube_avg_likes    || 0,
+      avgComments: ytStats?.avgComments        || analytics.youtube_avg_comments || 0,
       handle: analytics.youtube,
+      live: !!ytStats,
     },
   ] : [];
 
@@ -124,10 +121,6 @@ export default function CreatorAnalytics() {
 
   const locationData = analytics?.audience_locations || [];
 
-  const regionDisplay = new Intl.DisplayNames(['en'], { type: 'region' });
-  const toCountry = (code) => { try { return regionDisplay.of(code) || code; } catch { return code; } };
-  const ttRegionMap = ttFollowers.reduce((m, f) => { if (f.region) m[f.region] = (m[f.region] || 0) + 1; return m; }, {});
-  const ttTopRegions = Object.entries(ttRegionMap).sort((a, b) => b[1] - a[1]).slice(0, 6);
 
   if (loading) {
     return (
@@ -157,6 +150,13 @@ export default function CreatorAnalytics() {
         <StatCard title="Total Comments" value={formatNumber(totalComments)} icon={MessageCircle} color="brand" delay={0.15} />
       </div>
 
+      {/* API error notice (non-blocking) */}
+      {apiErrors.youtube && (
+        <div className="mb-5 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
+          YouTube API: {apiErrors.youtube}
+        </div>
+      )}
+
       {/* ── Platform cards ── */}
       <div className="grid sm:grid-cols-3 gap-4 mb-6">
         {platforms.map((p, i) => (
@@ -170,7 +170,8 @@ export default function CreatorAnalytics() {
             <div className="flex items-center gap-2 mb-4">
               <span className="opacity-90">{p.icon}</span>
               <span className="font-semibold">{p.name}</span>
-              {p.handle && <span className="ml-auto text-white/60 text-xs">@{p.handle}</span>}
+              {p.live && <span className="ml-1 text-[10px] font-bold bg-white/20 px-1.5 py-0.5 rounded-full">● LIVE</span>}
+              {p.handle && <span className="ml-auto text-white/60 text-xs truncate max-w-[90px]">@{p.handle.replace(/^@/, '')}</span>}
             </div>
             <p className="font-heading font-bold text-3xl mb-1">
               {p.followers > 0 ? formatNumber(p.followers) : '—'}
@@ -197,20 +198,15 @@ export default function CreatorAnalytics() {
               </div>
             </div>
 
-            {/* Audience regions — TikTok uses live sample, IG/YT use stored locations */}
-            {(() => {
-              const rows = p.name === 'TikTok' && ttTopRegions.length > 0
-                ? ttTopRegions.slice(0, 3).map(([code, count]) => ({
-                    label: toCountry(code),
-                    pct: Math.round((count / ttFollowers.length) * 100),
-                  }))
-                : locationData.slice(0, 3).map(d => ({ label: d.country, pct: d.percent }));
-              if (!rows.length) return null;
-              return (
-                <div className="mt-4 pt-3 border-t border-white/20">
-                  <p className="text-white/60 text-[10px] uppercase tracking-wide mb-2">Audience</p>
-                  <div className="space-y-1.5">
-                    {rows.map(({ label, pct }) => (
+            {/* Platform-specific audience data */}
+            {p.name === 'TikTok' && locationData.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-white/20">
+                <p className="text-white/60 text-[10px] uppercase tracking-wide mb-2">Audience Countries</p>
+                <div className="space-y-1.5">
+                  {locationData.slice(0, 3).map(d => {
+                    const label = d.city || d.country || d.region || 'Unknown';
+                    const pct   = d.percent;
+                    return (
                       <div key={label} className="flex items-center gap-2">
                         <span className="text-white/80 text-xs flex-1 truncate">{label}</span>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -220,119 +216,310 @@ export default function CreatorAnalytics() {
                           <span className="text-white/70 text-[10px] w-7 text-right">{pct}%</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
-              );
-            })()}
+              </div>
+            )}
+            {p.name === 'Instagram' && igData?.profile && (
+              <div className="mt-4 pt-3 border-t border-white/20">
+                <p className="text-white/60 text-[10px] uppercase tracking-wide mb-2">Account Info</p>
+                <div className="space-y-1 text-[11px] text-white/70">
+                  {igData.profile.biography && (
+                    <p className="truncate">{igData.profile.biography}</p>
+                  )}
+                  <p>{igData.profile.mediaCount} posts · {igData.profile.isVerified ? '✓ Verified' : 'Public'}</p>
+                </div>
+              </div>
+            )}
+            {p.name === 'YouTube' && ytStats && (
+              <div className="mt-4 pt-3 border-t border-white/20">
+                <p className="text-white/60 text-[10px] uppercase tracking-wide mb-2">Channel Stats</p>
+                <div className="space-y-1 text-[11px] text-white/70">
+                  <p>{formatNumber(ytStats.views)} total views</p>
+                  <p>{ytStats.videoCount} videos published</p>
+                </div>
+              </div>
+            )}
           </motion.div>
         ))}
       </div>
 
+      {/* ── Engagement + Audience grid ── */}
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
-        {/* ── Engagement rate chart ── */}
-        <div className="card p-6">
-          <h2 className="section-title flex items-center gap-2">
-            <TrendingUp size={16} className="text-primary" />Engagement Rate by Platform
-          </h2>
-          {engagementChartData.length > 0 ? (
-            <div className="h-48" style={{ minHeight: '192px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={engagementChartData} barSize={40}>
-                  <XAxis dataKey="platform" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
-                  <Tooltip
-                    formatter={v => [`${v}%`, 'Engagement Rate']}
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.1)', fontSize: '13px' }}
-                  />
-                  <Bar dataKey="rate" radius={[6, 6, 0, 0]}>
-                    {engagementChartData.map((entry) => (
-                      <Cell key={entry.platform} fill={PLATFORM_COLORS[entry.platform] || '#7C3AED'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+
+        {/* Engagement Rate — Circular Arc Gauges */}
+        <div className="card p-6 relative overflow-hidden">
+          {/* Subtle dot-grid texture */}
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ backgroundImage: 'radial-gradient(circle, #00000012 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+          <div className="dark:block hidden absolute inset-0 pointer-events-none"
+            style={{ backgroundImage: 'radial-gradient(circle, #ffffff08 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+
+          <div className="relative">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="section-title flex items-center gap-2 mb-0">
+                <TrendingUp size={16} className="text-primary" />Engagement Rate
+              </h2>
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">By Platform</span>
             </div>
-          ) : (
-            <div className="h-48 flex flex-col items-center justify-center text-gray-400 text-sm gap-2">
-              <BarChart3 size={32} className="opacity-30" />
-              <p>Add your platform stats in Profile Edit</p>
+
+            <div className="grid grid-cols-3 gap-3">
+              {platforms.map((p, i) => {
+                const connected = p.followers > 0 || !!p.handle;
+                const rate      = parseFloat(p.engagement) || 0;
+                const arcFill   = connected ? Math.min(rate, 100) / 100 : 0;
+                const cfg = {
+                  Instagram: { stroke: '#E1306C', glow: '#E1306C55', track: '#fce7f3' },
+                  TikTok:    { stroke: '#111827', glow: '#11182755', track: '#f3f4f6' },
+                  YouTube:   { stroke: '#EF4444', glow: '#EF444455', track: '#fee2e2' },
+                }[p.name] || { stroke: '#6366f1', glow: '#6366f155', track: '#e0e7ff' };
+
+                return (
+                  <motion.div
+                    key={p.name}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.12 + 0.1, duration: 0.5 }}
+                    className="flex flex-col items-center"
+                  >
+                    {/* Ring gauge */}
+                    <div className="relative w-[88px] h-[88px] mb-3">
+                      <svg viewBox="0 0 100 100" className="w-full h-full" style={{ transform: 'rotate(-90deg)' }}>
+                        {/* Track ring */}
+                        <circle cx="50" cy="50" r="38" fill="none"
+                          stroke={cfg.track} strokeWidth="7" className="dark:opacity-20" />
+                        {/* Animated fill arc */}
+                        {connected && (
+                          <motion.circle
+                            cx="50" cy="50" r="38"
+                            fill="none"
+                            stroke={cfg.stroke}
+                            strokeWidth="7"
+                            strokeLinecap="round"
+                            style={{ filter: `drop-shadow(0 0 8px ${cfg.glow})` }}
+                            initial={{ pathLength: 0, opacity: 0 }}
+                            animate={{ pathLength: arcFill, opacity: 1 }}
+                            transition={{ duration: 1.5, delay: i * 0.18 + 0.4, ease: [0.34, 1.1, 0.64, 1] }}
+                          />
+                        )}
+                      </svg>
+                      {/* Platform icon centered */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-gray-400 dark:text-gray-500">{p.icon}</span>
+                      </div>
+                    </div>
+
+                    {/* Rate */}
+                    <p
+                      className={`font-mono text-base font-bold leading-none mb-1 ${connected ? '' : 'text-gray-300 dark:text-gray-700'}`}
+                      style={{ color: connected ? cfg.stroke : undefined }}
+                    >
+                      {connected ? `${rate.toFixed(2)}%` : '—'}
+                    </p>
+                    <p className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">{p.name}</p>
+                    <p className="text-[10px] text-gray-400 leading-tight text-center">
+                      {connected ? formatNumber(p.followers) + ' flwrs' : 'not linked'}
+                    </p>
+                    {connected && (p.avgLikes > 0 || p.avgComments > 0) && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">
+                        ♥{formatNumber(p.avgLikes)} · 💬{formatNumber(p.avgComments)}
+                      </p>
+                    )}
+                  </motion.div>
+                );
+              })}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* ── Audience location ── */}
-        <div className="card p-6">
-          <h2 className="section-title flex items-center gap-2">
-            <MapPin size={16} className="text-primary" />Audience Location
-          </h2>
+        {/* Audience Locations — Editorial ranked list */}
+        <div className="card p-6 relative overflow-hidden">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="section-title flex items-center gap-2 mb-0">
+              <MapPin size={16} className="text-primary" />Audience Locations
+            </h2>
+            {locationData.length > 0 && (
+              <span className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <TikTokIcon /> TikTok
+              </span>
+            )}
+          </div>
+
           {locationData.length > 0 ? (
-            <div className="flex items-center gap-6">
-              <div className="h-44 w-44 flex-shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={locationData} cx="50%" cy="50%" innerRadius={50} outerRadius={78} paddingAngle={3} dataKey="percent">
-                      {locationData.map((_, i) => <Cell key={i} fill={LOCATION_COLORS[i % LOCATION_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip
-                      formatter={(v, n) => [`${v}%`, n]}
-                      contentStyle={{ borderRadius: '12px', border: 'none', fontSize: '12px' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-2.5 flex-1">
-                {locationData.slice(0, 5).map((d, i) => (
-                  <div key={d.country} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: LOCATION_COLORS[i] }} />
-                    <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">{d.country}</span>
-                    <span className="font-semibold text-sm text-gray-900 dark:text-white">{d.percent}%</span>
-                  </div>
-                ))}
-              </div>
+            <div className="space-y-3">
+              {locationData.slice(0, 5).map((d, i) => {
+                const label = d.city || d.country || d.region || 'Unknown';
+                const pct   = d.percent;
+                const color = LOCATION_COLORS[i % LOCATION_COLORS.length];
+                return (
+                  <motion.div
+                    key={label + i}
+                    initial={{ opacity: 0, x: -14 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.09 + 0.15, duration: 0.45 }}
+                    className="relative group"
+                  >
+                    {/* Ghost rank number */}
+                    <span
+                      className="absolute right-0 top-1/2 -translate-y-1/2 text-5xl font-black leading-none select-none pointer-events-none opacity-[0.07]"
+                      style={{ color }}
+                    >
+                      {i + 1}
+                    </span>
+
+                    <div className="relative flex items-center gap-3">
+                      {/* Rank badge */}
+                      <div
+                        className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-black text-white shadow-sm"
+                        style={{ background: color }}
+                      >
+                        {i + 1}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between mb-1.5">
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate pr-2">
+                            {label}
+                          </span>
+                          <span className="text-sm font-black flex-shrink-0 tabular-nums" style={{ color }}>
+                            {pct}%
+                          </span>
+                        </div>
+                        {/* Gradient bar */}
+                        <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ background: `linear-gradient(90deg, ${color}, ${color}70)` }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.9, delay: i * 0.1 + 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           ) : (
-            <div className="h-44 flex flex-col items-center justify-center text-gray-400 text-sm gap-2">
-              <MapPin size={32} className="opacity-30" />
-              <p>Add audience locations in Profile Edit</p>
+            <div className="h-44 flex flex-col items-center justify-center gap-2">
+              <MapPin size={32} className="text-gray-200 dark:text-gray-700" />
+              <p className="text-sm text-gray-400 text-center">Sync your TikTok in Profile Settings<br/>to see real audience countries</p>
             </div>
           )}
         </div>
       </div>
 
+      {/* ── Age & Gender ── */}
+      {(() => {
+        const ageGender = analytics?.audience_age_gender || [];
+        return ageGender.length > 0 ? (
+          <div className="card p-6 mb-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="section-title flex items-center gap-2 mb-0">
+                <Users size={16} className="text-primary" />Age &amp; Gender Breakdown
+              </h2>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400">● Live</span>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-x-10 gap-y-3 max-w-lg">
+              {ageGender.map(b => {
+                const total = (b.female || 0) + (b.male || 0);
+                return (
+                  <div key={b.range}>
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span className="font-medium">{b.range}</span>
+                      <span>{total}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden flex">
+                      <motion.div
+                        className="bg-pink-400 h-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${b.female || 0}%` }}
+                        transition={{ duration: 0.6 }}
+                      />
+                      <motion.div
+                        className="bg-blue-400 h-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${b.male || 0}%` }}
+                        transition={{ duration: 0.6, delay: 0.1 }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-5 mt-4 text-xs text-gray-400">
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-pink-400 inline-block" /> Female</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> Male</span>
+            </div>
+          </div>
+        ) : null;
+      })()}
+
       {/* ── Top performing posts ── */}
       <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-5">
           <h2 className="section-title mb-0">Top Performing Posts</h2>
-          <Link to="/creator/feed" className="text-xs text-creator font-medium hover:underline">View all</Link>
+          <Link to="/creator/feed" className="text-xs font-semibold text-creator hover:text-creator/80 transition-colors flex items-center gap-1">
+            View all <span className="text-base leading-none">→</span>
+          </Link>
         </div>
         {myPosts.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {[...myPosts]
               .sort((a, b) => (b.likes || 0) + (b.views || 0) - (a.likes || 0) - (a.views || 0))
               .slice(0, 5)
               .map((post, i) => {
                 const hasSrc = post.thumbnail_url || post.media_url;
-                const typeColor = post.type === 'reel' ? 'bg-creator/10 text-creator' : post.type === 'video' ? 'bg-primary/10 text-primary' : 'bg-gray-100 dark:bg-white/[0.07] text-gray-500 dark:text-gray-400';
+                const rankMeta = [
+                  { color: '#F59E0B', label: '🥇' },
+                  { color: '#94A3B8', label: '🥈' },
+                  { color: '#C97A44', label: '🥉' },
+                  { color: '#8B5CF6', label: null },
+                  { color: '#6366F1', label: null },
+                ][i] || { color: '#6366F1', label: null };
+
+                const typeCfg = {
+                  reel:  { grad: 'from-pink-500 to-purple-600',  text: 'Reel' },
+                  video: { grad: 'from-blue-500 to-cyan-500',    text: 'Video' },
+                  photo: { grad: 'from-slate-400 to-slate-500',  text: 'Photo' },
+                }[post.type] || { grad: 'from-gray-400 to-gray-500', text: post.type || 'Post' };
+
                 return (
-                  <div key={post.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors group">
-                    {/* Rank */}
-                    <span className="text-sm font-heading font-extrabold text-gray-200 dark:text-gray-700 w-6 text-center flex-shrink-0">
-                      {i + 1}
-                    </span>
+                  <motion.div
+                    key={post.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.07, duration: 0.38 }}
+                    className="group relative flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-white/[0.04] transition-all duration-200"
+                  >
+                    {/* Rank number */}
+                    <div className="w-6 flex-shrink-0 text-center">
+                      <span
+                        className="text-sm font-black leading-none tabular-nums"
+                        style={{ color: i < 3 ? rankMeta.color : '#CBD5E1' }}
+                      >
+                        {i + 1}
+                      </span>
+                    </div>
 
                     {/* Thumbnail */}
-                    <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-primary/20 via-creator/15 to-brand/20">
+                    <div
+                      className="relative w-14 h-14 rounded-2xl overflow-hidden flex-shrink-0"
+                      style={{ boxShadow: i === 0 ? `0 0 0 2px ${rankMeta.color}50, 0 4px 12px ${rankMeta.color}25` : '0 2px 8px rgba(0,0,0,0.08)' }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/25 via-creator/20 to-brand/25" />
                       {hasSrc ? (
                         <img
                           src={hasSrc}
                           alt=""
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover relative z-10"
                           onError={e => { e.currentTarget.style.display = 'none'; }}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <span className="text-lg font-bold text-white/40 select-none">
+                        <div className="w-full h-full flex items-center justify-center relative z-10">
+                          <span className="text-xl font-black text-white/30 select-none">
                             {(post.caption || 'P').charAt(0).toUpperCase()}
                           </span>
                         </div>
@@ -341,30 +528,27 @@ export default function CreatorAnalytics() {
 
                     {/* Caption + stats */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 line-clamp-1 mb-0.5">
+                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 line-clamp-1 mb-1.5 group-hover:text-creator transition-colors duration-150">
                         {post.caption || 'No caption'}
                       </p>
-                      <div className="flex items-center gap-2.5 text-[11px] text-gray-400">
-                        <span className="flex items-center gap-0.5">
-                          <Heart size={10} className="text-pink-400" />
-                          {formatNumber(post.likes || 0)}
+                      <div className="flex items-center gap-3 text-[11px] font-medium">
+                        <span className="flex items-center gap-1 text-pink-500">
+                          <Heart size={10} />{formatNumber(post.likes || 0)}
                         </span>
-                        <span className="flex items-center gap-0.5">
-                          <MessageCircle size={10} />
-                          {formatNumber(post.comments || 0)}
+                        <span className="flex items-center gap-1 text-gray-400">
+                          <MessageCircle size={10} />{formatNumber(post.comments || 0)}
                         </span>
-                        <span className="flex items-center gap-0.5">
-                          <Eye size={10} />
-                          {formatNumber(post.views || 0)}
+                        <span className="flex items-center gap-1 text-blue-400">
+                          <Eye size={10} />{formatNumber(post.views || 0)}
                         </span>
                       </div>
                     </div>
 
                     {/* Type badge */}
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${typeColor}`}>
-                      {post.type || 'post'}
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full text-white bg-gradient-to-r flex-shrink-0 ${typeCfg.grad}`}>
+                      {typeCfg.text}
                     </span>
-                  </div>
+                  </motion.div>
                 );
               })}
           </div>
@@ -379,77 +563,6 @@ export default function CreatorAnalytics() {
           </div>
         )}
       </div>
-      {/* ── TikTok Live Audience ── */}
-      {analytics?.tiktok && (
-        <div className="card p-6 mt-6">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="section-title mb-0 flex items-center gap-2">
-              <TikTokIcon /> TikTok Audience
-            </h2>
-            {ttTotal > 0 && (
-              <span className="text-xs text-gray-400">{formatNumber(ttTotal)} total followers</span>
-            )}
-          </div>
-
-          {ttLoading ? (
-            <div className="flex items-center justify-center h-24">
-              <div className="w-6 h-6 border-2 border-gray-200 dark:border-gray-700 border-t-gray-500 rounded-full animate-spin" />
-            </div>
-          ) : ttFollowers.length > 0 ? (
-            <div className="space-y-6">
-              {/* Region breakdown */}
-              {ttTopRegions.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">Top regions (from latest sample)</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {ttTopRegions.map(([code, count]) => (
-                      <div key={code} className="flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/[0.04] border border-gray-100 dark:border-white/[0.05]">
-                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{toCountry(code)}</span>
-                        <span className="text-xs font-bold text-creator ml-2 flex-shrink-0">
-                          {Math.round((count / ttFollowers.length) * 100)}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Follower avatars */}
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">Recent followers</p>
-                <div className="flex flex-wrap gap-2">
-                  {ttFollowers.slice(0, 20).map(f => (
-                    <motion.div
-                      key={f.uid}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full border border-gray-100 dark:border-gray-800 bg-white dark:bg-white/[0.03] hover:border-creator/40 transition-colors"
-                    >
-                      <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-gray-200 dark:bg-gray-700">
-                        {f.avatar ? (
-                          <img src={f.avatar} alt="" className="w-full h-full object-cover"
-                            onError={e => { e.currentTarget.style.display = 'none'; }} />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[9px] font-bold text-gray-400">
-                            {(f.nickname || f.handle || '?')[0].toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-[11px] font-medium text-gray-600 dark:text-gray-400 max-w-[72px] truncate">
-                        @{f.handle || f.nickname}
-                      </span>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-400 text-sm">
-              <p>No follower data returned. Check your TikTok handle in Profile Edit.</p>
-            </div>
-          )}
-        </div>
-      )}
     </DashboardLayout>
   );
 }
