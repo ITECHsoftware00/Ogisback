@@ -449,6 +449,8 @@ export async function getCreatorAnalytics(creatorId) {
       youtube_avg_likes, youtube_avg_comments,
       audience_locations,
       audience_age_gender,
+      instagram_business_id,
+      instagram_page_token,
       rating, review_count, completed_orders
     `)
     .eq('id', creatorId)

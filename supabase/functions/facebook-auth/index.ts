@@ -18,7 +18,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Missing code or redirectUri' }), { status: 400, headers: CORS });
     }
 
-    // 1. Exchange code for user access token
+    // 1. Exchange code for short-lived user access token
     const tokenUrl = new URL(`${GRAPH}/oauth/access_token`);
     tokenUrl.searchParams.set('client_id',     APP_ID);
     tokenUrl.searchParams.set('client_secret', APP_SECRET);
@@ -30,32 +30,50 @@ serve(async (req) => {
     if (!tokenData.access_token) {
       return new Response(JSON.stringify({ error: 'Token exchange failed', detail: tokenData }), { status: 400, headers: CORS });
     }
-    const userToken = tokenData.access_token;
+    const shortToken = tokenData.access_token;
 
-    // 2. Get user's Facebook Pages (fan_count = page followers)
+    // 2. Exchange for long-lived user token (60-day expiry)
+    const llUrl = new URL(`${GRAPH}/oauth/access_token`);
+    llUrl.searchParams.set('grant_type',       'fb_exchange_token');
+    llUrl.searchParams.set('client_id',        APP_ID);
+    llUrl.searchParams.set('client_secret',    APP_SECRET);
+    llUrl.searchParams.set('fb_exchange_token', shortToken);
+
+    const llRes  = await fetch(llUrl.toString());
+    const llData = await llRes.json();
+    const userToken = llData.access_token || shortToken; // fallback if exchange fails
+
+    // 3. Get user's Facebook Pages (fan_count + page token)
     const pagesRes  = await fetch(`${GRAPH}/me/accounts?fields=name,fan_count,access_token&access_token=${userToken}`);
     const pagesData = await pagesRes.json();
     const pages     = pagesData?.data || [];
 
     // Pick the page with the most fans
+    // deno-lint-ignore no-explicit-any
     const topPage = pages.sort((a: any, b: any) => (b.fan_count || 0) - (a.fan_count || 0))[0];
 
     let instagramUsername  = '';
     let instagramFollowers = 0;
-    let facebookPageName   = topPage?.name      || '';
-    let facebookFollowers  = topPage?.fan_count || 0;
+    let instagramBusinessId: string | null = null;
+    let instagramPageToken: string | null  = null;
+    const facebookPageName   = topPage?.name      || '';
+    const facebookFollowers  = topPage?.fan_count || 0;
 
-    // 3. Get Instagram Business Account linked to the top page
+    // 4. Get Instagram Business Account linked to the top page
     if (topPage?.id && topPage?.access_token) {
-      const igLinkRes  = await fetch(`${GRAPH}/${topPage.id}?fields=instagram_business_account&access_token=${topPage.access_token}`);
+      const pageToken = topPage.access_token; // Page tokens from long-lived user tokens don't expire
+
+      const igLinkRes  = await fetch(`${GRAPH}/${topPage.id}?fields=instagram_business_account&access_token=${pageToken}`);
       const igLinkData = await igLinkRes.json();
       const igId       = igLinkData?.instagram_business_account?.id;
 
       if (igId) {
-        const igRes  = await fetch(`${GRAPH}/${igId}?fields=username,followers_count&access_token=${topPage.access_token}`);
+        const igRes  = await fetch(`${GRAPH}/${igId}?fields=username,followers_count&access_token=${pageToken}`);
         const igData = await igRes.json();
-        instagramUsername  = igData?.username        || '';
-        instagramFollowers = igData?.followers_count || 0;
+        instagramUsername   = igData?.username        || '';
+        instagramFollowers  = igData?.followers_count || 0;
+        instagramBusinessId = igId;
+        instagramPageToken  = pageToken;
       }
     }
 
@@ -64,6 +82,8 @@ serve(async (req) => {
       facebookFollowers,
       instagramUsername,
       instagramFollowers,
+      instagramBusinessId,
+      instagramPageToken,
     }), { headers: { ...CORS, 'Content-Type': 'application/json' } });
 
   } catch (err) {

@@ -48,15 +48,20 @@ export default function FacebookCallback() {
           updates.instagram           = data.instagramUsername;
           updates.instagram_followers = data.instagramFollowers || 0;
         }
+        if (data.instagramBusinessId) {
+          updates.instagram_business_id = data.instagramBusinessId;
+          updates.instagram_page_token  = data.instagramPageToken;
+        }
         await updateCreatorProfile(user.id, updates);
       }
 
       sessionStorage.removeItem('fb_oauth_state');
 
       const parts = [];
-      if (data.facebookFollowers) parts.push(`${(data.facebookFollowers).toLocaleString()} Facebook followers`);
+      if (data.facebookFollowers)  parts.push(`${(data.facebookFollowers).toLocaleString()} Facebook followers`);
       if (data.instagramFollowers) parts.push(`${(data.instagramFollowers).toLocaleString()} Instagram followers`);
-      toast.success(parts.length ? `Connected! ${parts.join(' · ')} synced.` : 'Facebook connected.');
+      if (data.instagramBusinessId) parts.push('Instagram Insights unlocked');
+      toast.success(parts.length ? `Connected! ${parts.join(' · ')}.` : 'Facebook connected.');
 
       navigate('/creator/profile/edit');
     });

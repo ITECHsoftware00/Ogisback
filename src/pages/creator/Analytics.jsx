@@ -8,7 +8,7 @@ import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
 import { getCreatorAnalytics, getCreatorPosts } from '../../lib/db';
 import { formatNumber } from '../../lib/normalize';
-import { fetchYouTubeStats } from '../../lib/socialApi';
+import { fetchYouTubeStats, fetchInstagramAudienceCities } from '../../lib/socialApi';
 import { useInstagramData } from '../../hooks/useInstagramData';
 
 const PLATFORM_COLORS = { Instagram: '#E1306C', TikTok: '#010101', YouTube: '#FF0000' };
@@ -42,6 +42,7 @@ export default function CreatorAnalytics() {
   const [ytStats, setYtStats]       = useState(null);
   const [apiErrors, setApiErrors]   = useState({});
   const [locationTab, setLocationTab] = useState(null); // auto-set after data loads
+  const [igCities, setIgCities]       = useState(null); // real audience city data from Instagram Insights
 
   useEffect(() => {
     if (!user?.id) return;
@@ -61,6 +62,14 @@ export default function CreatorAnalytics() {
       .then(s => { if (s) setYtStats(s); })
       .catch(err => setApiErrors(p => ({ ...p, youtube: err.message })));
   }, [analytics?.youtube]);
+
+  // Fetch real Instagram audience city data (requires Instagram Business Account connected)
+  useEffect(() => {
+    if (!analytics?.instagram_business_id || !analytics?.instagram_page_token) return;
+    fetchInstagramAudienceCities(analytics.instagram_business_id, analytics.instagram_page_token)
+      .then(d => { if (d?.cities?.length) setIgCities(d.cities); })
+      .catch(err => setApiErrors(p => ({ ...p, igCities: err.message })));
+  }, [analytics?.instagram_business_id, analytics?.instagram_page_token]);
 
   const totalFollowers = analytics
     ? (analytics.instagram_followers || 0) + (analytics.tiktok_followers || 0) + (analytics.youtube_followers || 0)
@@ -130,7 +139,11 @@ export default function CreatorAnalytics() {
   };
 
   // Build per-platform audience location data
-  const igLocation  = igData?.profile?.cityName
+  // igCities = real audience city breakdown from Instagram Insights (requires Business Account connected)
+  // Falls back to profile city/country if Insights not available
+  const igLocation = igCities?.length > 0
+    ? igCities.map(c => ({ label: c.city, percent: c.percent, source: 'Instagram' }))
+    : igData?.profile?.cityName
     ? [{ label: igData.profile.cityName, source: 'Instagram', percent: 100, isSingle: true }]
     : igData?.profile?.countryCode
     ? [{ label: toCountryName(igData.profile.countryCode), source: 'Instagram', percent: 100, isSingle: true }]
@@ -147,22 +160,26 @@ export default function CreatorAnalytics() {
     ? [{ label: toCountryName(ytStats.country), source: 'YouTube', percent: 100, isSingle: true }]
     : [];
 
-  // Active platform tab state
+  // Active platform tab state — Instagram with real Insights data takes priority
   const allLocationPlatforms = [
+    ...(igCities?.length    > 0 ? ['Instagram'] : []),
     ...(ttLocations.length  > 0 ? ['TikTok']    : []),
     ...(ytLocation.length   > 0 ? ['YouTube']   : []),
-    ...(igLocation.length   > 0 ? ['Instagram'] : []),
-  ];
+    ...(!igCities?.length && igLocation.length > 0 ? ['Instagram'] : []),
+  ].filter((v, i, a) => a.indexOf(v) === i); // dedupe
+
+  const igMax = igLocation.length > 0 ? Math.max(...igLocation.map(d => d.percent || 1)) : 1;
 
   // Auto-select best location tab when data arrives; reset if active tab loses data
   useEffect(() => {
     if (locationTab && allLocationPlatforms.includes(locationTab)) return;
+    if (igCities?.length > 0)   { setLocationTab('Instagram'); return; }
     if (ttLocations.length > 0) { setLocationTab('TikTok');    return; }
     if (ytStats?.country)       { setLocationTab('YouTube');   return; }
     if (igLocation.length > 0)  { setLocationTab('Instagram'); return; }
     setLocationTab(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ttLocations.length, ytStats?.country, igLocation.length, locationTab]);
+  }, [igCities?.length, ttLocations.length, ytStats?.country, igLocation.length, locationTab]);
 
   if (loading) {
     return (
@@ -483,27 +500,68 @@ export default function CreatorAnalytics() {
             </motion.div>
           )}
 
-          {/* Instagram creator location — live */}
+          {/* Instagram — real audience cities (Insights) OR creator location fallback */}
           {locationTab === 'Instagram' && igLocation.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
-            >
-              <div className="flex items-center gap-4 p-4 rounded-2xl bg-pink-50 dark:bg-pink-900/10 border border-pink-100 dark:border-pink-900/30">
-                <div className="w-10 h-10 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center flex-shrink-0">
-                  <InstagramIcon />
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{igLocation[0].label}</p>
-                  <p className="text-xs text-gray-500">Creator location · Live from Instagram</p>
-                </div>
-                <span className="ml-auto text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-2 py-0.5 rounded-full">● Live</span>
-              </div>
-              <p className="text-[10px] text-gray-400">
-                Audience demographic breakdown requires Instagram Insights (Meta Business approval required).
-              </p>
-            </motion.div>
+            <div className="space-y-3">
+              {igCities?.length > 0 ? (
+                // Real audience city data from Instagram Insights
+                <>
+                  {igLocation.slice(0, 5).map((d, i) => {
+                    const color = LOCATION_COLORS[i % LOCATION_COLORS.length];
+                    return (
+                      <motion.div
+                        key={d.label + i}
+                        initial={{ opacity: 0, x: -14 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.09 + 0.1, duration: 0.4 }}
+                        className="relative group"
+                      >
+                        <span className="absolute right-0 top-1/2 -translate-y-1/2 text-5xl font-black leading-none select-none pointer-events-none opacity-[0.07]" style={{ color }}>{i + 1}</span>
+                        <div className="relative flex items-center gap-3">
+                          <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-black text-white shadow-sm" style={{ background: color }}>{i + 1}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline justify-between mb-1.5">
+                              <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate pr-2">{d.label}</span>
+                              <span className="text-sm font-black flex-shrink-0 tabular-nums" style={{ color }}>{d.percent}%</span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                              <motion.div
+                                className="h-full rounded-full"
+                                style={{ background: `linear-gradient(90deg, ${color}, ${color}70)` }}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${(d.percent / igMax) * 100}%` }}
+                                transition={{ duration: 0.9, delay: i * 0.1 + 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                  <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100 dark:border-white/10 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                    Real audience data · Instagram Insights API
+                  </p>
+                </>
+              ) : (
+                // Fallback: creator profile city/country only
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-pink-50 dark:bg-pink-900/10 border border-pink-100 dark:border-pink-900/30">
+                    <div className="w-10 h-10 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center flex-shrink-0">
+                      <InstagramIcon />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{igLocation[0].label}</p>
+                      <p className="text-xs text-gray-500">Creator location · Live from Instagram</p>
+                    </div>
+                    <span className="ml-auto text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-2 py-0.5 rounded-full">● Live</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400">
+                    Connect your Instagram Business Account in Profile Settings to unlock real audience city data.
+                  </p>
+                </motion.div>
+              )}
+            </div>
           )}
 
           {/* No data at all */}
@@ -511,7 +569,7 @@ export default function CreatorAnalytics() {
             <div className="h-44 flex flex-col items-center justify-center gap-2">
               <MapPin size={32} className="text-gray-200 dark:text-gray-700" />
               <p className="text-sm text-gray-400 text-center">
-                Sync TikTok in Profile Settings<br/>to see real audience countries
+                Connect a platform in Profile Settings<br/>to see real audience location data
               </p>
             </div>
           )}

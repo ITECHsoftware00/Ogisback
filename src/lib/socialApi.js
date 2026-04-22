@@ -146,7 +146,7 @@ export function getFacebookAuthUrl(redirectUri) {
   const params = new URLSearchParams({
     client_id:     FB_APP_ID,
     redirect_uri:  redirectUri,
-    scope:         'pages_show_list,pages_read_engagement,instagram_basic',
+    scope:         'pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights',
     state,
     response_type: 'code',
   });
@@ -198,6 +198,29 @@ export async function fetchInstagramProfile(handle) {
   const json = await res.json();
   if (!res.ok || json?.error) throw new Error(json?.error || 'Failed to fetch Instagram profile');
   return json; // { profile, posts }
+}
+
+/**
+ * Fetch real Instagram audience city breakdown via the instagram-audience edge function.
+ * Requires the creator to have connected their Instagram Business Account via Facebook OAuth.
+ *
+ * @param {string} igUserId - Instagram Business Account ID (from DB)
+ * @param {string} pageToken - Facebook Page access token (from DB)
+ * @returns {Promise<{ cities: {city: string, percent: number}[] } | null>}
+ */
+export async function fetchInstagramAudienceCities(igUserId, pageToken) {
+  if (!igUserId || !pageToken) return null;
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/instagram-audience`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON}`,
+    },
+    body: JSON.stringify({ ig_user_id: igUserId, page_token: pageToken }),
+  });
+  const json = await res.json();
+  if (!res.ok || json?.error) throw new Error(json?.error || 'Failed to fetch Instagram audience cities');
+  return json; // { cities: [{city, percent}] }
 }
 
 export async function fetchTikTokStats(username) {
