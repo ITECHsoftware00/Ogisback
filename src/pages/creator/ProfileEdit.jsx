@@ -272,7 +272,11 @@ export default function CreatorProfileEdit() {
 
       toast.success(`Synced: ${total.toLocaleString()} followers · engagement auto-calculated`);
     } catch (err) {
-      toast.error('Could not fetch TikTok stats. Check the handle.');
+      const msg = String(err?.message || err);
+      const isNotFound = msg.includes('404') || msg.toLowerCase().includes('not found');
+      toast.error(isNotFound
+        ? `TikTok account @${form.tiktok?.replace(/^@/, '')} not found. Check the handle.`
+        : `TikTok sync failed: ${msg}`);
     }
     setSyncingTT(false);
   };
