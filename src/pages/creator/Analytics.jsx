@@ -62,14 +62,6 @@ export default function CreatorAnalytics() {
       .catch(err => setApiErrors(p => ({ ...p, youtube: err.message })));
   }, [analytics?.youtube]);
 
-  // Auto-select best location tab when data arrives
-  useEffect(() => {
-    if (locationTab) return;
-    if (locationData.length > 0)  { setLocationTab('TikTok');    return; }
-    if (ytStats?.country)         { setLocationTab('YouTube');   return; }
-    if (igData?.profile?.cityName || igData?.profile?.countryCode) { setLocationTab('Instagram'); return; }
-  }, [locationData, ytStats, igData, locationTab]);
-
   const totalFollowers = analytics
     ? (analytics.instagram_followers || 0) + (analytics.tiktok_followers || 0) + (analytics.youtube_followers || 0)
     : 0;
@@ -161,6 +153,14 @@ export default function CreatorAnalytics() {
     ...(igLocation.length   > 0 ? ['Instagram'] : []),
   ];
 
+  // Auto-select best location tab when data arrives
+  useEffect(() => {
+    if (locationTab) return;
+    if (ttLocations.length > 0)  { setLocationTab('TikTok');    return; }
+    if (ytStats?.country)        { setLocationTab('YouTube');   return; }
+    if (igLocation.length > 0)   { setLocationTab('Instagram'); return; }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ttLocations.length, ytStats?.country, igLocation.length]);
 
   if (loading) {
     return (
