@@ -1,29 +1,27 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
-const RAPIDAPI_KEY  = Deno.env.get('RAPIDAPI_KEY') || '';
-const RAPIDAPI_HOST = 'instagram-scraper-stable-api.p.rapidapi.com';
-const BASE          = `https://${RAPIDAPI_HOST}`;
-
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Headers': 'authorization, content-type',
 };
 
-const RAPID_HEADERS = {
-  'x-rapidapi-key':  RAPIDAPI_KEY,
-  'x-rapidapi-host': RAPIDAPI_HOST,
+// Instagram's internal web API — used by instagram.com itself, no key required
+const IG_HEADERS = {
+  'x-ig-app-id':    '936619743392459',
+  'User-Agent':     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept':         '*/*',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Referer':        'https://www.instagram.com/',
+  'Origin':         'https://www.instagram.com',
+  'Sec-Fetch-Dest': 'empty',
+  'Sec-Fetch-Mode': 'cors',
+  'Sec-Fetch-Site': 'same-origin',
 };
 
-// POST with form-encoded body (what this API actually requires)
 // deno-lint-ignore no-explicit-any
-async function igPost(path: string, fields: Record<string, string>): Promise<any> {
-  const body = new URLSearchParams(fields).toString();
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: { ...RAPID_HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
-  if (!res.ok) throw new Error(`RapidAPI HTTP ${res.status} on ${path}`);
+async function igFetch(url: string): Promise<any> {
+  const res = await fetch(url, { headers: IG_HEADERS });
+  if (!res.ok) throw new Error(`Instagram HTTP ${res.status} for ${url}`);
   return res.json();
 }
 
@@ -31,60 +29,57 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    if (!RAPIDAPI_KEY) return json({ error: 'RAPIDAPI_KEY not configured' }, 500);
-
-    const reqBody = await req.json().catch(() => ({}));
-    const { handle } = reqBody as { handle?: string };
+    const body = await req.json().catch(() => ({}));
+    const { handle } = body as { handle?: string };
     if (!handle) return json({ error: 'Provide handle' }, 400);
 
     const username = handle.replace(/^@/, '');
 
-    // Fetch profile + reels in parallel
-    const [profileRaw, reelsRaw] = await Promise.all([
-      igPost('/ig_get_fb_profile_v3.php', { username_or_url: username }),
-      igPost('/get_ig_user_reels.php',    { username_or_url: username }).catch(() => null),
+    // Fetch profile and posts in parallel
+    const [profileRaw, postsRaw] = await Promise.all([
+      igFetch(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`),
+      igFetch(`https://www.instagram.com/api/v1/feed/user/${encodeURIComponent(username)}/username/?count=12`).catch(() => null),
     ]);
 
-    if (profileRaw?.error) {
-      console.error('[instagram-profile] profile error:', profileRaw.error);
-      return json({ error: profileRaw.error }, 502);
-    }
-
-    // Profile is a flat object at root level
     // deno-lint-ignore no-explicit-any
-    const u: any = profileRaw;
+    const u: any = profileRaw?.data?.user;
     if (!u?.username) {
       console.error('[instagram-profile] unexpected profile shape:', JSON.stringify(profileRaw).slice(0, 300));
-      return json({ error: 'Could not read Instagram profile data' }, 502);
+      return json({ error: `Instagram profile @${username} not found` }, 404);
     }
 
-    // Reels: reels[i].node.media
+    // Posts from feed endpoint — items array
     // deno-lint-ignore no-explicit-any
-    const reelItems: any[] = reelsRaw?.reels ?? [];
+    const rawItems: any[] = postsRaw?.items ?? [];
 
     // deno-lint-ignore no-explicit-any
-    const posts = reelItems.slice(0, 12).map((item: any) => {
-      const m = item?.node?.media ?? {};
+    const posts = rawItems.slice(0, 12).map((item: any) => {
+      const isVideo    = item.media_type === 2;
+      const isCarousel = item.media_type === 8;
       const thumbnailUrl =
-        m.thumbnail_url ||
-        m.image_versions2?.candidates?.[0]?.url ||
+        item.thumbnail_url ||
+        item.image_versions2?.candidates?.[0]?.url ||
+        item.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url ||
         null;
       return {
-        id:          String(m.pk ?? m.id ?? ''),
-        shortcode:   m.code ?? '',
-        mediaType:   'video',  // reels are always video
+        id:        String(item.pk ?? item.id ?? ''),
+        shortcode: item.code ?? item.shortcode ?? '',
+        mediaType: isVideo ? 'video' : (isCarousel ? 'carousel' : 'image'),
         thumbnailUrl,
-        caption:     m.caption?.text ?? '',
-        likes:       m.like_count    ?? 0,
-        comments:    m.comment_count ?? 0,
-        views:       m.play_count    ?? m.view_count ?? 0,
-        postedAt:    m.taken_at
-          ? new Date(m.taken_at * 1000).toISOString()
+        caption:   item.caption?.text ?? '',
+        likes:     item.like_count    ?? 0,
+        comments:  item.comment_count ?? 0,
+        views:     item.play_count    ?? item.view_count ?? 0,
+        postedAt:  item.taken_at
+          ? new Date(item.taken_at * 1000).toISOString()
           : new Date().toISOString(),
       };
     });
 
-    const followerCount = u.follower_count ?? 0;
+    // Fallback: use GraphQL media count for posts if feed unavailable
+    const followerCount  = u.edge_followed_by?.count  ?? u.follower_count  ?? 0;
+    const followingCount = u.edge_follow?.count        ?? u.following_count ?? 0;
+    const mediaCount     = u.edge_owner_to_timeline_media?.count ?? u.media_count ?? 0;
 
     let engagementRate = 0;
     if (posts.length > 0 && followerCount > 0) {
@@ -106,8 +101,8 @@ serve(async (req: Request) => {
         displayName:       u.full_name        ?? '',
         profilePictureUrl: u.profile_pic_url  ?? u.hd_profile_pic_url_info?.url ?? null,
         followerCount,
-        followingCount:    u.following_count  ?? 0,
-        mediaCount:        u.media_count      ?? 0,
+        followingCount,
+        mediaCount,
         engagementRate,
         avgLikes,
         avgComments,
