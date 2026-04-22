@@ -1,111 +1,119 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 
-const KEYAPI_KEY = Deno.env.get('KEYAPI_KEY') || '';
-const IG_MCP_URL = 'https://mcp.keyapi.ai/instagram/mcp';
+const RAPIDAPI_KEY  = Deno.env.get('RAPIDAPI_KEY') || '';
+const RAPIDAPI_HOST = 'instagram-scraper-stable-api.p.rapidapi.com';
+const BASE          = `https://${RAPIDAPI_HOST}`;
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Headers': 'authorization, content-type',
 };
 
+const RAPID_HEADERS = {
+  'x-rapidapi-key':  RAPIDAPI_KEY,
+  'x-rapidapi-host': RAPIDAPI_HOST,
+};
+
+// POST with form-encoded body (what this API actually requires)
 // deno-lint-ignore no-explicit-any
-async function igCall(tool: string, args: Record<string, unknown>): Promise<any> {
-  const res = await fetch(IG_MCP_URL, {
+async function igPost(path: string, fields: Record<string, string>): Promise<any> {
+  const body = new URLSearchParams(fields).toString();
+  const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${KEYAPI_KEY}`,
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id:      1,
-      method:  'tools/call',
-      params:  { name: tool, arguments: args },
-    }),
+    headers: { ...RAPID_HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
   });
-  if (!res.ok) throw new Error(`KeyAPI HTTP ${res.status}`);
-  const rpc = await res.json();
-  if (rpc.error) throw new Error(rpc.error.message || 'KeyAPI RPC error');
-  const text = rpc.result?.content?.[0]?.text;
-  if (!text) throw new Error('Empty KeyAPI response');
-  const parsed = JSON.parse(text);
-  if (parsed.code !== 0) throw new Error(parsed.message || `API error code ${parsed.code}`);
-  // Instagram returns { data: { data: { ...user } } }
-  return parsed.data?.data ?? parsed.data ?? parsed;
+  if (!res.ok) throw new Error(`RapidAPI HTTP ${res.status} on ${path}`);
+  return res.json();
 }
 
 serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
 
   try {
-    if (!KEYAPI_KEY) return json({ error: 'KEYAPI_KEY not configured' }, 500);
+    if (!RAPIDAPI_KEY) return json({ error: 'RAPIDAPI_KEY not configured' }, 500);
 
-    const body = await req.json().catch(() => ({}));
-    const { handle } = body as { handle?: string };
+    const reqBody = await req.json().catch(() => ({}));
+    const { handle } = reqBody as { handle?: string };
     if (!handle) return json({ error: 'Provide handle' }, 400);
 
     const username = handle.replace(/^@/, '');
 
-    // Fetch profile and posts in parallel
-    const [u, postsRaw] = await Promise.all([
-      igCall('get_user_info', { username }),
-      igCall('get_user_posts', { username }).catch(() => null),
+    // Fetch profile + reels in parallel
+    const [profileRaw, reelsRaw] = await Promise.all([
+      igPost('/ig_get_fb_profile_v3.php', { username_or_url: username }),
+      igPost('/get_ig_user_reels.php',    { username_or_url: username }).catch(() => null),
     ]);
 
-    if (!u) return json({ error: 'Could not read Instagram profile data' }, 502);
+    if (profileRaw?.error) {
+      console.error('[instagram-profile] profile error:', profileRaw.error);
+      return json({ error: profileRaw.error }, 502);
+    }
 
-    // Posts are under data.items or data.data.items
-    const rawItems: any[] = postsRaw?.items ?? postsRaw?.data?.items ?? [];
+    // Profile is a flat object at root level
+    // deno-lint-ignore no-explicit-any
+    const u: any = profileRaw;
+    if (!u?.username) {
+      console.error('[instagram-profile] unexpected profile shape:', JSON.stringify(profileRaw).slice(0, 300));
+      return json({ error: 'Could not read Instagram profile data' }, 502);
+    }
 
-    const posts = rawItems.slice(0, 12).map((item: any) => {
-      const isVideo    = item.media_type === 2;
-      const isCarousel = item.media_type === 8;
+    // Reels: reels[i].node.media
+    // deno-lint-ignore no-explicit-any
+    const reelItems: any[] = reelsRaw?.reels ?? [];
+
+    // deno-lint-ignore no-explicit-any
+    const posts = reelItems.slice(0, 12).map((item: any) => {
+      const m = item?.node?.media ?? {};
       const thumbnailUrl =
-        item.thumbnail_url ||
-        item.image_versions2?.candidates?.[0]?.url ||
-        item.carousel_media?.[0]?.image_versions2?.candidates?.[0]?.url ||
+        m.thumbnail_url ||
+        m.image_versions2?.candidates?.[0]?.url ||
         null;
       return {
-        id:           String(item.pk || item.id || ''),
-        shortcode:    item.code  || '',
-        mediaType:    isVideo ? 'video' : (isCarousel ? 'carousel' : 'image'),
+        id:          String(m.pk ?? m.id ?? ''),
+        shortcode:   m.code ?? '',
+        mediaType:   'video',  // reels are always video
         thumbnailUrl,
-        caption:      item.caption?.text || '',
-        likes:        item.like_count    ?? 0,
-        comments:     item.comment_count ?? 0,
-        views:        item.play_count    ?? item.view_count ?? 0,
-        postedAt:     item.taken_at
-          ? new Date(item.taken_at * 1000).toISOString()
+        caption:     m.caption?.text ?? '',
+        likes:       m.like_count    ?? 0,
+        comments:    m.comment_count ?? 0,
+        views:       m.play_count    ?? m.view_count ?? 0,
+        postedAt:    m.taken_at
+          ? new Date(m.taken_at * 1000).toISOString()
           : new Date().toISOString(),
       };
     });
 
-    const followerCount = u.follower_count ?? u.edge_followed_by?.count ?? 0;
+    const followerCount = u.follower_count ?? 0;
 
     let engagementRate = 0;
     if (posts.length > 0 && followerCount > 0) {
+      // deno-lint-ignore no-explicit-any
       const sumLikes    = posts.reduce((s: number, p: any) => s + p.likes,    0);
+      // deno-lint-ignore no-explicit-any
       const sumComments = posts.reduce((s: number, p: any) => s + p.comments, 0);
       engagementRate = parseFloat((((sumLikes + sumComments) / posts.length) / followerCount * 100).toFixed(2));
     }
 
+    // deno-lint-ignore no-explicit-any
     const avgLikes    = posts.length ? Math.round(posts.reduce((s: number, p: any) => s + p.likes,    0) / posts.length) : 0;
+    // deno-lint-ignore no-explicit-any
     const avgComments = posts.length ? Math.round(posts.reduce((s: number, p: any) => s + p.comments, 0) / posts.length) : 0;
 
     return json({
       profile: {
-        username:          u.username        || username,
-        displayName:       u.full_name       || '',
-        profilePictureUrl: u.profile_pic_url || u.hd_profile_pic_versions?.[0]?.url || null,
+        username:          u.username         ?? username,
+        displayName:       u.full_name        ?? '',
+        profilePictureUrl: u.profile_pic_url  ?? u.hd_profile_pic_url_info?.url ?? null,
         followerCount,
-        followingCount:    u.following_count ?? u.edge_follow?.count ?? 0,
-        mediaCount:        u.media_count     ?? u.edge_owner_to_timeline_media?.count ?? 0,
+        followingCount:    u.following_count  ?? 0,
+        mediaCount:        u.media_count      ?? 0,
         engagementRate,
         avgLikes,
         avgComments,
-        biography:         u.biography       || '',
-        isVerified:        u.is_verified     ?? false,
-        isPrivate:         u.is_private      ?? false,
+        biography:         u.biography        ?? '',
+        isVerified:        u.is_verified      ?? false,
+        isPrivate:         u.is_private       ?? false,
       },
       posts,
     });
