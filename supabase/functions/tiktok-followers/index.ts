@@ -19,7 +19,7 @@ async function ttGet(path: string, params: Record<string, string>): Promise<any>
   const url = new URL(`${BASE}${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url.toString(), { headers: RAPID_HEADERS });
-  if (!res.ok) throw new Error(`TikTok API HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`TikTok API HTTP ${res.status} for ${path}`);
   return res.json();
 }
 
@@ -35,7 +35,7 @@ serve(async (req: Request) => {
 
     const uniqueId = handle.replace(/^@/, '');
 
-    // Fetch user info
+    // 1. Fetch user info → secUid, stats, nickname
     const infoRaw = await ttGet('/api/user/info', { uniqueId });
 
     // deno-lint-ignore no-explicit-any
@@ -58,7 +58,7 @@ serve(async (req: Request) => {
     const avatarUrl      = user.avatarThumb ?? user.avatarMedium ?? null;
     const secUid         = user.secUid ?? '';
 
-    // Fetch recent posts to compute engagement (non-fatal)
+    // 2. Fetch recent posts for engagement (non-fatal)
     let posts: Array<{ id: string; likes: number; comments: number; views: number; cover: string | null }> = [];
     if (secUid) {
       try {
@@ -72,12 +72,47 @@ serve(async (req: Request) => {
           views:    item.stats?.playCount    ?? 0,
           cover:    item.video?.cover        ?? null,
         }));
-      } catch { /* non-fatal — posts unavailable */ }
+      } catch { /* non-fatal */ }
+    }
+
+    // 3. Fetch a sample of followers to derive audience country breakdown (non-fatal)
+    // Each follower has a `region` (ISO 3166-1 alpha-2) field we aggregate into percentages.
+    let followers: Array<{ uid: string; region: string }> = [];
+    if (secUid) {
+      try {
+        const followersRaw = await ttGet('/api/user/followers', {
+          secUid,
+          count:   '100',
+          minTime: '0',
+        });
+
+        // API may return userInfoList or users depending on version
+        // deno-lint-ignore no-explicit-any
+        const list: any[] =
+          followersRaw?.userInfoList ??
+          followersRaw?.users        ??
+          followersRaw?.items        ??
+          followersRaw?.data?.userInfoList ??
+          [];
+
+        followers = list
+          // deno-lint-ignore no-explicit-any
+          .map((f: any) => ({
+            uid:    String(f.user?.uid    ?? f.uid    ?? ''),
+            region: String(f.user?.region ?? f.region ?? '').toUpperCase(),
+          }))
+          .filter(f => f.region.length === 2); // only keep valid ISO codes
+
+        console.log(`[tiktok-followers] fetched ${followers.length} followers with region data`);
+      } catch (e) {
+        // Non-fatal: followers endpoint may not be available on free plan
+        console.warn('[tiktok-followers] followers fetch failed (non-fatal):', String(e));
+      }
     }
 
     return json({
       total:        followerCount,
-      followers:    [],
+      followers,           // [{uid, region}] — ProfileEdit aggregates these into audience_locations
       has_more:     false,
       min_time:     null,
       max_time:     null,

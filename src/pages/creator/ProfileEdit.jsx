@@ -271,7 +271,23 @@ export default function CreatorProfileEdit() {
         audienceLocations:  topLocations.length > 0 ? topLocations : f.audienceLocations,
       }));
 
-      toast.success(`Synced: ${total.toLocaleString()} followers · engagement auto-calculated`);
+      // Persist audience locations immediately so Analytics reflects the update without needing Save
+      if (topLocations.length > 0 && user?.id) {
+        try {
+          await updateCreatorProfile(user.id, {
+            tiktok_followers: total,
+            audience_locations: topLocations.map(l => ({
+              city:    l.city || l.country,
+              percent: parseFloat(l.percent) || 0,
+            })),
+          });
+        } catch { /* non-fatal — user can still Save manually */ }
+      }
+
+      const locMsg = topLocations.length > 0
+        ? ` · ${topLocations.length} audience countries detected`
+        : '';
+      toast.success(`Synced: ${total.toLocaleString()} followers${locMsg}`);
     } catch (err) {
       const msg = String(err?.message || err);
       const isNotFound = msg.includes('404') || msg.toLowerCase().includes('not found');
