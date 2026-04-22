@@ -41,6 +41,7 @@ export default function CreatorAnalytics() {
   const [loading, setLoading]       = useState(true);
   const [ytStats, setYtStats]       = useState(null);
   const [apiErrors, setApiErrors]   = useState({});
+  const [locationTab, setLocationTab] = useState(null); // auto-set after data loads
 
   useEffect(() => {
     if (!user?.id) return;
@@ -60,6 +61,14 @@ export default function CreatorAnalytics() {
       .then(s => { if (s) setYtStats(s); })
       .catch(err => setApiErrors(p => ({ ...p, youtube: err.message })));
   }, [analytics?.youtube]);
+
+  // Auto-select best location tab when data arrives
+  useEffect(() => {
+    if (locationTab) return;
+    if (locationData.length > 0)  { setLocationTab('TikTok');    return; }
+    if (ytStats?.country)         { setLocationTab('YouTube');   return; }
+    if (igData?.profile?.cityName || igData?.profile?.countryCode) { setLocationTab('Instagram'); return; }
+  }, [locationData, ytStats, igData, locationTab]);
 
   const totalFollowers = analytics
     ? (analytics.instagram_followers || 0) + (analytics.tiktok_followers || 0) + (analytics.youtube_followers || 0)
@@ -120,6 +129,37 @@ export default function CreatorAnalytics() {
     .map(p => ({ platform: p.name, rate: p.engagement }));
 
   const locationData = analytics?.audience_locations || [];
+
+  // Country code → name helper
+  const regionNames = typeof Intl !== 'undefined' ? new Intl.DisplayNames(['en'], { type: 'region' }) : null;
+  const toCountryName = (code) => {
+    if (!code || !regionNames) return code;
+    try { return regionNames.of(code.toUpperCase()) || code; } catch { return code; }
+  };
+
+  // Build per-platform audience location data
+  const igLocation  = igData?.profile?.cityName
+    ? [{ label: igData.profile.cityName, source: 'Instagram', percent: 100, isSingle: true }]
+    : igData?.profile?.countryCode
+    ? [{ label: toCountryName(igData.profile.countryCode), source: 'Instagram', percent: 100, isSingle: true }]
+    : [];
+
+  const ttLocations = locationData.map(d => ({
+    label:   d.city || d.country || d.region || 'Unknown',
+    percent: Number(d.percent) || 0,
+    source:  'TikTok',
+  }));
+
+  const ytLocation  = ytStats?.country
+    ? [{ label: toCountryName(ytStats.country), source: 'YouTube', percent: 100, isSingle: true }]
+    : [];
+
+  // Active platform tab state
+  const allLocationPlatforms = [
+    ...(ttLocations.length  > 0 ? ['TikTok']    : []),
+    ...(ytLocation.length   > 0 ? ['YouTube']   : []),
+    ...(igLocation.length   > 0 ? ['Instagram'] : []),
+  ];
 
 
   if (loading) {
@@ -333,67 +373,64 @@ export default function CreatorAnalytics() {
           </div>
         </div>
 
-        {/* Audience Locations — Editorial ranked list */}
+        {/* Audience Locations — Multi-platform */}
         <div className="card p-6 relative overflow-hidden">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="section-title flex items-center gap-2 mb-0">
               <MapPin size={16} className="text-primary" />Audience Locations
             </h2>
-            {locationData.length > 0 && (
-              <span className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                <TikTokIcon /> TikTok
-              </span>
+            {/* Platform tabs */}
+            {allLocationPlatforms.length > 1 && (
+              <div className="flex gap-1">
+                {allLocationPlatforms.map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setLocationTab(p)}
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-all duration-150 ${
+                      locationTab === p
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/15'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
-          {locationData.length > 0 ? (
+          {/* TikTok audience countries — ranked list */}
+          {locationTab === 'TikTok' && ttLocations.length > 0 && (
             <div className="space-y-3">
-              {locationData.slice(0, 5).map((d, i) => {
-                const label = d.city || d.country || d.region || 'Unknown';
-                const pct   = d.percent;
+              {ttLocations.slice(0, 5).map((d, i) => {
                 const color = LOCATION_COLORS[i % LOCATION_COLORS.length];
                 return (
                   <motion.div
-                    key={label + i}
+                    key={d.label + i}
                     initial={{ opacity: 0, x: -14 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.09 + 0.15, duration: 0.45 }}
+                    transition={{ delay: i * 0.09 + 0.1, duration: 0.4 }}
                     className="relative group"
                   >
-                    {/* Ghost rank number */}
-                    <span
-                      className="absolute right-0 top-1/2 -translate-y-1/2 text-5xl font-black leading-none select-none pointer-events-none opacity-[0.07]"
-                      style={{ color }}
-                    >
+                    <span className="absolute right-0 top-1/2 -translate-y-1/2 text-5xl font-black leading-none select-none pointer-events-none opacity-[0.07]" style={{ color }}>
                       {i + 1}
                     </span>
-
                     <div className="relative flex items-center gap-3">
-                      {/* Rank badge */}
-                      <div
-                        className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-black text-white shadow-sm"
-                        style={{ background: color }}
-                      >
+                      <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-black text-white shadow-sm" style={{ background: color }}>
                         {i + 1}
                       </div>
-
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between mb-1.5">
-                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate pr-2">
-                            {label}
-                          </span>
-                          <span className="text-sm font-black flex-shrink-0 tabular-nums" style={{ color }}>
-                            {pct}%
-                          </span>
+                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate pr-2">{d.label}</span>
+                          <span className="text-sm font-black flex-shrink-0 tabular-nums" style={{ color }}>{d.percent}%</span>
                         </div>
-                        {/* Gradient bar */}
                         <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
                           <motion.div
                             className="h-full rounded-full"
                             style={{ background: `linear-gradient(90deg, ${color}, ${color}70)` }}
                             initial={{ width: 0 }}
-                            animate={{ width: `${pct}%` }}
-                            transition={{ duration: 0.9, delay: i * 0.1 + 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                            animate={{ width: `${d.percent}%` }}
+                            transition={{ duration: 0.9, delay: i * 0.1 + 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
                           />
                         </div>
                       </div>
@@ -401,11 +438,65 @@ export default function CreatorAnalytics() {
                   </motion.div>
                 );
               })}
+              <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100 dark:border-white/10">
+                Based on TikTok follower data · Sync in Profile Settings to refresh
+              </p>
             </div>
-          ) : (
+          )}
+
+          {/* YouTube channel country — live */}
+          {locationTab === 'YouTube' && ytLocation.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-4"
+            >
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30">
+                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                  <YouTubeIcon />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{ytLocation[0].label}</p>
+                  <p className="text-xs text-gray-500">Channel country · Live from YouTube Data API</p>
+                </div>
+                <span className="ml-auto text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-2 py-0.5 rounded-full">● Live</span>
+              </div>
+              <p className="text-[10px] text-gray-400">
+                Audience demographic breakdown requires YouTube Analytics API (OAuth required).
+              </p>
+            </motion.div>
+          )}
+
+          {/* Instagram creator location — live */}
+          {locationTab === 'Instagram' && igLocation.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-4"
+            >
+              <div className="flex items-center gap-4 p-4 rounded-2xl bg-pink-50 dark:bg-pink-900/10 border border-pink-100 dark:border-pink-900/30">
+                <div className="w-10 h-10 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center flex-shrink-0">
+                  <InstagramIcon />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{igLocation[0].label}</p>
+                  <p className="text-xs text-gray-500">Creator location · Live from Instagram</p>
+                </div>
+                <span className="ml-auto text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-2 py-0.5 rounded-full">● Live</span>
+              </div>
+              <p className="text-[10px] text-gray-400">
+                Audience demographic breakdown requires Instagram Insights (Meta Business approval required).
+              </p>
+            </motion.div>
+          )}
+
+          {/* No data at all */}
+          {allLocationPlatforms.length === 0 && (
             <div className="h-44 flex flex-col items-center justify-center gap-2">
               <MapPin size={32} className="text-gray-200 dark:text-gray-700" />
-              <p className="text-sm text-gray-400 text-center">Sync your TikTok in Profile Settings<br/>to see real audience countries</p>
+              <p className="text-sm text-gray-400 text-center">
+                Sync TikTok in Profile Settings<br/>to see real audience countries
+              </p>
             </div>
           )}
         </div>

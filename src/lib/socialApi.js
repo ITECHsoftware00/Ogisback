@@ -66,14 +66,14 @@ export async function fetchYouTubeStats(handle) {
 
   // 1. Try forHandle with @ prefix (current YouTube API standard)
   let json  = await ytFetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=statistics,contentDetails&forHandle=${encodeURIComponent(withAt)}&key=${YT_KEY}`
+    `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&forHandle=${encodeURIComponent(withAt)}&key=${YT_KEY}`
   );
   let channel = json?.items?.[0];
 
   // 2. Fallback: forUsername (legacy channels without handles)
   if (!channel) {
     json    = await ytFetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=statistics,contentDetails&forUsername=${encodeURIComponent(withoutAt)}&key=${YT_KEY}`
+      `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&forUsername=${encodeURIComponent(withoutAt)}&key=${YT_KEY}`
     );
     channel = json?.items?.[0];
   }
@@ -86,7 +86,7 @@ export async function fetchYouTubeStats(handle) {
     const channelId = searchJson?.items?.[0]?.snippet?.channelId;
     if (channelId) {
       json    = await ytFetch(
-        `https://www.googleapis.com/youtube/v3/channels?part=statistics,contentDetails&id=${channelId}&key=${YT_KEY}`
+        `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&id=${channelId}&key=${YT_KEY}`
       );
       channel = json?.items?.[0];
     }
@@ -135,6 +135,8 @@ export async function fetchYouTubeStats(handle) {
     avgLikes,
     avgComments,
     engRate,
+    country:     channel.snippet?.country    || null,
+    channelTitle: channel.snippet?.title     || null,
   };
 }
 

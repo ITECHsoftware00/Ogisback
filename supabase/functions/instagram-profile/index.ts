@@ -109,6 +109,9 @@ serve(async (req: Request) => {
         biography:         u.biography        ?? '',
         isVerified:        u.is_verified      ?? false,
         isPrivate:         u.is_private       ?? false,
+        cityName:          u.city_name        ?? null,
+        countryCode:       u.country_code     ?? null,
+        externalUrl:       u.external_url     ?? null,
       },
       posts,
     });
