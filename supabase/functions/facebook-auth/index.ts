@@ -82,8 +82,6 @@ serve(async (req) => {
       facebookFollowers,
       instagramUsername,
       instagramFollowers,
-      instagramBusinessId,
-      instagramPageToken,
     }), { headers: { ...CORS, 'Content-Type': 'application/json' } });
 
   } catch (err) {

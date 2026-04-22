@@ -6,7 +6,7 @@ import {
   ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchInstagramProfile, fetchTikTokStats, fetchTikTokFollowers, getFacebookAuthUrl } from '../../lib/socialApi';
+import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchInstagramProfile, fetchTikTokStats, fetchTikTokFollowers } from '../../lib/socialApi';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -164,7 +164,6 @@ export default function CreatorProfileEdit() {
     lat: null,
     lng: null,
   });
-  const [igInsightsConnected, setIgInsightsConnected] = useState(false);
   const [saving, setSaving] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const [showMapPicker, setShowMapPicker] = useState(false);
@@ -306,7 +305,6 @@ export default function CreatorProfileEdit() {
         if (!profile) return;
         if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
         if (profile.cover_url) setCoverUrl(profile.cover_url);
-        if (profile.instagram_business_id) setIgInsightsConnected(true);
         setForm({
           name: profile.name || user?.name || '',
           bio: profile.bio || '',
@@ -809,31 +807,14 @@ export default function CreatorProfileEdit() {
                       </button>
                     )}
                     {p.key === 'instagram' && (
-                      <div className="mt-1.5 flex flex-wrap gap-3 items-center">
-                        <button
-                          type="button"
-                          onClick={syncInstagram}
-                          disabled={syncingIG || !form.instagram}
-                          className="flex items-center gap-1 text-xs font-medium text-pink-500 hover:text-pink-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                        >
-                          {syncingIG ? 'Syncing…' : '↻ Sync from Instagram'}
-                        </button>
-                        {igInsightsConnected ? (
-                          <span className="flex items-center gap-1 text-xs font-semibold text-green-600 dark:text-green-400">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            Insights connected
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => { window.location.href = getFacebookAuthUrl(`${window.location.origin}/auth/facebook`); }}
-                            className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                          >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-                            Connect Audience Insights
-                          </button>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={syncInstagram}
+                        disabled={syncingIG || !form.instagram}
+                        className="mt-1.5 flex items-center gap-1 text-xs font-medium text-pink-500 hover:text-pink-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {syncingIG ? 'Syncing…' : '↻ Sync from Instagram'}
+                      </button>
                     )}
                     {p.key === 'tiktok' && (
                       <button
