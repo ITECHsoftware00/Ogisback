@@ -141,6 +141,7 @@ export default function CreatorAnalytics() {
     percent: Number(d.percent) || 0,
     source:  'TikTok',
   }));
+  const ttMax = ttLocations.length > 0 ? Math.max(...ttLocations.map(d => d.percent)) : 1;
 
   const ytLocation  = ytStats?.country
     ? [{ label: toCountryName(ytStats.country), source: 'YouTube', percent: 100, isSingle: true }]
@@ -153,14 +154,15 @@ export default function CreatorAnalytics() {
     ...(igLocation.length   > 0 ? ['Instagram'] : []),
   ];
 
-  // Auto-select best location tab when data arrives
+  // Auto-select best location tab when data arrives; reset if active tab loses data
   useEffect(() => {
-    if (locationTab) return;
-    if (ttLocations.length > 0)  { setLocationTab('TikTok');    return; }
-    if (ytStats?.country)        { setLocationTab('YouTube');   return; }
-    if (igLocation.length > 0)   { setLocationTab('Instagram'); return; }
+    if (locationTab && allLocationPlatforms.includes(locationTab)) return;
+    if (ttLocations.length > 0) { setLocationTab('TikTok');    return; }
+    if (ytStats?.country)       { setLocationTab('YouTube');   return; }
+    if (igLocation.length > 0)  { setLocationTab('Instagram'); return; }
+    setLocationTab(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ttLocations.length, ytStats?.country, igLocation.length]);
+  }, [ttLocations.length, ytStats?.country, igLocation.length, locationTab]);
 
   if (loading) {
     return (
@@ -429,7 +431,7 @@ export default function CreatorAnalytics() {
                             className="h-full rounded-full"
                             style={{ background: `linear-gradient(90deg, ${color}, ${color}70)` }}
                             initial={{ width: 0 }}
-                            animate={{ width: `${d.percent}%` }}
+                            animate={{ width: `${(d.percent / ttMax) * 100}%` }}
                             transition={{ duration: 0.9, delay: i * 0.1 + 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
                           />
                         </div>
@@ -449,20 +451,34 @@ export default function CreatorAnalytics() {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
+              className="space-y-3"
             >
+              {/* Channel info row */}
+              {ytStats?.channelTitle && (
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0 text-red-500">
+                    <YouTubeIcon />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{ytStats.channelTitle}</p>
+                    <p className="text-[11px] text-gray-400">{formatNumber(ytStats.subscribers || 0)} subscribers</p>
+                  </div>
+                  <span className="text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-2 py-0.5 rounded-full flex-shrink-0">● Live</span>
+                </div>
+              )}
+              {/* Country card */}
               <div className="flex items-center gap-4 p-4 rounded-2xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30">
-                <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-                  <YouTubeIcon />
+                <div className="flex-1">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Channel Country</p>
+                  <p className="text-2xl font-black text-gray-900 dark:text-gray-100">{ytLocation[0].label}</p>
                 </div>
-                <div>
-                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{ytLocation[0].label}</p>
-                  <p className="text-xs text-gray-500">Channel country · Live from YouTube Data API</p>
+                <div className="text-right">
+                  <p className="text-[10px] text-gray-400 mb-1">Total Views</p>
+                  <p className="text-lg font-bold text-red-500">{formatNumber(ytStats?.views || 0)}</p>
                 </div>
-                <span className="ml-auto text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400 px-2 py-0.5 rounded-full">● Live</span>
               </div>
-              <p className="text-[10px] text-gray-400">
-                Audience demographic breakdown requires YouTube Analytics API (OAuth required).
+              <p className="text-[10px] text-gray-400 pt-1">
+                City-level audience data requires YouTube Analytics OAuth — coming soon.
               </p>
             </motion.div>
           )}
