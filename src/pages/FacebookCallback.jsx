@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { exchangeFacebookCode } from '../lib/socialApi';
+import { exchangeFacebookCode, fetchInstagramAudienceInsights } from '../lib/socialApi';
 import { updateCreatorProfile } from '../lib/db';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
@@ -31,35 +31,56 @@ export default function FacebookCallback() {
 
     const redirectUri = `${window.location.origin}/auth/facebook`;
 
-    exchangeFacebookCode(code, redirectUri).then(async (data) => {
-      if (!data || data.error) {
-        setStatus('Failed to connect Facebook');
-        toast.error('Could not connect Facebook. Try again.');
-        navigate('/creator/profile/edit');
-        return;
-      }
-
-      if (user?.id) {
-        const updates = {
-          facebook_page:      data.facebookPageName  || null,
-          facebook_followers: data.facebookFollowers || 0,
-        };
-        if (data.instagramUsername) {
-          updates.instagram           = data.instagramUsername;
-          updates.instagram_followers = data.instagramFollowers || 0;
+    (async () => {
+      try {
+        const data = await exchangeFacebookCode(code, redirectUri, user?.id);
+        if (!data || data.error) {
+          setStatus('Failed to connect Facebook');
+          toast.error('Could not connect Facebook. Try again.');
+          navigate('/creator/profile/edit');
+          return;
         }
-        await updateCreatorProfile(user.id, updates);
+
+        if (user?.id) {
+          const updates = {
+            facebook_page:      data.facebookPageName  || null,
+            facebook_followers: data.facebookFollowers || 0,
+          };
+          if (data.instagramUsername) {
+            updates.instagram           = data.instagramUsername;
+            updates.instagram_followers = data.instagramFollowers || 0;
+          }
+          await updateCreatorProfile(user.id, updates);
+        }
+
+        sessionStorage.removeItem('fb_oauth_state');
+
+        // Kick off the first audience insights sync so the data is ready on next page load
+        if (user?.id && data.connected) {
+          setStatus('Syncing audience insights…');
+          try {
+            await fetchInstagramAudienceInsights(user.id);
+            toast.success('Instagram audience insights synced!');
+          } catch (e) {
+            // Meta App Review not approved yet, or the IG account has too few followers (<100)
+            toast.success('Facebook connected. Audience insights may take a moment.');
+            console.warn('[FacebookCallback] audience sync failed:', e.message);
+          }
+          navigate('/creator/analytics');
+          return;
+        }
+
+        const parts = [];
+        if (data.facebookFollowers)  parts.push(`${(data.facebookFollowers).toLocaleString()} Facebook followers`);
+        if (data.instagramFollowers) parts.push(`${(data.instagramFollowers).toLocaleString()} Instagram followers`);
+        toast.success(parts.length ? `Connected! ${parts.join(' · ')} synced.` : 'Facebook connected.');
+
+        navigate('/creator/profile/edit');
+      } catch (e) {
+        toast.error('Facebook connection error');
+        navigate('/creator/profile/edit');
       }
-
-      sessionStorage.removeItem('fb_oauth_state');
-
-      const parts = [];
-      if (data.facebookFollowers)  parts.push(`${(data.facebookFollowers).toLocaleString()} Facebook followers`);
-      if (data.instagramFollowers) parts.push(`${(data.instagramFollowers).toLocaleString()} Instagram followers`);
-      toast.success(parts.length ? `Connected! ${parts.join(' · ')} synced.` : 'Facebook connected.');
-
-      navigate('/creator/profile/edit');
-    });
+    })();
   }, []); // eslint-disable-line
 
   return (

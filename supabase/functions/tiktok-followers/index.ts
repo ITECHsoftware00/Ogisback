@@ -75,39 +75,66 @@ serve(async (req: Request) => {
       } catch { /* non-fatal */ }
     }
 
-    // 3. Fetch a sample of followers to derive audience country breakdown (non-fatal)
+    // 3. Fetch a larger sample of followers (up to 500+) to derive audience country breakdown.
     // Each follower has a `region` (ISO 3166-1 alpha-2) field we aggregate into percentages.
+    // Paginate through up to 5 pages of 100 followers each for statistical accuracy.
     let followers: Array<{ uid: string; region: string }> = [];
     if (secUid) {
-      try {
-        const followersRaw = await ttGet('/api/user/followers', {
-          secUid,
-          count:   '100',
-          minTime: '0',
-        });
+      const MAX_PAGES   = 5;
+      const PER_PAGE    = '100';
+      let cursor        = '0';
+      let hasMore       = true;
 
-        // API may return userInfoList or users depending on version
-        // deno-lint-ignore no-explicit-any
-        const list: any[] =
-          followersRaw?.userInfoList ??
-          followersRaw?.users        ??
-          followersRaw?.items        ??
-          followersRaw?.data?.userInfoList ??
-          [];
+      for (let page = 0; page < MAX_PAGES && hasMore; page++) {
+        try {
+          const followersRaw = await ttGet('/api/user/followers', {
+            secUid,
+            count:   PER_PAGE,
+            minTime: cursor,
+          });
 
-        followers = list
+          // API may return userInfoList or users depending on version
           // deno-lint-ignore no-explicit-any
-          .map((f: any) => ({
-            uid:    String(f.user?.uid    ?? f.uid    ?? ''),
-            region: String(f.user?.region ?? f.region ?? '').toUpperCase(),
-          }))
-          .filter(f => f.region.length === 2); // only keep valid ISO codes
+          const list: any[] =
+            followersRaw?.userInfoList ??
+            followersRaw?.users        ??
+            followersRaw?.items        ??
+            followersRaw?.data?.userInfoList ??
+            [];
 
-        console.log(`[tiktok-followers] fetched ${followers.length} followers with region data`);
-      } catch (e) {
-        // Non-fatal: followers endpoint may not be available on free plan
-        console.warn('[tiktok-followers] followers fetch failed (non-fatal):', String(e));
+          const batch = list
+            // deno-lint-ignore no-explicit-any
+            .map((f: any) => ({
+              uid:    String(f.user?.uid    ?? f.uid    ?? ''),
+              region: String(f.user?.region ?? f.region ?? '').toUpperCase(),
+            }))
+            .filter(f => f.region.length === 2); // only keep valid ISO codes
+
+          followers = [...followers, ...batch];
+
+          // Determine cursor for next page
+          hasMore = followersRaw?.hasMore ?? followersRaw?.has_more ?? (list.length >= 100);
+          const nextCursor = followersRaw?.minTime ?? followersRaw?.min_time ?? followersRaw?.cursor;
+          if (nextCursor && String(nextCursor) !== cursor) {
+            cursor = String(nextCursor);
+          } else {
+            hasMore = false; // no new cursor → stop pagination
+          }
+
+          console.log(`[tiktok-followers] page ${page + 1}: fetched ${batch.length} followers (total: ${followers.length})`);
+
+          // Brief delay between pages to avoid rate-limiting
+          if (hasMore && page < MAX_PAGES - 1) {
+            await new Promise(r => setTimeout(r, 300));
+          }
+        } catch (e) {
+          // Non-fatal: stop pagination on error but keep what we have
+          console.warn(`[tiktok-followers] followers page ${page + 1} failed (non-fatal):`, String(e));
+          hasMore = false;
+        }
       }
+
+      console.log(`[tiktok-followers] total followers with region data: ${followers.length}`);
     }
 
     return json({

@@ -10,9 +10,12 @@ import { getCreatorAnalytics, getCreatorPosts } from '../../lib/db';
 import { formatNumber } from '../../lib/normalize';
 import { fetchYouTubeStats } from '../../lib/socialApi';
 import { useInstagramData } from '../../hooks/useInstagramData';
+import DonutChart from '../../components/ui/DonutChart';
+import AudienceInsightsCard from '../../components/AudienceInsightsCard';
 
 const PLATFORM_COLORS = { Instagram: '#E1306C', TikTok: '#010101', YouTube: '#FF0000' };
 const LOCATION_COLORS = ['#EC4899', '#7C3AED', '#0D9488', '#F59E0B', '#3B82F6'];
+const ENG_COLORS      = { Instagram: '#E1306C', TikTok: '#111827', YouTube: '#EF4444' };
 
 const InstagramIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -41,7 +44,9 @@ export default function CreatorAnalytics() {
   const [loading, setLoading]       = useState(true);
   const [ytStats, setYtStats]       = useState(null);
   const [apiErrors, setApiErrors]   = useState({});
-  const [locationTab, setLocationTab] = useState(null); // auto-set after data loads
+  const [locationTab, setLocationTab]   = useState(null);
+  const [hoveredAudSeg, setHoveredAudSeg] = useState(null);
+  const [hoveredEngSeg, setHoveredEngSeg] = useState(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -142,6 +147,22 @@ export default function CreatorAnalytics() {
     source:  'TikTok',
   }));
   const ttMax = ttLocations.length > 0 ? Math.max(...ttLocations.map(d => d.percent)) : 1;
+
+  const ttDonutData = ttLocations.slice(0, 5).map((d, i) => ({
+    label: d.label, value: d.percent, color: LOCATION_COLORS[i],
+  }));
+
+  const connectedPlatforms = platforms.filter(p => p.followers > 0 || p.handle);
+  const engDonutData = connectedPlatforms.map(p => ({
+    label: p.name,
+    value: Math.max(parseFloat(p.engagement) || 0.05, 0.05),
+    color: ENG_COLORS[p.name],
+  }));
+  const avgEng = (() => {
+    const c = platforms.filter(p => p.followers > 0);
+    if (!c.length) return null;
+    return (c.reduce((s, p) => s + (parseFloat(p.engagement) || 0), 0) / c.length).toFixed(2);
+  })();
 
   const ytLocation  = ytStats?.country
     ? [{ label: toCountryName(ytStats.country), source: 'YouTube', percent: 100, isSingle: true }]
@@ -299,78 +320,76 @@ export default function CreatorAnalytics() {
             style={{ backgroundImage: 'radial-gradient(circle, #ffffff08 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
 
           <div className="relative">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-5">
               <h2 className="section-title flex items-center gap-2 mb-0">
                 <TrendingUp size={16} className="text-primary" />Engagement Rate
               </h2>
               <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">By Platform</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              {platforms.map((p, i) => {
-                const connected = p.followers > 0 || !!p.handle;
-                const rate      = parseFloat(p.engagement) || 0;
-                const arcFill   = connected ? Math.min(rate, 100) / 100 : 0;
-                const cfg = {
-                  Instagram: { stroke: '#E1306C', glow: '#E1306C55', track: '#fce7f3' },
-                  TikTok:    { stroke: '#111827', glow: '#11182755', track: '#f3f4f6' },
-                  YouTube:   { stroke: '#EF4444', glow: '#EF444455', track: '#fee2e2' },
-                }[p.name] || { stroke: '#6366f1', glow: '#6366f155', track: '#e0e7ff' };
+            <div className="flex gap-5 items-center">
+              {/* Donut chart */}
+              <div className="relative flex-shrink-0" style={{ width: 160, height: 160 }}>
+                <DonutChart
+                  data={engDonutData}
+                  size={160}
+                  thickness={28}
+                  onHover={setHoveredEngSeg}
+                  hoveredIdx={hoveredEngSeg}
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  {hoveredEngSeg !== null && engDonutData[hoveredEngSeg] ? (
+                    <>
+                      <span className="text-xl font-black leading-none" style={{ color: engDonutData[hoveredEngSeg].color }}>
+                        {(parseFloat(platforms.find(p => p.name === engDonutData[hoveredEngSeg].label)?.engagement) || 0).toFixed(2)}%
+                      </span>
+                      <span className="text-[10px] text-gray-400 mt-1">{engDonutData[hoveredEngSeg].label}</span>
+                    </>
+                  ) : avgEng !== null ? (
+                    <>
+                      <span className="text-xl font-black text-gray-800 dark:text-gray-200 leading-none">{avgEng}%</span>
+                      <span className="text-[9px] text-gray-400 uppercase tracking-wide mt-1">avg rate</span>
+                    </>
+                  ) : (
+                    <span className="text-2xl font-black text-gray-300 dark:text-gray-700">—</span>
+                  )}
+                </div>
+              </div>
 
-                return (
-                  <motion.div
-                    key={p.name}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.12 + 0.1, duration: 0.5 }}
-                    className="flex flex-col items-center"
-                  >
-                    {/* Ring gauge */}
-                    <div className="relative w-[88px] h-[88px] mb-3">
-                      <svg viewBox="0 0 100 100" className="w-full h-full" style={{ transform: 'rotate(-90deg)' }}>
-                        {/* Track ring */}
-                        <circle cx="50" cy="50" r="38" fill="none"
-                          stroke={cfg.track} strokeWidth="7" className="dark:opacity-20" />
-                        {/* Animated fill arc */}
-                        {connected && (
-                          <motion.circle
-                            cx="50" cy="50" r="38"
-                            fill="none"
-                            stroke={cfg.stroke}
-                            strokeWidth="7"
-                            strokeLinecap="round"
-                            style={{ filter: `drop-shadow(0 0 8px ${cfg.glow})` }}
-                            initial={{ pathLength: 0, opacity: 0 }}
-                            animate={{ pathLength: arcFill, opacity: 1 }}
-                            transition={{ duration: 1.5, delay: i * 0.18 + 0.4, ease: [0.34, 1.1, 0.64, 1] }}
-                          />
-                        )}
-                      </svg>
-                      {/* Platform icon centered */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-gray-400 dark:text-gray-500">{p.icon}</span>
-                      </div>
-                    </div>
-
-                    {/* Rate */}
-                    <p
-                      className={`font-mono text-base font-bold leading-none mb-1 ${connected ? '' : 'text-gray-300 dark:text-gray-700'}`}
-                      style={{ color: connected ? cfg.stroke : undefined }}
+              {/* Platform breakdown */}
+              <div className="flex-1 space-y-3">
+                {platforms.map((p, i) => {
+                  const rate = parseFloat(p.engagement) || 0;
+                  const color = ENG_COLORS[p.name];
+                  const connected = p.followers > 0 || !!p.handle;
+                  const engIdx = engDonutData.findIndex(d => d.label === p.name);
+                  return (
+                    <motion.div
+                      key={p.name}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.1 + 0.15 }}
+                      className="flex items-center gap-3 cursor-default"
+                      onMouseEnter={() => engIdx >= 0 && setHoveredEngSeg(engIdx)}
+                      onMouseLeave={() => setHoveredEngSeg(null)}
                     >
-                      {connected ? `${rate.toFixed(2)}%` : '—'}
-                    </p>
-                    <p className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">{p.name}</p>
-                    <p className="text-[10px] text-gray-400 leading-tight text-center">
-                      {connected ? formatNumber(p.followers) + ' flwrs' : 'not linked'}
-                    </p>
-                    {connected && (p.avgLikes > 0 || p.avgComments > 0) && (
-                      <p className="text-[10px] text-gray-400 mt-0.5">
-                        ♥{formatNumber(p.avgLikes)} · 💬{formatNumber(p.avgComments)}
-                      </p>
-                    )}
-                  </motion.div>
-                );
-              })}
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 transition-transform duration-150"
+                        style={{ background: connected ? color : '#d1d5db', transform: hoveredEngSeg === engIdx ? 'scale(1.5)' : 'scale(1)' }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{p.name}</span>
+                          <span className="text-sm font-black tabular-nums" style={{ color: connected && rate > 0 ? color : '#9ca3af' }}>
+                            {connected && rate > 0 ? `${rate.toFixed(2)}%` : '—'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          {connected ? `${formatNumber(p.followers)} followers` : 'not connected'}
+                        </p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -401,48 +420,56 @@ export default function CreatorAnalytics() {
             )}
           </div>
 
-          {/* TikTok audience countries — ranked list */}
+          {/* TikTok audience countries — donut chart */}
           {locationTab === 'TikTok' && ttLocations.length > 0 && (
-            <div className="space-y-3">
-              {ttLocations.slice(0, 5).map((d, i) => {
-                const color = LOCATION_COLORS[i % LOCATION_COLORS.length];
-                return (
-                  <motion.div
+            <div className="flex gap-5 items-center">
+              {/* Donut */}
+              <div className="relative flex-shrink-0" style={{ width: 160, height: 160 }}>
+                <DonutChart
+                  data={ttDonutData}
+                  size={160}
+                  thickness={26}
+                  onHover={setHoveredAudSeg}
+                  hoveredIdx={hoveredAudSeg}
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  {hoveredAudSeg !== null && ttDonutData[hoveredAudSeg] ? (
+                    <>
+                      <span className="text-xl font-black leading-none" style={{ color: ttDonutData[hoveredAudSeg].color }}>
+                        {ttDonutData[hoveredAudSeg].value}%
+                      </span>
+                      <span className="text-[9px] text-gray-400 text-center leading-tight mt-1 max-w-[64px] truncate">
+                        {ttDonutData[hoveredAudSeg].label}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xl font-black text-gray-800 dark:text-gray-200 leading-none">{ttDonutData.length}</span>
+                      <span className="text-[9px] text-gray-400 uppercase tracking-wide mt-1">countries</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className="flex-1 space-y-2.5">
+                {ttDonutData.map((d, i) => (
+                  <div
                     key={d.label + i}
-                    initial={{ opacity: 0, x: -14 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.09 + 0.1, duration: 0.4 }}
-                    className="relative group"
+                    className="flex items-center gap-2.5 cursor-default"
+                    onMouseEnter={() => setHoveredAudSeg(i)}
+                    onMouseLeave={() => setHoveredAudSeg(null)}
                   >
-                    <span className="absolute right-0 top-1/2 -translate-y-1/2 text-5xl font-black leading-none select-none pointer-events-none opacity-[0.07]" style={{ color }}>
-                      {i + 1}
-                    </span>
-                    <div className="relative flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-black text-white shadow-sm" style={{ background: color }}>
-                        {i + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline justify-between mb-1.5">
-                          <span className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate pr-2">{d.label}</span>
-                          <span className="text-sm font-black flex-shrink-0 tabular-nums" style={{ color }}>{d.percent}%</span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                          <motion.div
-                            className="h-full rounded-full"
-                            style={{ background: `linear-gradient(90deg, ${color}, ${color}70)` }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(d.percent / ttMax) * 100}%` }}
-                            transition={{ duration: 0.9, delay: i * 0.1 + 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-              <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100 dark:border-white/10">
-                Based on TikTok follower data · Sync in Profile Settings to refresh
-              </p>
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0 transition-transform duration-150"
+                      style={{ background: d.color, transform: hoveredAudSeg === i ? 'scale(1.5)' : 'scale(1)' }} />
+                    <span className="text-xs text-gray-700 dark:text-gray-300 flex-1 truncate">{d.label}</span>
+                    <span className="text-xs font-bold tabular-nums flex-shrink-0" style={{ color: d.color }}>{d.value}%</span>
+                  </div>
+                ))}
+                <p className="text-[10px] text-gray-400 pt-2 border-t border-gray-100 dark:border-white/10">
+                  TikTok follower data · Sync in Profile Settings
+                </p>
+              </div>
             </div>
           )}
 
@@ -511,51 +538,10 @@ export default function CreatorAnalytics() {
         </div>
       </div>
 
-      {/* ── Age & Gender ── */}
-      {(() => {
-        const ageGender = analytics?.audience_age_gender || [];
-        return ageGender.length > 0 ? (
-          <div className="card p-6 mb-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="section-title flex items-center gap-2 mb-0">
-                <Users size={16} className="text-primary" />Age &amp; Gender Breakdown
-              </h2>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400">● Live</span>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-x-10 gap-y-3 max-w-lg">
-              {ageGender.map(b => {
-                const total = (b.female || 0) + (b.male || 0);
-                return (
-                  <div key={b.range}>
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span className="font-medium">{b.range}</span>
-                      <span>{total}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden flex">
-                      <motion.div
-                        className="bg-pink-400 h-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${b.female || 0}%` }}
-                        transition={{ duration: 0.6 }}
-                      />
-                      <motion.div
-                        className="bg-blue-400 h-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${b.male || 0}%` }}
-                        transition={{ duration: 0.6, delay: 0.1 }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex gap-5 mt-4 text-xs text-gray-400">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-pink-400 inline-block" /> Female</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400 inline-block" /> Male</span>
-            </div>
-          </div>
-        ) : null;
-      })()}
+      {/* ── Audience Insights (unified multi-platform) ── */}
+      <div className="mb-6">
+        <AudienceInsightsCard analytics={analytics} userId={user?.id} />
+      </div>
 
       {/* ── Top performing posts ── */}
       <div className="card p-6">

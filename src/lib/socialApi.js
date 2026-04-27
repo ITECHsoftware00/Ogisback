@@ -146,21 +146,84 @@ export function getFacebookAuthUrl(redirectUri) {
   const params = new URLSearchParams({
     client_id:     FB_APP_ID,
     redirect_uri:  redirectUri,
-    scope:         'pages_show_list,pages_read_engagement,instagram_basic',
+    scope:         'pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights',
     state,
     response_type: 'code',
   });
   return `https://www.facebook.com/v19.0/dialog/oauth?${params}`;
 }
 
-export async function exchangeFacebookCode(code, redirectUri) {
+export async function exchangeFacebookCode(code, redirectUri, userId) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/facebook-auth`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code, redirectUri }),
+    body: JSON.stringify({ code, redirectUri, userId }),
   });
   if (!res.ok) return null;
   return await res.json();
+}
+
+/** Triggers a fresh pull of Instagram audience insights using the stored page token. */
+export async function fetchInstagramAudienceInsights(userId) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/instagram-audience`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON}`,
+    },
+    body: JSON.stringify({ userId }),
+  });
+  const json = await res.json();
+  if (!res.ok || json?.error) throw new Error(json?.error || 'instagram-audience failed');
+  return json; // { cities, countries, ageGender }
+}
+
+/* ─────────────────────── YouTube Analytics OAuth ─────────────────────── */
+
+const YT_OAUTH_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
+const YT_ANALYTICS_SCOPE = 'https://www.googleapis.com/auth/yt-analytics.readonly';
+
+export function getYouTubeAnalyticsAuthUrl(redirectUri) {
+  const state = crypto.randomUUID();
+  sessionStorage.setItem('yt_oauth_state', state);
+  const params = new URLSearchParams({
+    client_id:     YT_OAUTH_CLIENT_ID,
+    redirect_uri:  redirectUri,
+    response_type: 'code',
+    scope:         YT_ANALYTICS_SCOPE,
+    access_type:   'offline',        // required to receive a refresh_token
+    prompt:        'consent',        // forces refresh_token on repeat consents
+    state,
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+}
+
+export async function exchangeYouTubeCode(code, redirectUri, userId) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-auth`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON}`,
+    },
+    body: JSON.stringify({ code, redirectUri, userId }),
+  });
+  const json = await res.json();
+  if (!res.ok || json?.error) throw new Error(json?.error || 'youtube-auth failed');
+  return json;
+}
+
+export async function fetchYouTubeAudienceInsights(userId) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-audience`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON}`,
+    },
+    body: JSON.stringify({ userId }),
+  });
+  const json = await res.json();
+  if (!res.ok || json?.error) throw new Error(json?.error || 'youtube-audience failed');
+  return json; // { countries, ageGender }
 }
 
 export async function fetchInstagramStats(username) {

@@ -16,6 +16,7 @@ import NotFound from './pages/NotFound';
 import AuthCallback from './pages/AuthCallback';
 import TikTokCallback from './pages/TikTokCallback';
 import FacebookCallback from './pages/FacebookCallback';
+import YouTubeCallback from './pages/YouTubeCallback';
 import ResetPassword from './pages/ResetPassword';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
@@ -39,6 +40,7 @@ import CreatorWithdraw from './pages/creator/Withdraw';
 import CreatorAnalytics from './pages/creator/Analytics';
 import CreatorProfileEdit from './pages/creator/ProfileEdit';
 import CreatorSettings from './pages/creator/Settings';
+import CreatorBilling from './pages/creator/Billing';
 
 // Admin pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -127,6 +129,7 @@ function AppRoutes() {
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/auth/tiktok" element={<TikTokCallback />} />
       <Route path="/auth/facebook" element={<FacebookCallback />} />
+      <Route path="/auth/youtube" element={<YouTubeCallback />} />
       <Route path="/auth/reset-password" element={<ResetPassword />} />
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route path="/payment/cancel" element={<PaymentCancel />} />
@@ -147,6 +150,7 @@ function AppRoutes() {
       <Route path="/creator/analytics" element={<CreatorRoute><CreatorAnalytics /></CreatorRoute>} />
       <Route path="/creator/profile/edit" element={<CreatorRoute><CreatorProfileEdit /></CreatorRoute>} />
       <Route path="/creator/settings" element={<CreatorRoute><CreatorSettings /></CreatorRoute>} />
+      <Route path="/creator/billing" element={<CreatorRoute><CreatorBilling /></CreatorRoute>} />
 
       {/* Brand dashboard */}
       <Route path="/brand/dashboard" element={<BrandRoute><BrandDashboard /></BrandRoute>} />

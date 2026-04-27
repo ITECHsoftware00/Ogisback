@@ -6,7 +6,7 @@ import {
   ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchInstagramProfile, fetchTikTokStats, fetchTikTokFollowers } from '../../lib/socialApi';
+import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchInstagramProfile, fetchTikTokStats, fetchTikTokFollowers, getFacebookAuthUrl, getYouTubeAnalyticsAuthUrl } from '../../lib/socialApi';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
@@ -830,6 +830,105 @@ export default function CreatorProfileEdit() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* ── Connect Platforms (OAuth) ── */}
+        <div className="card p-6 mb-5">
+          <div className="mb-5">
+            <h2 className="text-base font-heading font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Globe size={16} className="text-primary" />Connect Platforms
+            </h2>
+            <p className="text-xs text-gray-400 mt-1">
+              One-click OAuth connections unlock audience insights, auto-sync follower counts, and verify your accounts to brands.
+            </p>
+          </div>
+          <div className="space-y-3">
+            {/* Facebook / Instagram Business */}
+            <div className="flex items-center gap-4 p-4 rounded-2xl border border-blue-100 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-900/10">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#1877F2">
+                  <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">Facebook & Instagram Business</p>
+                <p className="text-xs text-gray-400 mt-0.5">Unlocks audience demographics, city-level insights, and auto-syncs follower counts.</p>
+              </div>
+              <button
+                onClick={() => {
+                  const url = getFacebookAuthUrl(`${window.location.origin}/auth/facebook`);
+                  window.location.href = url;
+                }}
+                className="btn btn-sm bg-[#1877F2] hover:bg-[#1565C0] text-white flex-shrink-0 gap-1.5"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
+                Connect
+              </button>
+            </div>
+
+            {/* YouTube Analytics */}
+            <div className="flex items-center gap-4 p-4 rounded-2xl border border-red-100 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/10">
+              <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="#FF0000">
+                  <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.95C18.88 4 12 4 12 4s-6.88 0-8.59.47A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58a2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+                  <polygon points="9.75,15.02 15.5,12 9.75,8.98" fill="white" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">YouTube Analytics</p>
+                <p className="text-xs text-gray-400 mt-0.5">Connects via Google OAuth to pull country demographics, age/gender data, and real subscriber counts.</p>
+              </div>
+              <button
+                onClick={() => {
+                  const url = getYouTubeAnalyticsAuthUrl(`${window.location.origin}/auth/youtube`);
+                  window.location.href = url;
+                }}
+                className="btn btn-sm bg-[#FF0000] hover:bg-[#CC0000] text-white flex-shrink-0 gap-1.5"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.95C18.88 4 12 4 12 4s-6.88 0-8.59.47A2.78 2.78 0 0 0 1.46 6.42 29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58a2.78 2.78 0 0 0 1.95 1.95C5.12 20 12 20 12 20s6.88 0 8.59-.47a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" />
+                  <polygon points="9.75,15.02 15.5,12 9.75,8.98" fill="white" />
+                </svg>
+                Connect
+              </button>
+            </div>
+
+            {/* TikTok OAuth */}
+            <div className="flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">TikTok</p>
+                <p className="text-xs text-gray-400 mt-0.5">OAuth connection to verify your account and auto-sync follower counts.</p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const url = await getTikTokAuthUrl(`${window.location.origin}/auth/tiktok`);
+                    window.location.href = url;
+                  } catch (err) {
+                    toast.error('Could not start TikTok connection. Check your client key.');
+                  }
+                }}
+                className="btn btn-sm bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-200 text-white dark:text-gray-900 flex-shrink-0 gap-1.5"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z" />
+                </svg>
+                Connect
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-start gap-2">
+            <Info size={13} className="text-primary mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              OAuth connections are <strong>secure and revocable</strong>. We only request read access and never post on your behalf. You can disconnect any time.
+            </p>
           </div>
         </div>
 
