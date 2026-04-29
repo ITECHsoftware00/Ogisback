@@ -5,16 +5,6 @@ import { followCreator, unfollowCreator, checkFollowing } from '../lib/db';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
-/**
- * FollowButton — reusable Follow / Following toggle.
- *
- * Props:
- *   creatorId   — UUID of the creator being followed
- *   creatorName — display name (used in toast)
- *   size        — 'sm' | 'md' (default 'md')
- *   className   — extra Tailwind classes
- *   onCountChange(delta) — optional callback to update follower count in parent
- */
 export default function FollowButton({ creatorId, creatorName, size = 'md', className = '', onCountChange }) {
   const { user, isLoggedIn } = useAuth();
   const navigate = useNavigate();

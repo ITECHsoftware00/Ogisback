@@ -45,32 +45,41 @@ serve(async (req: Request) => {
     const { access_token, refresh_token } = tokenData;
 
     // 2. Fetch the authenticated user's YouTube channel info
-    const channelRes = await fetch(
-      'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true',
-      { headers: { Authorization: `Bearer ${access_token}` } },
-    );
-    const channelData = await channelRes.json();
-    const channel = channelData?.items?.[0];
+    // 3. Fetch channel info — optional, non-fatal if YouTube Data API v3 isn't enabled
+    let subscribers  = 0;
+    let views        = 0;
+    let videoCount   = 0;
+    let channelTitle = '';
+    let country: string | null = null;
+    let handle       = '';
 
-    if (!channel) {
-      return json({ error: 'No YouTube channel found for this Google account' }, 404);
+    try {
+      const channelRes  = await fetch(
+        'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true',
+        { headers: { Authorization: `Bearer ${access_token}` } },
+      );
+      const channelData = await channelRes.json();
+      const channel     = channelData?.items?.[0];
+      if (channel) {
+        subscribers  = parseInt(channel.statistics?.subscriberCount || '0', 10);
+        views        = parseInt(channel.statistics?.viewCount       || '0', 10);
+        videoCount   = parseInt(channel.statistics?.videoCount      || '0', 10);
+        channelTitle = channel.snippet?.title   || '';
+        country      = channel.snippet?.country || null;
+        handle       = channel.snippet?.customUrl?.replace(/^@/, '') || channelTitle;
+      }
+    } catch (chanErr) {
+      console.warn('[youtube-auth] channel fetch failed (non-fatal):', String(chanErr));
     }
 
-    const subscribers  = parseInt(channel.statistics?.subscriberCount || '0', 10);
-    const views        = parseInt(channel.statistics?.viewCount       || '0', 10);
-    const videoCount   = parseInt(channel.statistics?.videoCount      || '0', 10);
-    const channelTitle = channel.snippet?.title   || '';
-    const country      = channel.snippet?.country || null;
-    const handle       = channel.snippet?.customUrl?.replace(/^@/, '') || channelTitle;
-
-    // 3. Persist the refresh token and channel info
+    // 4. Persist the refresh token (and channel info if we got it)
     const sb = createClient(SUPA_URL, SERVICE, { auth: { persistSession: false } });
 
-    await sb.from('creator_profiles').update({
-      youtube:               handle,
-      youtube_followers:     subscribers,
-      youtube_refresh_token: refresh_token,
-    }).eq('id', userId);
+    const update: Record<string, unknown> = { youtube_refresh_token: refresh_token };
+    if (handle)      update.youtube           = handle;
+    if (subscribers) update.youtube_followers = subscribers;
+
+    await sb.from('creator_profiles').update(update).eq('id', userId);
 
     return json({
       connected: true,

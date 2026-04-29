@@ -1,3 +1,27 @@
+/**
+ * youtube-audience — Fetch city-level audience insights via YouTube Analytics API
+ *
+ * Data pipeline:
+ * ┌─────────────────────┬──────────────────────────────────────────────────────────────┐
+ * │ Step                │ Details                                                      │
+ * ├─────────────────────┼──────────────────────────────────────────────────────────────┤
+ * │ 1. Auth             │ youtube-auth stores refresh_token → creator_profiles         │
+ * │ 2. Token refresh    │ POST oauth2.googleapis.com/token → short-lived access_token  │
+ * │ 3. City insights    │ GET youtubeanalytics.googleapis.com/v2/reports               │
+ * │                     │   ?ids=channel==MINE                                         │
+ * │                     │   &dimensions=city                                           │
+ * │                     │   &metrics=views,estimatedMinutesWatched                     │
+ * │                     │   &sort=-views&maxResults=15                                 │
+ * │ 4. Response rows    │ [["Lagos", 45230, 91000], ["London", 12100, 24300], ...]      │
+ * │ 5. Stored as        │ { city: "Lagos", percent: 42.1 }  → youtube_audience_cities  │
+ * │ 6. Age/gender       │ GET same endpoint with dimensions=ageGroup,gender             │
+ * │                     │   → [{ range: "18-24", female: 38.2, male: 51.1 }]           │
+ * └─────────────────────┴──────────────────────────────────────────────────────────────┘
+ *
+ * Requires: GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET (Supabase secrets)
+ * Minimum threshold: YouTube suppresses cities with < ~1,000 views (privacy policy)
+ */
+
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -52,22 +76,13 @@ serve(async (req: Request) => {
 
     const accessToken = tokenData.access_token;
 
-    // 3. Get the channel ID
-    const channelRes = await fetch(
-      'https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
-    const channelData = await channelRes.json();
-    const channelId   = channelData?.items?.[0]?.id;
-    if (!channelId) return json({ error: 'Channel not found' }, 404);
-
-    // 4. YouTube Analytics API — demographics + geography
+    // 3. YouTube Analytics API — use channel==MINE (no Data API v3 needed)
     const endDate   = new Date().toISOString().split('T')[0];
-    const startDate = '2020-01-01'; // far back enough for lifetime data
+    const startDate = '2020-01-01';
 
-    // Fetch city-level audience data (city names returned directly by the API)
+    // Fetch city-level audience data
     const countryUrl = `https://youtubeanalytics.googleapis.com/v2/reports`
-      + `?ids=channel==${channelId}`
+      + `?ids=channel==MINE`
       + `&startDate=${startDate}&endDate=${endDate}`
       + `&metrics=views,estimatedMinutesWatched`
       + `&dimensions=city`
@@ -78,10 +93,14 @@ serve(async (req: Request) => {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const countryData = await countryRes.json();
+    if (!countryRes.ok) {
+      console.error('[youtube-audience] city query error:', JSON.stringify(countryData).slice(0, 400));
+      return json({ error: countryData?.error?.message || 'YouTube Analytics API error' }, 502);
+    }
 
     // Fetch age/gender demographics
     const ageGenderUrl = `https://youtubeanalytics.googleapis.com/v2/reports`
-      + `?ids=channel==${channelId}`
+      + `?ids=channel==MINE`
       + `&startDate=${startDate}&endDate=${endDate}`
       + `&metrics=viewerPercentage`
       + `&dimensions=ageGroup,gender`

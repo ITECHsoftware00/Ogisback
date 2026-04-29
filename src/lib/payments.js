@@ -1,12 +1,5 @@
-/**
- * payments.js — Frontend payment utilities
- * Handles Stripe Checkout, subscriptions, escrow, and wallet transactions.
- */
 import { supabase } from '../supabaseClient';
 
-// ── Stripe Price IDs ────────────────────────────────────────────
-// These must match the price_id values in the stripe_prices table.
-// After creating products in Stripe Dashboard, update these IDs.
 export const STRIPE_PRICES = {
   creator: {
     mini: { monthly: 'price_creator_mini_monthly', annual: 'price_creator_mini_annual' },
@@ -18,16 +11,9 @@ export const STRIPE_PRICES = {
   },
 };
 
-// ── Subscription Checkout ───────────────────────────────────────
-
-/**
- * Starts a Stripe Checkout session for a subscription plan.
- * Redirects the browser to Stripe's hosted checkout page.
- */
 export async function startSubscriptionCheckout({ userId, userEmail, role, planId, billingCycle }) {
   if (planId === 'free') throw new Error('Cannot checkout for free plan');
 
-  // Try DB price first, fall back to hardcoded map
   let priceId = await getPriceId(role, planId, billingCycle);
   if (!priceId) priceId = STRIPE_PRICES[role]?.[planId]?.[billingCycle];
   if (!priceId) throw new Error(`Unknown plan: ${role} ${planId} ${billingCycle}`);
@@ -44,9 +30,6 @@ export async function startSubscriptionCheckout({ userId, userEmail, role, planI
   window.location.href = data.url;
 }
 
-/**
- * Opens the Stripe Customer Portal to manage/cancel subscription.
- */
 export async function openCustomerPortal(userId) {
   const { data, error } = await supabase.functions.invoke('create-portal-session', {
     body: { userId },
@@ -55,8 +38,6 @@ export async function openCustomerPortal(userId) {
   if (error || data?.error) throw new Error(msg);
   if (data?.url) window.location.href = data.url;
 }
-
-// ── Subscription Data ───────────────────────────────────────────
 
 export async function getSubscription(userId) {
   const { data, error } = await supabase
@@ -81,8 +62,6 @@ export async function cancelSubscription(userId) {
   });
   if (error) throw new Error(error.message);
 }
-
-// ── Wallet Transactions ─────────────────────────────────────────
 
 export async function getWalletTransactions(userId, limit = 30) {
   const { data, error } = await supabase
@@ -114,8 +93,6 @@ export async function logWalletTransaction({ userId, type, amount, description, 
   return data;
 }
 
-// ── Escrow ──────────────────────────────────────────────────────
-
 export async function getEscrow(orderId) {
   const { data, error } = await supabase
     .from('escrow')
@@ -146,7 +123,6 @@ export async function createEscrow({ orderId, brandId, creatorId, amount, feeRat
     .single();
   if (error) throw error;
 
-  // Log brand debit
   await logWalletTransaction({
     userId: brandId,
     type: 'order_payment',
@@ -155,7 +131,6 @@ export async function createEscrow({ orderId, brandId, creatorId, amount, feeRat
     orderId,
   });
 
-  // Log creator pending credit
   await logWalletTransaction({
     userId: creatorId,
     type: 'escrow_credit',
@@ -164,7 +139,6 @@ export async function createEscrow({ orderId, brandId, creatorId, amount, feeRat
     orderId,
   });
 
-  // Update creator pending_balance
   await supabase
     .from('creator_profiles')
     .update({ pending_balance: supabase.raw('pending_balance + ' + amount) })
@@ -184,13 +158,10 @@ export async function refundEscrow(orderId) {
   if (error) throw error;
 }
 
-// ── Withdrawals ─────────────────────────────────────────────────
-
 export async function submitWithdrawal({ creatorId, amount, method, accountDetails, walletBalance }) {
   if (amount < 10) throw new Error('Minimum withdrawal is $10');
   if (amount > walletBalance) throw new Error('Insufficient wallet balance');
 
-  // Create withdrawal record
   const { data: withdrawal, error } = await supabase
     .from('withdrawals')
     .insert({
@@ -210,7 +181,6 @@ export async function submitWithdrawal({ creatorId, amount, method, accountDetai
     .update({ wallet_balance: supabase.raw(`wallet_balance - ${amount}`) })
     .eq('id', creatorId);
 
-  // Log wallet transaction
   await logWalletTransaction({
     userId: creatorId,
     type: 'withdrawal',
@@ -232,12 +202,6 @@ export async function getWithdrawalHistory(creatorId) {
   return data ?? [];
 }
 
-// ── Wallet Top-Up (Brand) ───────────────────────────────────────
-
-/**
- * Starts a Stripe Checkout session for a one-time wallet top-up.
- * Redirects to Stripe hosted checkout.
- */
 export async function startWalletTopUp({ userId, userEmail, amount }) {
   if (!amount || amount < 10) throw new Error('Minimum top-up is $10');
 
@@ -252,8 +216,6 @@ export async function startWalletTopUp({ userId, userEmail, amount }) {
   window.location.href = data.url;
 }
 
-// ── Brand Payments ──────────────────────────────────────────────
-
 export async function getBrandPaymentSummary(brandId) {
   const [{ data: orders, error }, { data: profile }] = await Promise.all([
     supabase.from('orders').select('amount, escrow_status, created_at').eq('brand_id', brandId),
@@ -267,8 +229,6 @@ export async function getBrandPaymentSummary(brandId) {
 
   return { total, inEscrow, orderCount: safeOrders.length, walletBalance: profile?.wallet_balance ?? 0 };
 }
-
-// ── Stripe Price lookup ─────────────────────────────────────────
 
 export async function getStripePrices() {
   const { data, error } = await supabase.from('stripe_prices').select('*');
@@ -287,7 +247,6 @@ export async function getPriceId(role, plan, billing) {
   return data?.price_id ?? null;
 }
 
-// ── Fee rate helper ─────────────────────────────────────────────
 export function getFeeRate(plan) {
   const rates = { free: 0.20, mini_creator: 0.18, mini_brand: 0.15, max_creator: 0.15, max_brand: 0.10 };
   return rates[plan] ?? 0.20;

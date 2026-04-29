@@ -48,10 +48,11 @@ async function ytFetch(url) {
   if (!res.ok) {
     const reason = json?.error?.errors?.[0]?.reason || '';
     const msg    = json?.error?.message || String(res.status);
-    console.error('[YouTube API] error:', msg, reason);
-    // Surface quota/key errors so callers can show the right message
+    console.error('[YouTube API] error:', msg, reason, json);
     if (reason === 'quotaExceeded' || reason === 'dailyLimitExceeded') throw new Error('quota');
     if (reason === 'keyInvalid' || res.status === 400) throw new Error('keyInvalid');
+    // API not enabled in Google Cloud Console, or billing/project issue
+    if (reason === 'accessNotConfigured' || reason === 'forbidden' || res.status === 403) throw new Error('apiDisabled');
     return null;
   }
   return json;
@@ -64,13 +65,11 @@ export async function fetchYouTubeStats(handle) {
   const withAt    = raw.startsWith('@') ? raw : `@${raw}`;
   const withoutAt = raw.replace(/^@/, '');
 
-  // 1. Try forHandle with @ prefix (current YouTube API standard)
   let json  = await ytFetch(
     `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&forHandle=${encodeURIComponent(withAt)}&key=${YT_KEY}`
   );
   let channel = json?.items?.[0];
 
-  // 2. Fallback: forUsername (legacy channels without handles)
   if (!channel) {
     json    = await ytFetch(
       `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&forUsername=${encodeURIComponent(withoutAt)}&key=${YT_KEY}`
@@ -78,7 +77,6 @@ export async function fetchYouTubeStats(handle) {
     channel = json?.items?.[0];
   }
 
-  // 3. Fallback: search by name and grab first channel result
   if (!channel) {
     const searchJson = await ytFetch(
       `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(withoutAt)}&maxResults=1&key=${YT_KEY}`
@@ -102,7 +100,6 @@ export async function fetchYouTubeStats(handle) {
   let avgComments = 0;
   let engRate     = 0;
 
-  // Fetch last 10 videos and calculate averages
   if (uploadsId) {
     const playlistJson = await ytFetch(
       `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsId}&maxResults=10&key=${YT_KEY}`
@@ -163,7 +160,6 @@ export async function exchangeFacebookCode(code, redirectUri, userId) {
   return await res.json();
 }
 
-/** Triggers a fresh pull of Instagram audience insights using the stored page token. */
 export async function fetchInstagramAudienceInsights(userId) {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/instagram-audience`, {
     method: 'POST',
@@ -177,8 +173,6 @@ export async function fetchInstagramAudienceInsights(userId) {
   if (!res.ok || json?.error) throw new Error(json?.error || 'instagram-audience failed');
   return json; // { cities, countries, ageGender }
 }
-
-/* ─────────────────────── YouTube Analytics OAuth ─────────────────────── */
 
 const YT_OAUTH_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID;
 const YT_ANALYTICS_SCOPE = 'https://www.googleapis.com/auth/yt-analytics.readonly';
@@ -241,13 +235,6 @@ export async function fetchInstagramStats(username) {
   return json;
 }
 
-/**
- * Fetch public Instagram profile + recent posts via ScrapeCreators API.
- * Proxied through the `instagram-profile` Supabase Edge Function.
- *
- * @param {string} handle - Instagram handle (with or without @)
- * @returns {Promise<{ profile: object, posts: object[] } | null>}
- */
 export async function fetchInstagramProfile(handle) {
   if (!handle) return null;
   const res = await fetch(`${SUPABASE_URL}/functions/v1/instagram-profile`, {
@@ -265,7 +252,6 @@ export async function fetchInstagramProfile(handle) {
 
 export async function fetchTikTokStats(username) {
   if (!username) return null;
-  // Reuses the tiktok-followers function — `total` is the real follower count
   const res = await fetch(`${SUPABASE_URL}/functions/v1/tiktok-followers`, {
     method: 'POST',
     headers: {
@@ -285,14 +271,6 @@ export async function fetchTikTokStats(username) {
   };
 }
 
-/**
- * Fetch a paginated list of TikTok followers for a user.
- * Proxied through the `tiktok-followers` Supabase Edge Function so the
- * SCRAPECREATORS_API_KEY secret never reaches the browser.
- *
- * @param {{ handle?: string, userId?: string, minTime?: number, trim?: boolean }} opts
- * @returns {Promise<{ followers: object[], has_more: boolean, min_time: number|null, max_time: number|null, total: number }>}
- */
 export async function fetchTikTokFollowers({ handle, userId, minTime, trim = true } = {}) {
   if (!handle && !userId) return null;
   const res = await fetch(`${SUPABASE_URL}/functions/v1/tiktok-followers`, {

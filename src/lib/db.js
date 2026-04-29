@@ -1,10 +1,4 @@
-/**
- * db.js — Central Supabase data access layer
- * All database queries go through here so pages stay clean.
- */
 import { supabase } from '../supabaseClient';
-
-/* ─────────────────────── CREATORS ─────────────────────── */
 
 export async function getCreators({ niche, platform, search, gender, minAge, maxAge, limit = 20, offset = 0 } = {}) {
   let query = supabase
@@ -83,8 +77,6 @@ export async function getCreatorProfile(id) {
   return data;
 }
 
-/* ─────────────────────── BRANDS ─────────────────────── */
-
 export async function getBrandProfile(id) {
   const { data, error } = await supabase
     .from('brand_profiles')
@@ -116,8 +108,6 @@ export async function updateBrandProfile(id, updates) {
   if (error) throw error;
   return data;
 }
-
-/* ─────────────────────── CAMPAIGNS ─────────────────────── */
 
 export async function getCampaigns({ niche, platform, status = 'active', limit = 20, offset = 0 } = {}) {
   let query = supabase
@@ -177,8 +167,6 @@ export async function getBrandCampaigns(brandId) {
   return data || [];
 }
 
-/* ─────────────────────── APPLICATIONS ─────────────────────── */
-
 export async function applyToCampaign(campaignId, creatorId, pitch, proposedRate) {
   const { data, error } = await supabase
     .from('campaign_applications')
@@ -221,8 +209,6 @@ export async function updateApplicationStatus(applicationId, status) {
   if (error) throw error;
   return data;
 }
-
-/* ─────────────────────── ORDERS ─────────────────────── */
 
 export async function getOrders(userId, role) {
   const col = role === 'creator' ? 'creator_id' : 'brand_id';
@@ -276,8 +262,6 @@ export async function updateOrderStatus(id, status, deliveryNote = null) {
   return data;
 }
 
-/* ─────────────────────── CONVERSATIONS & MESSAGES ─────────────────────── */
-
 export async function getConversations(userId, role) {
   const col = role === 'creator' ? 'creator_id' : 'brand_id';
   const { data, error } = await supabase
@@ -294,7 +278,6 @@ export async function getConversations(userId, role) {
 }
 
 export async function getOrCreateConversation(creatorId, brandId) {
-  // Try to find existing conversation
   const { data: existing } = await supabase
     .from('conversations')
     .select('*')
@@ -304,7 +287,6 @@ export async function getOrCreateConversation(creatorId, brandId) {
 
   if (existing) return existing;
 
-  // Create new conversation
   const { data, error } = await supabase
     .from('conversations')
     .insert({ creator_id: creatorId, brand_id: brandId })
@@ -338,7 +320,6 @@ export async function sendMessage(conversationId, senderId, senderRole, body) {
     .single();
   if (error) throw error;
 
-  // Update conversation last_message
   await supabase
     .from('conversations')
     .update({ last_message: body, last_message_at: new Date().toISOString() })
@@ -358,8 +339,6 @@ export function subscribeToMessages(conversationId, callback) {
     }, payload => callback(payload.new))
     .subscribe();
 }
-
-/* ─────────────────────── NOTIFICATIONS ─────────────────────── */
 
 export async function getNotifications(userId, limit = 20) {
   const { data, error } = await supabase
@@ -387,8 +366,6 @@ export async function createNotification(userId, type, title, message, link = nu
   if (error) console.error('Notification error:', error);
 }
 
-/* ─────────────────────── WITHDRAWALS ─────────────────────── */
-
 export async function createWithdrawal(creatorId, amount, method, accountDetails) {
   const { data, error } = await supabase
     .from('withdrawals')
@@ -408,8 +385,6 @@ export async function getWithdrawals(creatorId) {
   if (error) throw error;
   return data || [];
 }
-
-/* ─────────────────────── CONTENT POSTS ─────────────────────── */
 
 export async function getContentPosts({ creatorId, limit = 30, offset = 0 } = {}) {
   let query = supabase
@@ -449,12 +424,34 @@ export async function getCreatorAnalytics(creatorId) {
       youtube_avg_likes, youtube_avg_comments,
       audience_locations,
       audience_age_gender,
+      instagram_business_id,
+      instagram_audience_cities,
+      instagram_audience_countries,
+      instagram_audience_age_gender,
+      instagram_audience_last_sync,
+      youtube_audience_countries,
+      youtube_audience_age_gender,
+      youtube_audience_last_sync,
+      tiktok_audience_last_sync,
       rating, review_count, completed_orders
     `)
     .eq('id', creatorId)
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+// Returns only boolean flags — never exposes tokens to the browser
+export async function getCreatorOAuthStatus(creatorId) {
+  const { data } = await supabase
+    .from('creator_profiles')
+    .select('instagram_business_id, youtube_audience_last_sync')
+    .eq('id', creatorId)
+    .maybeSingle();
+  return {
+    instagramConnected: !!data?.instagram_business_id,
+    youtubeConnected:   !!data?.youtube_audience_last_sync,
+  };
 }
 
 export async function createContentPost({ creatorId, type, mediaUrl, mediaUrls = [], thumbnailUrl, caption, tags = [], platform, location, status = 'published' }) {
@@ -538,8 +535,6 @@ export async function deletePostComment(commentId) {
   if (error) throw error;
 }
 
-/* ─────────────────────── REVIEWS ─────────────────────── */
-
 export async function getCreatorReviews(creatorId) {
   const { data, error } = await supabase
     .from('order_reviews')
@@ -562,14 +557,10 @@ export async function createReview(orderId, creatorId, brandId, rating, review) 
   return data;
 }
 
-/* ─────────────────────── CAMPAIGN MANAGEMENT ─────────────────────── */
-
 export async function deleteCampaign(id) {
   const { error } = await supabase.from('campaigns').delete().eq('id', id);
   if (error) throw error;
 }
-
-/* ─────────────────────── BRANDS (public listing) ─────────────────────── */
 
 export async function getBrands({ limit = 30 } = {}) {
   const { data, error } = await supabase
@@ -581,8 +572,6 @@ export async function getBrands({ limit = 30 } = {}) {
   if (error) throw error;
   return data || [];
 }
-
-/* ─────────────────────── CONVERSATIONS (by id) ─────────────────────── */
 
 export async function getConversationById(id) {
   const { data, error } = await supabase
@@ -598,8 +587,6 @@ export async function getConversationById(id) {
   if (!data) throw new Error('Conversation not found');
   return data;
 }
-
-/* ─────────────────────── SAVED CREATORS ─────────────────────── */
 
 export async function getSavedCreators(brandId) {
   const { data, error } = await supabase
@@ -626,8 +613,6 @@ export async function unsaveCreator(brandId, creatorId) {
     .eq('creator_id', creatorId);
   if (error) throw error;
 }
-
-/* ─────────────────────── SAVED POSTS ─────────────────────── */
 
 export async function savePost(userId, postId) {
   const { error } = await supabase
@@ -664,8 +649,6 @@ export async function getSavedPosts(userId) {
   if (error) throw error;
   return (data || []).map(r => r.content_posts).filter(Boolean);
 }
-
-/* ─────────────────────── FORUM ─────────────────────── */
 
 export async function getForumPosts({ category, search, sort = 'trending', limit = 30, offset = 0 } = {}) {
   let query = supabase
@@ -771,8 +754,6 @@ export async function incrementForumPostViews(postId) {
   await supabase.rpc('increment_forum_post_views', { p_post_id: postId });
 }
 
-/* ─────────────────────── FOLLOWS ─────────────────────── */
-
 export async function followCreator(followerId, creatorId) {
   const { error } = await supabase
     .from('follows')
@@ -799,7 +780,6 @@ export async function checkFollowing(followerId, creatorId) {
   return !!data;
 }
 
-/** Creators the given user is following */
 export async function getFollowing(userId) {
   const { data, error } = await supabase
     .from('follows')
@@ -810,7 +790,6 @@ export async function getFollowing(userId) {
   return (data || []).map(r => r.creator_profiles).filter(Boolean);
 }
 
-/** Users who follow the given creator */
 export async function getFollowers(creatorId) {
   const { data, error } = await supabase
     .from('follows')
@@ -821,7 +800,6 @@ export async function getFollowers(creatorId) {
   return data || [];
 }
 
-/** Count of followers for a creator */
 export async function getFollowerCount(creatorId) {
   const { count, error } = await supabase
     .from('follows')
@@ -831,12 +809,7 @@ export async function getFollowerCount(creatorId) {
   return count || 0;
 }
 
-/**
- * Recent followers with profile info.
- * Returns an array of { follower_id, created_at, name, username, avatar_url }
- */
 export async function getRecentFollowerProfiles(creatorId, limit = 8) {
-  // Step 1: get recent follower_ids
   const { data: follows, error } = await supabase
     .from('follows')
     .select('follower_id, created_at')
@@ -848,13 +821,11 @@ export async function getRecentFollowerProfiles(creatorId, limit = 8) {
 
   const ids = follows.map(f => f.follower_id);
 
-  // Step 2: batch-lookup creator_profiles (followers who are creators)
   const { data: creatorProfiles } = await supabase
     .from('creator_profiles')
     .select('id, name, username, avatar_url')
     .in('id', ids);
 
-  // Step 3: batch-lookup brand_profiles (followers who are brands)
   const { data: brandProfiles } = await supabase
     .from('brand_profiles')
     .select('id, name, slug, logo_url')

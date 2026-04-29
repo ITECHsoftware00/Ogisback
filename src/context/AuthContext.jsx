@@ -21,12 +21,10 @@ export function AuthProvider({ children }) {
     () => new URLSearchParams(window.location.search).has('code')
   );
 
-  /* ── Build the merged user object from DB profile rows ── */
   async function fetchProfile(authUser) {
     if (!authUser) { setUser(null); setActiveRole(null); return; }
 
     try {
-      // ── 1. Read existing profile ──
       let { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
@@ -38,7 +36,6 @@ export function AuthProvider({ children }) {
         console.error('[fetchProfile] profiles read error:', profileErr);
       }
 
-      // ── 2. Create profile rows if missing (trigger may have not run) ──
       if (!profile) {
         const meta = authUser.user_metadata || {};
         const role = meta.role
@@ -79,7 +76,6 @@ export function AuthProvider({ children }) {
         profile = fresh;
       }
 
-      // ── 3. Fallback: if DB is unreachable, still log user in with minimal data ──
       if (!profile) {
         console.warn('[fetchProfile] profile still null after upsert — using fallback');
         const fallbackRole = localStorage.getItem('ogisback_pending_role') || 'creator';
@@ -95,13 +91,11 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // ── 4. Mark online (fire-and-forget) ──
       supabase.from('profiles').update({
         is_online: true,
         last_seen: new Date().toISOString(),
       }).eq('id', authUser.id);
 
-      // ── 5. Load sub-profile ──
       const role = profile.role;
       let subProfile = null;
 
@@ -153,9 +147,7 @@ export function AuthProvider({ children }) {
     }
   }
 
-  /* ── Auth state listener — OAuth events only ── */
   useEffect(() => {
-    // Restore session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       fetchProfile(session?.user ?? null).finally(() => setLoading(false));
     });
@@ -177,13 +169,10 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  /* ── Dark mode sync ── */
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
     localStorage.setItem('ogisback_dark', darkMode);
   }, [darkMode]);
-
-  /* ── Email auth ── */
 
   const signUpWithEmail = async (email, password, role = 'creator') => {
     localStorage.setItem('ogisback_pending_role', role);
@@ -214,8 +203,6 @@ export function AuthProvider({ children }) {
     });
     if (error) throw error;
   };
-
-  /* ── OAuth sign-in ── */
 
   const signInWithGoogle = async (role = 'brand') => {
     localStorage.setItem('ogisback_pending_role', role);
@@ -283,28 +270,15 @@ export function AuthProvider({ children }) {
     setUser(u => ({ ...u, profileComplete: true }));
   };
 
-  const upgradePlan = async (plan) => {
+  // Plan upgrades only happen via Stripe webhook server-side — this refreshes local state only
+  const upgradePlan = async () => {
     if (!user) return;
-    await supabase.from('profiles').update({ plan }).eq('id', user.id);
-    setUser(u => ({ ...u, plan }));
+    const { data } = await supabase.from('profiles').select('plan').eq('id', user.id).maybeSingle();
+    if (data?.plan) setUser(u => ({ ...u, plan: data.plan }));
   };
 
   const switchRole = (role) => setActiveRole(role);
   const toggleDark = () => setDarkMode(d => !d);
-
-  /* ── Demo accounts (bypasses OAuth — mock data only) ── */
-  const loginAsCreator = () => {
-    setUser({ id: 'mock-c1', name: 'Sarah Chen', role: 'creator', plan: 'free', profileComplete: true, walletBalance: 3120, pendingBalance: 2240, avatar: 'https://i.pravatar.cc/150?img=47' });
-    setActiveRole('creator');
-  };
-  const loginAsBrand = () => {
-    setUser({ id: 'mock-b1', name: 'NovaSkin', role: 'brand', plan: 'free', profileComplete: true, walletBalance: 15000, logo: 'https://i.pravatar.cc/150?img=20' });
-    setActiveRole('brand');
-  };
-  const loginAsAdmin = () => {
-    setUser({ id: 'mock-admin', name: 'Admin', email: 'admin@ogisback.com', role: 'admin', plan: 'free', profileComplete: true });
-    setActiveRole('admin');
-  };
 
   const value = {
     user,
@@ -315,7 +289,7 @@ export function AuthProvider({ children }) {
     logout,
     signInWithGoogle,
     signInWithFacebook,
-    signInWithInstagram: signInWithFacebook, // backwards-compat alias
+    signInWithInstagram: signInWithFacebook,
     signInWithEmail,
     signUpWithEmail,
     resendConfirmation,
@@ -325,9 +299,6 @@ export function AuthProvider({ children }) {
     upgradePlan,
     switchRole,
     toggleDark,
-    loginAsCreator,
-    loginAsBrand,
-    loginAsAdmin,
     isCreator: activeRole === 'creator',
     isBrand:   activeRole === 'brand',
     isAdmin:   activeRole === 'admin',

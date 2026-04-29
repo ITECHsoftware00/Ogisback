@@ -1,9 +1,3 @@
-/**
- * Billing — Full billing management page with invoice history, plan overview,
- * and payment method management. Uses existing SubscriptionBilling component
- * for plan status and adds invoice history from wallet_transactions + subscriptions.
- */
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';

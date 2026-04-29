@@ -1,9 +1,3 @@
-/**
- * normalize.js — Map Supabase DB rows to the shape UI components expect.
- * Components were built with mock data; these helpers bridge the gap.
- */
-
-/** Map a creator_profiles row → CreatorCard / page-compatible shape */
 export function normalizeCreator(row) {
   if (!row) return null;
   const ig = row.instagram_followers || 0;
@@ -31,7 +25,6 @@ export function normalizeCreator(row) {
   };
 }
 
-/** Map a content_posts row (with creator_profiles join) → ContentCard-compatible shape */
 export function normalizePost(row) {
   if (!row) return null;
   return {
@@ -48,7 +41,6 @@ export function normalizePost(row) {
   };
 }
 
-/** Map a campaigns row (with brand_profiles join) → CampaignCard-compatible shape */
 export function normalizeCampaign(row) {
   if (!row) return null;
   return {
@@ -66,7 +58,6 @@ export function normalizeCampaign(row) {
   };
 }
 
-/** Map a orders row → Orders page-compatible shape */
 export function normalizeOrder(row) {
   if (!row) return null;
   return {
@@ -79,7 +70,6 @@ export function normalizeOrder(row) {
   };
 }
 
-/** Map a conversations row → Messages page-compatible shape */
 export function normalizeConversation(row) {
   if (!row) return null;
   return {
@@ -93,7 +83,6 @@ export function normalizeConversation(row) {
   };
 }
 
-/** Simple utility: format a number like 152000 → '152K' */
 export function formatNumber(n) {
   if (!n) return '0';
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -101,13 +90,11 @@ export function formatNumber(n) {
   return n.toString();
 }
 
-/** Format currency: 1500 → '$1,500' */
 export function formatCurrency(n) {
   if (!n) return '$0';
   return `$${Number(n).toLocaleString()}`;
 }
 
-/** Time ago from ISO string */
 export function timeAgo(iso) {
   if (!iso) return '';
   const diff = Date.now() - new Date(iso).getTime();

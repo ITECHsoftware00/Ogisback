@@ -1,7 +1,3 @@
-/**
- * storage.js — Supabase Storage helpers
- * Handles avatar, cover, logo, and content uploads.
- */
 import { supabase } from '../supabaseClient';
 
 const BUCKET_AVATARS = 'avatars';
@@ -14,10 +10,6 @@ function getPublicUrl(bucket, path) {
   return data.publicUrl;
 }
 
-/**
- * Upload a file to a Supabase Storage bucket.
- * Returns the public URL.
- */
 async function uploadFile(bucket, path, file, contentType) {
   const { error } = await supabase.storage
     .from(bucket)
@@ -26,42 +18,24 @@ async function uploadFile(bucket, path, file, contentType) {
   return getPublicUrl(bucket, path);
 }
 
-/**
- * Upload creator avatar.
- * @param {string} userId
- * @param {File} file
- * @returns {Promise<string>} public URL
- */
 export async function uploadAvatar(userId, file) {
   const ext = file.name.split('.').pop();
   const path = `${userId}/avatar.${ext}`;
   return uploadFile(BUCKET_AVATARS, path, file);
 }
 
-/**
- * Upload creator cover image.
- */
 export async function uploadCover(userId, file) {
   const ext = file.name.split('.').pop();
   const path = `${userId}/cover.${ext}`;
   return uploadFile(BUCKET_COVERS, path, file);
 }
 
-/**
- * Upload brand logo.
- */
 export async function uploadLogo(userId, file) {
   const ext = file.name.split('.').pop();
   const path = `${userId}/logo.${ext}`;
   return uploadFile(BUCKET_LOGOS, path, file);
 }
 
-/**
- * Upload content file (image or video) for a campaign/order.
- * @param {string} userId
- * @param {string} orderId
- * @param {File} file
- */
 export async function uploadContent(userId, orderId, file) {
   const ext = file.name.split('.').pop();
   const filename = `${Date.now()}.${ext}`;
@@ -69,10 +43,6 @@ export async function uploadContent(userId, orderId, file) {
   return uploadFile(BUCKET_CONTENT, path, file);
 }
 
-/**
- * Compress an image File to JPEG at max 1920px, 85% quality.
- * Videos and GIFs are returned as-is. Always resolves — never hangs.
- */
 export async function compressImage(file, maxPx = 1920, quality = 0.85) {
   if (!file.type.startsWith('image/') || file.type === 'image/gif') return file;
   return new Promise((resolve) => {
@@ -105,10 +75,6 @@ export async function compressImage(file, maxPx = 1920, quality = 0.85) {
   });
 }
 
-/**
- * Upload a feed content file (image or video) — no orderId needed.
- * Used by the NewPost page.
- */
 export async function uploadContentFile(userId, file) {
   const compressed = await compressImage(file);
   const ext = compressed.name.split('.').pop();
@@ -116,9 +82,6 @@ export async function uploadContentFile(userId, file) {
   return uploadFile(BUCKET_CONTENT, path, compressed, compressed.type);
 }
 
-/**
- * Delete a file from storage by its public URL.
- */
 export async function deleteFileByUrl(bucket, publicUrl) {
   const url = new URL(publicUrl);
   // Path after /storage/v1/object/public/<bucket>/

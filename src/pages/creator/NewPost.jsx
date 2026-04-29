@@ -20,11 +20,14 @@ function detectType(files) {
   return 'photo';
 }
 
-function highlightCaption(text) {
-  return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/(#\w+)/g, '<span style="color:#EC4899;font-weight:500">$1</span>')
-    .replace(/(@\w+)/g, '<span style="color:#8B5CF6;font-weight:500">$1</span>');
+function HighlightedCaption({ text }) {
+  if (!text) return null;
+  const parts = text.split(/(#\w+|@\w+)/g);
+  return parts.map((p, i) =>
+    p.startsWith('#') ? <span key={i} style={{ color: '#EC4899', fontWeight: 500 }}>{p}</span>
+    : p.startsWith('@') ? <span key={i} style={{ color: '#8B5CF6', fontWeight: 500 }}>{p}</span>
+    : <span key={i}>{p}</span>
+  );
 }
 
 function fmtTime(sec) {
@@ -199,7 +202,7 @@ export default function NewPost() {
     const val = e.target.value;
     if (val.length > 2200) return;
     setCaption(val);
-    if (overlayRef.current) overlayRef.current.innerHTML = highlightCaption(val) + '\u200b';
+    if (overlayRef.current) overlayRef.current.dataset.caption = val;
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 260) + 'px';
   };
@@ -800,7 +803,7 @@ export default function NewPost() {
                       <div ref={overlayRef} aria-hidden="true"
                         className="absolute inset-3 text-sm leading-relaxed pointer-events-none whitespace-pre-wrap break-words overflow-hidden font-sans"
                         style={{ color: 'transparent', zIndex: 1 }}
-                        dangerouslySetInnerHTML={{ __html: highlightCaption(caption) + '\u200b' }} />
+                      ><HighlightedCaption text={caption} /><span>&#8203;</span></div>
                       <textarea ref={captionRef} value={caption} onChange={handleCaptionInput}
                         onScroll={() => { if (overlayRef.current && captionRef.current) overlayRef.current.scrollTop = captionRef.current.scrollTop; }}
                         placeholder="What's on your mind? Use #hashtags and @mentions…"

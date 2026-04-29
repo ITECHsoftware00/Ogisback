@@ -10,11 +10,24 @@ import { getOrders } from '../../lib/db';
 import { getWalletTransactions, getBrandPaymentSummary } from '../../lib/payments';
 import { formatCurrency, normalizeOrder, timeAgo } from '../../lib/normalize';
 
-const monthlySpend = [
-  { month: 'Feb', spend: 8000 }, { month: 'Mar', spend: 12000 },
-  { month: 'Apr', spend: 9500 }, { month: 'May', spend: 16000 },
-  { month: 'Jun', spend: 14500 }, { month: 'Jul', spend: 18000 },
-];
+function buildMonthlySpend(orders) {
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+    return {
+      month: d.toLocaleString('en', { month: 'short' }),
+      year:  d.getFullYear(),
+      monthIdx: d.getMonth(),
+      spend: 0,
+    };
+  });
+  orders.forEach(o => {
+    const d = new Date(o.created_at);
+    const entry = months.find(m => m.monthIdx === d.getMonth() && m.year === d.getFullYear());
+    if (entry) entry.spend += o.amount || 0;
+  });
+  return months;
+}
 
 export default function BrandPayments() {
   const { user } = useAuth();
@@ -81,7 +94,7 @@ export default function BrandPayments() {
           <h2 className="section-title">Monthly Spend</h2>
           <div className="h-52">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlySpend} barSize={28}>
+              <BarChart data={buildMonthlySpend(orders)} barSize={28}>
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} tickFormatter={v => `$${v/1000}k`} />
                 <Tooltip formatter={v => [`$${v.toLocaleString()}`, 'Spend']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 24px rgba(0,0,0,0.1)', fontFamily: 'Inter', fontSize: '13px' }} />

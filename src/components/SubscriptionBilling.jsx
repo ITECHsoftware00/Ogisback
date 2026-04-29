@@ -1,18 +1,3 @@
-/**
- * SubscriptionBilling — Shows current plan, billing info, upgrade/cancel.
- * Used in both brand/Settings.jsx and creator/Settings.jsx
- *
- * Full subscription flow:
- * 1. User picks plan on /pricing
- * 2. startSubscriptionCheckout() → calls create-checkout-session edge fn
- * 3. Edge fn creates Stripe Checkout Session
- * 4. Browser redirects to Stripe's hosted checkout (card entry, completely secure)
- * 5. Stripe charges card → fires checkout.session.completed webhook
- * 6. Webhook: upserts subscriptions table, updates profiles.plan
- * 7. User redirected to /payment/success?plan=xxx
- * 8. Success page polls DB to confirm plan activated
- */
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';

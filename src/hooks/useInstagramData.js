@@ -1,17 +1,7 @@
-/**
- * useInstagramData.js — Fetches live Instagram profile + posts via ScrapeCreators.
- * Returns null until resolved. Falls back to null (not mock) on error so the
- * Analytics page always shows real DB data instead of fake demographics.
- */
-
 import { useState, useEffect } from 'react';
 import { fetchInstagramProfile } from '../lib/socialApi';
 import { getCreatorProfile } from '../lib/db';
 
-/**
- * @param {string|null} creatorId
- * @returns {{ data: object|null, loading: boolean, error: Error|null }}
- */
 export function useInstagramData(creatorId) {
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);

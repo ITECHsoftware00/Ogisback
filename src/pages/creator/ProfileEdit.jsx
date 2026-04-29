@@ -6,12 +6,12 @@ import {
   ArrowRight, Star, DollarSign, Globe, AtSign, TrendingUp, X,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchInstagramProfile, fetchTikTokStats, fetchTikTokFollowers, getFacebookAuthUrl, getYouTubeAnalyticsAuthUrl } from '../../lib/socialApi';
+import { fetchYouTubeStats, getTikTokAuthUrl, fetchInstagramStats, fetchInstagramProfile, fetchTikTokStats, fetchTikTokFollowers, getFacebookAuthUrl, getYouTubeAnalyticsAuthUrl, fetchInstagramAudienceInsights, fetchYouTubeAudienceInsights } from '../../lib/socialApi';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import SEO from '../../components/SEO';
-import { updateCreatorProfile, getCreatorProfile, getCreatorPosts } from '../../lib/db';
+import { updateCreatorProfile, getCreatorProfile, getCreatorPosts, getCreatorOAuthStatus } from '../../lib/db';
 import { uploadAvatar, uploadCover } from '../../lib/storage';
 
 const niches = [
@@ -170,6 +170,8 @@ export default function CreatorProfileEdit() {
   const [syncingYT, setSyncingYT] = useState(false);
   const [syncingIG, setSyncingIG] = useState(false);
   const [syncingTT, setSyncingTT] = useState(false);
+  const [igBusinessId, setIgBusinessId] = useState(null);
+  const [ytRefreshToken, setYtRefreshToken] = useState(null);
 
   const syncYouTube = async (e) => {
     const handle = (e?.target?.value ?? form.youtube)?.trim();
@@ -185,12 +187,22 @@ export default function CreatorProfileEdit() {
         if (stats.avgLikes)    update('youtubeAvgLikes',    stats.avgLikes);
         if (stats.avgComments) update('youtubeAvgComments', stats.avgComments);
         toast.success(`Synced: ${stats.subscribers.toLocaleString()} subscribers · ${stats.engRate}% engagement`);
+
+        // Auto-pull audience insights if YouTube Analytics is already connected
+        if (user?.id && ytRefreshToken) {
+          try {
+            await fetchYouTubeAudienceInsights(user.id);
+            toast.success('Audience insights updated from YouTube');
+          } catch { /* non-fatal */ }
+        }
       }
     } catch (err) {
       if (err.message === 'quota') {
         toast.error('YouTube API quota exceeded for today. Try again tomorrow.');
       } else if (err.message === 'keyInvalid' || err.message === 'noKey') {
         toast.error('YouTube API key is missing or invalid. Check your .env file.');
+      } else if (err.message === 'apiDisabled') {
+        toast.error('YouTube Data API is not enabled for this API key. Enable it in Google Cloud Console → APIs & Services.');
       } else {
         toast.error('Could not reach YouTube. Check your connection and try again.');
       }
@@ -214,6 +226,14 @@ export default function CreatorProfileEdit() {
         instagramAvgComments:  avgComments     || f.instagramAvgComments,
       }));
       toast.success(`Synced: ${followerCount.toLocaleString()} followers · ${engagementRate}% engagement`);
+
+      // Auto-pull audience insights if Facebook Business is already connected
+      if (user?.id && igBusinessId) {
+        try {
+          await fetchInstagramAudienceInsights(user.id);
+          toast.success('Audience insights updated from Instagram');
+        } catch { /* non-fatal */ }
+      }
     } catch (err) {
       const isCredit = err.message?.includes('402') || err.message?.toLowerCase().includes('credit') || err.message?.toLowerCase().includes('payment');
       toast.error(isCredit
@@ -300,11 +320,16 @@ export default function CreatorProfileEdit() {
   // Pre-populate form from existing creator_profiles row
   useEffect(() => {
     if (!user?.id) { setProfileLoading(false); return; }
+    getCreatorOAuthStatus(user.id).then(({ instagramConnected, youtubeConnected }) => {
+      if (youtubeConnected) setYtRefreshToken('connected');
+    }).catch(() => {});
+
     getCreatorProfile(user.id)
       .then(profile => {
         if (!profile) return;
         if (profile.avatar_url) setAvatarUrl(profile.avatar_url);
         if (profile.cover_url) setCoverUrl(profile.cover_url);
+        if (profile.instagram_business_id) setIgBusinessId(profile.instagram_business_id);
         setForm({
           name: profile.name || user?.name || '',
           bio: profile.bio || '',

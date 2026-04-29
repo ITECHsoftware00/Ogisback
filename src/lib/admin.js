@@ -1,10 +1,4 @@
-/**
- * admin.js — Admin-only DB queries.
- * All functions require the caller to have role='admin' in the profiles table.
- */
 import { supabase } from '../supabaseClient';
-
-// ── Platform Stats ──────────────────────────────────────────────
 
 export async function getAdminStats() {
   const [
@@ -54,8 +48,6 @@ export async function getRevenueChart() {
   });
   return Object.entries(monthly).map(([month, revenue]) => ({ month, revenue }));
 }
-
-// ── Users ───────────────────────────────────────────────────────
 
 export async function getAdminUsers({ role, search, limit = 30, offset = 0 } = {}) {
   // Creators
@@ -110,8 +102,6 @@ export async function banUser(userId) {
   if (error) throw error;
 }
 
-// ── Orders ──────────────────────────────────────────────────────
-
 export async function getAdminOrders({ status, search, limit = 30, offset = 0 } = {}) {
   let q = supabase
     .from('orders')
@@ -136,8 +126,6 @@ export async function getAdminEscrow({ status, limit = 30 } = {}) {
   if (error) throw error;
   return data || [];
 }
-
-// ── Withdrawals ─────────────────────────────────────────────────
 
 export async function getAdminWithdrawals({ status, limit = 30, offset = 0 } = {}) {
   let q = supabase
@@ -189,8 +177,6 @@ export async function rejectWithdrawal(withdrawalId) {
   }
 }
 
-// ── Campaigns ───────────────────────────────────────────────────
-
 export async function getAdminCampaigns({ status, limit = 30 } = {}) {
   let q = supabase
     .from('campaigns')
@@ -207,8 +193,6 @@ export async function updateCampaignStatus(id, status) {
   const { error } = await supabase.from('campaigns').update({ status }).eq('id', id);
   if (error) throw error;
 }
-
-// ── Subscriptions ───────────────────────────────────────────────
 
 export async function getAdminSubscriptions({ limit = 30 } = {}) {
   const { data, error } = await supabase

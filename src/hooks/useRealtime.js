@@ -1,7 +1,3 @@
-/**
- * useRealtime.js — Real-time Supabase subscription hooks
- * Provides live notifications, messages, and order status updates.
- */
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
@@ -13,12 +9,6 @@ import {
   subscribeToMessages,
 } from '../lib/db';
 
-/* ─────────────────────── NOTIFICATIONS ─────────────────────── */
-
-/**
- * Real-time notifications for the current user.
- * Returns: { notifications, unreadCount, markRead, markAllRead, loading }
- */
 export function useNotifications(userId) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -27,7 +17,6 @@ export function useNotifications(userId) {
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
 
-    // Initial fetch
     getNotifications(userId, 40)
       .then(data => {
         setNotifications(data);
@@ -36,7 +25,6 @@ export function useNotifications(userId) {
       .catch(console.error)
       .finally(() => setLoading(false));
 
-    // Subscribe to new notifications in real-time
     const channel = supabase
       .channel(`notifications:${userId}`)
       .on(
@@ -50,7 +38,6 @@ export function useNotifications(userId) {
         payload => {
           setNotifications(prev => [payload.new, ...prev]);
           setUnreadCount(c => c + 1);
-          // Show a toast for the incoming notification
           toast(payload.new.title, {
             icon: getNotifIcon(payload.new.type),
             duration: 4000,
@@ -69,7 +56,6 @@ export function useNotifications(userId) {
           setNotifications(prev =>
             prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } : n)
           );
-          // Recalculate unread
           setNotifications(prev => {
             setUnreadCount(prev.filter(n => !n.read).length);
             return prev;
@@ -97,12 +83,6 @@ export function useNotifications(userId) {
   return { notifications, unreadCount, markRead, markAllRead, loading };
 }
 
-/* ─────────────────────── MESSAGES ─────────────────────── */
-
-/**
- * Real-time messages for a conversation.
- * Returns: { messages, loading }
- */
 export function useMessages(conversationId) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -110,13 +90,11 @@ export function useMessages(conversationId) {
   useEffect(() => {
     if (!conversationId) { setLoading(false); return; }
 
-    // Initial fetch
     getMessages(conversationId, 100)
       .then(setMessages)
       .catch(console.error)
       .finally(() => setLoading(false));
 
-    // Real-time subscription
     const channel = subscribeToMessages(conversationId, newMsg => {
       setMessages(prev => {
         // Avoid duplicates (optimistic update may have added it already)
@@ -131,12 +109,6 @@ export function useMessages(conversationId) {
   return { messages, setMessages, loading };
 }
 
-/* ─────────────────────── ORDER STATUS ─────────────────────── */
-
-/**
- * Real-time order status updates.
- * Returns: { order, loading }
- */
 export function useOrderStatus(orderId, initialOrder = null) {
   const [order, setOrder] = useState(initialOrder);
   const [loading, setLoading] = useState(!initialOrder);
@@ -176,12 +148,6 @@ export function useOrderStatus(orderId, initialOrder = null) {
   return { order, setOrder, loading };
 }
 
-/* ─────────────────────── ONLINE PRESENCE ─────────────────────── */
-
-/**
- * Mark the current user as online while the component is mounted.
- * Marks offline on unmount.
- */
 export function usePresence(userId) {
   useEffect(() => {
     if (!userId) return;
@@ -199,8 +165,6 @@ export function usePresence(userId) {
     };
   }, [userId]);
 }
-
-/* ─────────────────────── Helpers ─────────────────────── */
 
 function getNotifIcon(type) {
   const icons = {

@@ -1,10 +1,3 @@
-/**
- * AudienceInsightsCard — Unified audience demographics card
- * Shows age/gender breakdown and country distribution from Instagram, YouTube,
- * and TikTok audience data. Supports tabbed platform switching with animated
- * transitions and donut charts.
- */
-
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Globe, RefreshCw, Clock, ShieldCheck } from 'lucide-react';
@@ -79,19 +72,20 @@ export default function AudienceInsightsCard({ analytics, userId }) {
   // Build platform data arrays
   const platformData = {};
 
-  // Instagram audience data (from Meta Graph API via facebook-auth)
-  if (analytics?.instagram_audience_countries?.length > 0 || analytics?.instagram_audience_age_gender?.length > 0) {
+  // Instagram audience data — prefer city-level if available, fall back to countries
+  const igCities    = analytics?.instagram_audience_cities    || [];
+  const igCountries = analytics?.instagram_audience_countries || [];
+  const igAgeGender = analytics?.instagram_audience_age_gender || [];
+  if (igCities.length > 0 || igCountries.length > 0 || igAgeGender.length > 0) {
+    const hasCities   = igCities.length > 0;
+    const primaryData = hasCities
+      ? igCities.map(c => ({ label: c.city, percent: c.percent }))
+      : igCountries.map(c => ({ label: toCountryName(c.country), percent: c.percent }));
     platformData.Instagram = {
-      countries: (analytics.instagram_audience_countries || []).map(c => ({
-        label:   toCountryName(c.country),
-        percent: c.percent,
-      })),
-      ageGender:  analytics.instagram_audience_age_gender || [],
-      cities:     (analytics.instagram_audience_cities || []).map(c => ({
-        label:   c.city,
-        percent: c.percent,
-      })),
-      lastSync: analytics.instagram_audience_last_sync,
+      countries: primaryData,
+      ageGender: igAgeGender,
+      lastSync:  analytics.instagram_audience_last_sync,
+      isCity:    hasCities,
     };
   }
 
@@ -108,17 +102,6 @@ export default function AudienceInsightsCard({ analytics, userId }) {
     };
   }
 
-  // TikTok audience data (from follower sampling)
-  if (analytics?.audience_locations?.length > 0) {
-    platformData.TikTok = {
-      countries: (analytics.audience_locations || []).map(d => ({
-        label:   d.city || d.country || d.region || 'Unknown',
-        percent: Number(d.percent) || 0,
-      })),
-      ageGender: analytics.audience_age_gender || [],
-      lastSync:  analytics.tiktok_audience_last_sync,
-    };
-  }
 
   const availablePlatforms = Object.keys(platformData);
 
@@ -162,7 +145,7 @@ export default function AudienceInsightsCard({ analytics, userId }) {
           <div className="text-center">
             <p className="text-sm font-medium text-gray-500 mb-1">No audience data yet</p>
             <p className="text-xs text-gray-400 max-w-xs">
-              Connect Instagram (via Facebook), YouTube Analytics, or sync TikTok followers in Profile Settings to see demographic breakdowns.
+              Connect YouTube Analytics in Profile Settings to unlock real city-level audience breakdowns.
             </p>
           </div>
         </div>
@@ -255,7 +238,7 @@ export default function AudienceInsightsCard({ analytics, userId }) {
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">
                     <Globe size={10} className="inline mr-1" />
-                    {current.cities?.length > 0 || current.isCity ? 'Top Cities' : 'Top Countries'}
+                    {current.isCity ? 'Top Cities' : 'Top Countries'}
                   </p>
                   <div className="flex gap-4 items-center">
                     <div className="relative flex-shrink-0" style={{ width: 130, height: 130 }}>
@@ -280,7 +263,7 @@ export default function AudienceInsightsCard({ analytics, userId }) {
                           <>
                             <span className="text-lg font-black text-gray-800 dark:text-gray-200 leading-none">{countryDonut.length}</span>
                             <span className="text-[8px] text-gray-400 uppercase tracking-wide mt-0.5">
-                              {current.cities?.length > 0 || current.isCity ? 'cities' : 'countries'}
+                              {current.isCity ? 'cities' : 'countries'}
                             </span>
                           </>
                         )}
@@ -352,20 +335,6 @@ export default function AudienceInsightsCard({ analytics, userId }) {
               )}
             </div>
 
-            {/* Instagram city data (extra detail) */}
-            {activeTab === 'Instagram' && current.cities?.length > 0 && (
-              <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Cities</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {current.cities.slice(0, 6).map((c, i) => (
-                    <div key={c.label + i} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-pink-50/50 dark:bg-pink-900/10">
-                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex-1 truncate">{c.label}</span>
-                      <span className="text-xs font-bold text-pink-500 tabular-nums">{c.percent}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </motion.div>
         </AnimatePresence>
       </div>

@@ -1,8 +1,3 @@
-/**
- * MessageNotificationContext
- * Global listener for incoming messages — plays a ding, shows a popup toast,
- * and exposes an unread count for the sidebar badge.
- */
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -12,7 +7,6 @@ import { supabase } from '../supabaseClient';
 
 const Ctx = createContext({ unreadCount: 0 });
 
-/* ── Soft two-tone ding via Web Audio API (no audio file needed) ── */
 function playDing() {
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
